@@ -66,8 +66,11 @@ async def check_user_and_balance(user_id: int, message: Message, cost: int = 1) 
         await db.add_tokens(user_id, trial_tokens)
         user_data = await db.get_user_data(user_id)
     
+    if user_id == config.admin_id or (user_data and user_data.get('sub_type') == 'admin'):
+        return user_data
+
     # Проверка баланса для всех, кроме администратора
-    if user_data['sub_type'] != 'admin' and user_data['tokens'] < cost:
+    if user_data.get('sub_type') != 'admin' and user_data.get('tokens', 0) < cost:
         await send_out_of_credits_message(message, sub_type=user_data.get('sub_type', 'free'))
         return None
         
@@ -434,7 +437,7 @@ async def handle_photo(message: Message):
         await memory.add_message(user_id, 'assistant', response)
         
         new_balance = (await db.get_user_data(user_id))['tokens']
-        balance_info = f"\n\n<i>✦ Atelier Credits: {new_balance}</i>" if user_data['sub_type'] != 'admin' else ""
+        balance_info = f"\n\n<i>✦ Atelier Credits: {new_balance}</i>" if (user_data.get('sub_type') != 'admin' and user_id != config.admin_id) else ""
         
         await send_long_message(message, response + balance_info, parse_mode="HTML")
 
@@ -536,7 +539,7 @@ async def handle_video(message: Message):
         await memory.add_message(user_id, 'assistant', response)
 
         new_balance = (await db.get_user_data(user_id))['tokens']
-        balance_info = f"\n\n<i>✦ Atelier Credits: {new_balance}</i>" if user_data['sub_type'] != 'admin' else ""
+        balance_info = f"\n\n<i>✦ Atelier Credits: {new_balance}</i>" if (user_data.get('sub_type') != 'admin' and user_id != config.admin_id) else ""
 
         await send_long_message(message, response + balance_info, parse_mode="HTML")
 
@@ -609,7 +612,7 @@ async def handle_video(message: Message):
 #         await memory.add_message(user_id, 'assistant', response)
 #         
 #         new_balance = (await db.get_user_data(user_id))['tokens']
-#         balance_info = f"\n\n<i>✦ Atelier Credits: {new_balance}</i>" if user_data['sub_type'] != 'admin' else ""
+#         balance_info = f"\n\n<i>✦ Atelier Credits: {new_balance}</i>" if (user_data.get('sub_type') != 'admin' and user_id != config.admin_id) else ""
 #         
 #         await send_long_message(message, response + balance_info, parse_mode="HTML")
 # 
@@ -790,7 +793,7 @@ async def handle_message(message: Message):
                 await memory.add_message(user_id, 'assistant', response)
 
                 new_balance = (await db.get_user_data(user_id))['tokens']
-                balance_info = f"\n\n<i>✦ Atelier Credits: {new_balance}</i>" if user_data['sub_type'] != 'admin' else ""
+                balance_info = f"\n\n<i>✦ Atelier Credits: {new_balance}</i>" if (user_data.get('sub_type') != 'admin' and user_id != config.admin_id) else ""
 
                 if wait_msg:
                     try:
@@ -856,7 +859,7 @@ async def handle_message(message: Message):
 
                 # Подготовим инфо о балансе для футера
                 new_balance = (await db.get_user_data(user_id))['tokens']
-                balance_info = f"\n\n<i>✦ Atelier Credits: {new_balance}</i>" if user_data['sub_type'] != 'admin' else ""
+                balance_info = f"\n\n<i>✦ Atelier Credits: {new_balance}</i>" if (user_data.get('sub_type') != 'admin' and user_id != config.admin_id) else ""
                 
                 await send_long_message(target_message, response + balance_info, parse_mode="HTML")
 

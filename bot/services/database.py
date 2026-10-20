@@ -71,7 +71,7 @@ class Database:
             
             # Дефолтные настройки
             default_settings = [
-                ('trial_tokens', '10000'),
+                ('trial_tokens', '20'),
                 ('token_cost_msg', '100'),
                 ('token_cost_search', '500'),
                 ('ai_model', 'deepseek/deepseek-chat'),
@@ -225,11 +225,23 @@ class Database:
 
     async def get_user_data(self, user_id: int) -> Optional[dict]:
         """Получение полных данных пользователя."""
+        from bot.config import config
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
             async with db.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)) as cursor:
                 row = await cursor.fetchone()
-        return dict(row) if row else None
+            if row:
+                data = dict(row)
+                if config.admin_id and user_id == config.admin_id and data.get('sub_type') != 'admin':
+                    await db.execute("UPDATE users SET sub_type = 'admin' WHERE user_id = ?", (user_id,))
+                    await db.commit()
+                    data['sub_type'] = 'admin'
+                return data
+            elif config.admin_id and user_id == config.admin_id:
+                await db.execute("INSERT OR IGNORE INTO users (user_id, sub_type, tokens) VALUES (?, 'admin', 999999)", (user_id,))
+                await db.commit()
+                return {'user_id': user_id, 'sub_type': 'admin', 'tokens': 999999, 'facts': '{}'}
+        return None
 
     async def add_tokens(self, user_id: int, amount: int):
         """Начисление токенов пользователю."""
@@ -242,6 +254,9 @@ class Database:
 
     async def spend_tokens(self, user_id: int, amount: int) -> bool:
         """Списание токенов. Возвращает True если успешно, False если недостаточно средств."""
+        from bot.config import config
+        if config.admin_id and user_id == config.admin_id:
+            return True
         async with aiosqlite.connect(self.db_path) as db:
             # Сначала проверяем баланс и тип подписки
             async with db.execute("SELECT tokens, sub_type FROM users WHERE user_id = ?", (user_id,)) as cursor:
