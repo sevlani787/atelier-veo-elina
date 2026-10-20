@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block page_title %}Управление пользователями{% endblock %}
+
+{% block content %}
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>User ID</th>
+                <th>Баланс (Токены)</th>
+                <th>Подписка</th>
+                <th>Регистрация</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr {% if user.sub_type == 'admin' %}style="background: rgba(138, 43, 226, 0.05); border-left: 3px solid var(--primary);"{% endif %}>
+                <td style="font-family: monospace;">
+                    {{ user.user_id }}
+                    {% if user.sub_type == 'admin' %}
+                    <span style="font-size: 0.6rem; vertical-align: middle; margin-left: 4px;">👑</span>
+                    {% endif %}
+                </td>
+                <td style="font-weight: 600;">
+                    {% if user.sub_type == 'admin' %}
+                    <span style="color: var(--primary-light);">∞</span>
+                    {% else %}
+                    {{ user.tokens }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if user.sub_type == 'free' %}
+                    <span class="badge" style="background: rgba(255,255,255,0.05);">Free</span>
+                    {% elif user.sub_type == 'admin' %}
+                    <span class="badge" style="background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white;">ADMIN</span>
+                    {% else %}
+                    <span class="badge badge-success">{{ user.sub_type }}</span>
+                    {% endif %}
+                </td>
+                <td style="color: var(--text-dim); font-size: 0.75rem;">{{ user.created_at }}</td>
+                <td>
+                    <form action="/users/add_tokens" method="post" style="display: flex; gap: 0.5rem;">
+                        <input type="hidden" name="user_id" value="{{ user.user_id }}">
+                        <input type="number" name="amount" placeholder="+/- Токены" style="width: 100px; padding: 0.4rem;">
+                        <button type="submit" class="btn btn-primary" style="padding: 0.4rem 0.75rem;">OK</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

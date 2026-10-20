@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Управление образом Элин{% endblock %}
+{% block page_title %}🎭 Память и Образ Элин{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Глобальные черты личности и якоря памяти</h2>
+        <p>Эти данные формируют мировоззрение Элин и её общие воспоминания (животные, события, предметы).</p>
+    </div>
+    
+    {% if request.query_params.get('success') %}
+    <div class="alert alert-success">
+        Данные успешно обновлены!
+    </div>
+    {% endif %}
+
+    {% if request.query_params.get('error') == 'invalid_json' %}
+    <div class="alert alert-danger">
+        Ошибка: Некорректный формат JSON.
+    </div>
+    {% endif %}
+
+    <form action="/persona/update" method="post" class="persona-form">
+        <div class="form-group">
+            <label for="persona_json">Образ в формате JSON:</label>
+            <textarea name="persona_json" id="persona_json" rows="20" class="form-control code-editor">{{ persona_json }}</textarea>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">💾 Сохранить изменения</button>
+            <button type="reset" class="btn btn-secondary">Отменить</button>
+        </div>
+    </form>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h3>💡 Подсказка</h3>
+    </div>
+    <div class="card-body">
+        <p>Вы можете добавлять любые ключевые факты. Например:</p>
+        <pre><code>{
+    "animals": ["Лошадь Звёздочка", "Кот Маркиз"],
+    "significant_events": ["Прогулка в горах 25.04"],
+    "worldview": "Тихая роскошь, любовь к природе, ценит искренность"
+}</code></pre>
+        <p>Эти данные будут подмешиваться в контекст каждого диалога.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+    .code-editor {
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 14px;
+        line-height: 1.5;
+        background-color: #f8f9fa;
+        color: #333;
+    }
+    .persona-form {
+        margin-top: 20px;
+    }
+    .mt-4 {
+        margin-top: 2rem;
+    }
+    .alert {
+        padding: 15px;
+        margin-bottom: 20px;
+        border: 1px solid transparent;
+        border-radius: 4px;
+    }
+    .alert-success {
+        color: #155724;
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+    }
+    .alert-danger {
+        color: #721c24;
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+    }
+</style>
+{% endblock %}

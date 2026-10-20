@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block page_title %}Настройки бота{% endblock %}
+
+{% block content %}
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Параметр</th>
+                <th>Значение</th>
+                <th>Действие</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for setting in settings %}
+            <tr>
+                <td style="font-weight: 600; color: var(--primary-light);">{{ setting.key }}</td>
+                <td>
+                    <form action="/settings/update" method="post" id="form-{{ setting.key }}" style="display: flex; gap: 0.5rem;">
+                        <input type="hidden" name="key" value="{{ setting.key }}">
+                        <input type="text" name="value" value="{{ setting.value }}" style="max-width: 300px;">
+                    </form>
+                </td>
+                <td>
+                    <button type="submit" form="form-{{ setting.key }}" class="btn btn-primary" style="padding: 0.4rem 1rem; font-size: 0.75rem;">Сохранить</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card" style="margin-top: 2rem; border-color: rgba(245, 158, 11, 0.3);">
+    <h3 style="margin-bottom: 1rem; color: var(--warning);">💡 Подсказка</h3>
+    <ul style="color: var(--text-dim); font-size: 0.875rem; padding-left: 1.5rem;">
+        <li><b>trial_tokens</b>: сколько токенов давать новому пользователю.</li>
+        <li><b>token_cost_msg</b>: цена обычного сообщения.</li>
+        <li><b>token_cost_search</b>: цена сообщения с поиском в интернете.</li>
+        <li><b>ai_model</b>: идентификатор модели (например, <code>gpt-4o</code> или <code>claude-3-5-sonnet</code>).</li>
+    </ul>
+</div>
+{% endblock %}

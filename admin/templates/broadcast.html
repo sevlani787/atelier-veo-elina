@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Рассылка сообщений{% endblock %}
+{% block page_title %}📢 Массовая рассылка{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Отправить сообщение всем подписчикам</h2>
+        <p>Сообщение будет отправлено всем пользователям, которые есть в базе данных.</p>
+    </div>
+    
+    {% if request.query_params.get('success') %}
+    <div class="alert alert-success">
+        Рассылка завершена! Отправлено: {{ request.query_params.get('success') }}, Ошибок: {{ request.query_params.get('errors') }}
+    </div>
+    {% endif %}
+
+    <form action="/broadcast/send" method="post" class="broadcast-form" onsubmit="return confirm('Вы уверены, что хотите отправить это сообщение ВСЕМ пользователям?');">
+        <div class="form-group">
+            <label for="message_text">Текст сообщения (поддерживается HTML):</label>
+            <textarea name="message_text" id="message_text" rows="10" class="form-control" placeholder="Введите текст сообщения..." required></textarea>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">🚀 Запустить рассылку</button>
+        </div>
+    </form>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h3>📝 Доступные теги HTML</h3>
+    </div>
+    <div class="card-body">
+        <ul>
+            <li><code>&lt;b&gt;жирный&lt;/b&gt;</code></li>
+            <li><code>&lt;i&gt;курсив&lt;/i&gt;</code></li>
+            <li><code>&lt;a href="url"&gt;ссылка&lt;/a&gt;</code></li>
+            <li><code>&lt;code&gt;моноширинный&lt;/code&gt;</code></li>
+        </ul>
+        <p class="text-warning">⚠️ <b>Важно:</b> Слишком частые рассылки могут привести к блокировке бота пользователями.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+    .broadcast-form {
+        margin-top: 20px;
+    }
+    .mt-4 {
+        margin-top: 2rem;
+    }
+    .text-warning {
+        color: #856404;
+        background-color: #fff3cd;
+        padding: 10px;
+        border-radius: 4px;
+        margin-top: 10px;
+    }
+    .alert-success {
+        color: #155724;
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+        padding: 15px;
+        margin-bottom: 20px;
+        border: 1px solid transparent;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}

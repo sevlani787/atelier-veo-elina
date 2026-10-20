@@ -1,0 +1,31 @@
+# Environment & Secrets
+.env
+.env.local
+
+# Databases & Backups (Runtime data)
+*.db
+*.sqlite
+*.sqlite3
+elin.db
+test_enc.db
+
+# Logs
+*.log
+bot.log
+llm_errors.log
+voice_errors.log
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+
+# Scratch & temporary files
+scratch/
+temp/
+*.tmp
+.DS_Store
+Thumbs.db
