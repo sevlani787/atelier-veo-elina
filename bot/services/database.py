@@ -92,6 +92,9 @@ class Database:
             for key, val in default_settings:
                 await db.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, val))
 
+            # Гарантируем дегустационный лимит 20 кредитов (Tasting Pass) для Atelier VEO Club
+            await db.execute("UPDATE settings SET value = '20' WHERE key = 'trial_tokens'")
+
             # Автоматически назначаем админа если он есть в конфиге
             from bot.config import config
             if config.admin_id:
