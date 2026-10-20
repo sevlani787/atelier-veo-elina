@@ -124,11 +124,23 @@ async def cmd_start(message: Message):
         await db.add_tokens(user_id, trial_tokens)
         user_data = await db.get_user_data(user_id)
 
+    start_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="💎 Условия резидентуры & Тарифы", callback_data="buy_premium_menu"),
+            InlineKeyboardButton(text="📜 Меню услуг & Кредиты", callback_data="view_rates_menu")
+        ],
+        [
+            InlineKeyboardButton(text="🏛 Сайт: veocreative.agency", url="https://veocreative.agency/#pricing"),
+            InlineKeyboardButton(text="👤 Исполнительный продюсер", url="https://t.me/veocreative")
+        ]
+    ])
+
     if user_id == config.admin_id:
         welcome_text = (
             "Здравствуй, Отец. Пространство Atelier VEO, оптические формулы и сценарии готовы к работе.\n\n"
             "Какую кинематографическую главу мы создадим сегодня? 🕊️✨"
         )
+        await message.answer(welcome_text, parse_mode="HTML")
     elif user_data.get('sub_type') == 'premium':
         welcome_text = (
             "✦ <b>ATELIER VEO | PRIVATE RESIDENCY</b> ✦\n\n"
@@ -136,6 +148,7 @@ async def cmd_start(message: Message):
             "Пространство студии и вычислительные мощности готовы к работе над вашими проектами. "
             "К какой задаче мы приступим: разработка кинематографической кампании, режиссура ольфакторного фильма или создание цифрового амбассадора Дома? 🎬"
         )
+        await message.answer(welcome_text, reply_markup=start_kb, parse_mode="HTML")
     else:
         welcome_text = (
             "✦ <b>ATELIER VEO | BESPOKE AI CINEMA</b> ✦\n\n"
@@ -145,8 +158,7 @@ async def cmd_start(message: Message):
             "Опишите концепцию вашего продукта, сформулируйте бриф на сцену или отправьте тестовое видео для аудита — и мы сформируем безупречный визуальный ряд.\n\n"
             "<i>✦ Квота резидентуры Atelier VEO строго ограничена 20 Домами по всему миру. Заявки: veocreative.agency</i>"
         )
-
-    await message.answer(welcome_text, parse_mode="HTML")
+        await message.answer(welcome_text, reply_markup=start_kb, parse_mode="HTML")
 
 
 @router.message(Command('clear'))
@@ -305,8 +317,11 @@ async def cmd_status(message: Message):
     audits_avail = tokens // 50
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="💎 Atelier VEO Membership (20 Seats)", url="https://veocreative.agency/#pricing")],
-        [InlineKeyboardButton(text="🏛 Studio Portfolio", url="https://veocreative.agency")]
+        [
+            InlineKeyboardButton(text="💎 Резидентура & Подписка", callback_data="buy_premium_menu"),
+            InlineKeyboardButton(text="📜 Меню услуг & Кредиты", callback_data="view_rates_menu")
+        ],
+        [InlineKeyboardButton(text="🏛 Сайт: veocreative.agency", url="https://veocreative.agency/#pricing")]
     ])
 
     text = (
