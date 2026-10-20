@@ -64,15 +64,19 @@ async def dashboard(request: Request, username: str = Depends(get_current_userna
         async with conn.execute("SELECT SUM(tokens) FROM users") as cursor:
             total_credits = (await cursor.fetchone())[0] or 0
 
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request,
-        "status": bot_status,
-        "pid": pid,
-        "total_users": total_users,
-        "active_residents": active_residents,
-        "total_credits": total_credits,
-        "username": username
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="dashboard.html",
+        context={
+            "request": request,
+            "status": bot_status,
+            "pid": pid,
+            "total_users": total_users,
+            "active_residents": active_residents,
+            "total_credits": total_credits,
+            "username": username
+        }
+    )
 
 @app.post("/bot/start")
 async def start_bot(username: str = Depends(get_current_username)):
@@ -96,11 +100,15 @@ async def users_page(request: Request, username: str = Depends(get_current_usern
         async with conn.execute("SELECT * FROM users ORDER BY created_at DESC LIMIT 100") as cursor:
             users = await cursor.fetchall()
             
-    return templates.TemplateResponse("users.html", {
-        "request": request,
-        "users": users,
-        "username": username
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="users.html",
+        context={
+            "request": request,
+            "users": users,
+            "username": username
+        }
+    )
 
 @app.post("/users/add_credits")
 async def add_user_credits(
@@ -142,11 +150,15 @@ async def settings_page(request: Request, username: str = Depends(get_current_us
         async with conn.execute("SELECT * FROM settings ORDER BY key ASC") as cursor:
             settings = await cursor.fetchall()
             
-    return templates.TemplateResponse("settings.html", {
-        "request": request,
-        "settings": settings,
-        "username": username
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="settings.html",
+        context={
+            "request": request,
+            "settings": settings,
+            "username": username
+        }
+    )
 
 @app.post("/settings/update")
 async def update_setting(
@@ -162,11 +174,15 @@ async def persona_page(request: Request, username: str = Depends(get_current_use
     persona_data = await memory.get_elin_persona()
     persona_json = json.dumps(persona_data, indent=4, ensure_ascii=False)
     
-    return templates.TemplateResponse("persona.html", {
-        "request": request,
-        "persona_json": persona_json,
-        "username": username
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="persona.html",
+        context={
+            "request": request,
+            "persona_json": persona_json,
+            "username": username
+        }
+    )
 
 @app.post("/persona/update")
 async def update_persona(
@@ -182,10 +198,14 @@ async def update_persona(
 
 @app.get("/broadcast", response_class=HTMLResponse)
 async def broadcast_page(request: Request, username: str = Depends(get_current_username)):
-    return templates.TemplateResponse("broadcast.html", {
-        "request": request,
-        "username": username
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="broadcast.html",
+        context={
+            "request": request,
+            "username": username
+        }
+    )
 
 @app.post("/broadcast/send")
 async def send_broadcast(
@@ -223,11 +243,15 @@ async def send_broadcast(
 @app.get("/logs", response_class=HTMLResponse)
 async def logs_page(request: Request, username: str = Depends(get_current_username)):
     logs = bot_manager.get_logs(150)
-    return templates.TemplateResponse("logs.html", {
-        "request": request,
-        "logs": logs,
-        "username": username
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="logs.html",
+        context={
+            "request": request,
+            "logs": logs,
+            "username": username
+        }
+    )
 
 if __name__ == "__main__":
     import uvicorn
