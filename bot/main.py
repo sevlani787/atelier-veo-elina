@@ -27,19 +27,19 @@ async def main():
     dp.include_router(messages_router)
     dp.include_router(payments_router)
 
-    # Регистрация системных команд в Telegram (кнопка Menu в левом нижнем углу)
+    # Universal Telegram commands in English for international luxury founders
     commands = [
-        BotCommand(command="start", description="Перезапустить Ателье и приветствие"),
-        BotCommand(command="club", description="Условия резидентуры и подписка (20 мест)"),
-        BotCommand(command="services", description="Сетка услуг и списание Atelier Credits"),
-        BotCommand(command="status", description="Баланс кредитов и статус резидента"),
-        BotCommand(command="clear", description="Очистить контекст диалога"),
+        BotCommand(command="start", description="Restart Atelier & Director greeting"),
+        BotCommand(command="club", description="Private Residency terms & 20-seat quota"),
+        BotCommand(command="services", description="Production rates & Atelier Credits menu"),
+        BotCommand(command="status", description="Your Atelier Credits balance & status"),
+        BotCommand(command="clear", description="Clear dialogue memory"),
     ]
     try:
         await bot.set_my_commands(commands)
-        logging.info("Системное меню команд Telegram успешно зарегистрировано.")
+        logging.info("Telegram commands menu successfully registered in English.")
     except Exception as e:
-        logging.error(f"Ошибка регистрации команд меню: {e}")
+        logging.error(f"Error registering menu commands: {e}")
 
     logging.info('Элин запускается...')
     await dp.start_polling(bot)

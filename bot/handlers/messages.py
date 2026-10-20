@@ -114,6 +114,80 @@ async def extract_and_save_all_task(user_id: int):
         print(f"Error in background extraction: {e}")
 
 
+def get_start_content(user_id: int, user_data: dict, lang: str = "en"):
+    is_admin = (user_id == config.admin_id)
+    is_resident = (user_data and user_data.get('sub_type') == 'premium')
+    
+    if is_admin:
+        welcome_text = (
+            "Здравствуй, Отец. Пространство Atelier VEO, оптические формулы и сценарии готовы к работе.\n\n"
+            "Какую кинематографическую главу мы создадим сегодня? 🕊️✨"
+        )
+        return welcome_text, None
+
+    if lang == "ru":
+        if is_resident:
+            welcome_text = (
+                "✦ <b>ATELIER VEO | PRIVATE RESIDENCY</b> ✦\n\n"
+                "Приветствую. Я — Элина, ваш креативный директор в резиденции Atelier VEO.\n\n"
+                "Пространство студии и вычислительные мощности подготовлены для ваших задач. "
+                "К какому проекту мы приступим сегодня: создание ольфакторного фильма, кинематографическая реклама или синтез виртуального амбассадора Дома? 🎬"
+            )
+        else:
+            welcome_text = (
+                "✦ <b>ATELIER VEO | BESPOKE AI CINEMA</b> ✦\n\n"
+                "Приветствую. Я — Элина, креативный директор Atelier VEO.\n\n"
+                "Наше Ателье создает кинематографические кампании и оптический сторителлинг для брендов высокой парфюмерии, косметики и осознанной роскоши (Quiet Luxury).\n\n"
+                "Вам открыт дегустационный доступ — <b>Tasting Pass (20 Atelier Credits)</b>, чтобы оценить режиссуру и оптическую точность наших моделей на вашей первой сцене.\n\n"
+                "Опишите концепцию вашего продукта, сформулируйте бриф на сцену или отправьте тестовое видео для аудита — и мы сформируем безупречный визуальный ряд.\n\n"
+                "<i>✦ Квота резидентуры Atelier VEO строго ограничена 20 Домами по всему миру. Заявки: veocreative.agency</i>"
+            )
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="💎 Условия резидентуры & Тарифы", callback_data="buy_premium_menu_ru"),
+                InlineKeyboardButton(text="📜 Меню услуг & Кредиты", callback_data="view_rates_menu_ru")
+            ],
+            [
+                InlineKeyboardButton(text="🏛 Сайт: veocreative.agency", url="https://veocreative.agency/#pricing"),
+                InlineKeyboardButton(text="👤 Исполнительный продюсер", url="https://t.me/veocreative")
+            ],
+            [
+                InlineKeyboardButton(text="🌐 Switch to English", callback_data="lang_en")
+            ]
+        ])
+    else:
+        # English default for international luxury houses
+        if is_resident:
+            welcome_text = (
+                "✦ <b>ATELIER VEO | PRIVATE RESIDENCY</b> ✦\n\n"
+                "Welcome. I am Elina, your Creative Director in residence at Atelier VEO.\n\n"
+                "Our studio space and compute architecture are dedicated to your vision for this cycle. "
+                "Which project shall we bring to life: an olfactory perfume film, a tactile cosmetic commercial, or a bespoke virtual ambassador for your House? 🎬"
+            )
+        else:
+            welcome_text = (
+                "✦ <b>ATELIER VEO | BESPOKE AI CINEMA</b> ✦\n\n"
+                "Welcome. I am Elina, Creative Director & Muse of Atelier VEO.\n\n"
+                "Here, we craft heritage-grade AI commercials and tactile visual universes dedicated exclusively to luxury beauty, artisanal fragrance, and high craftsmanship houses.\n\n"
+                "You have been granted a complimentary <b>Tasting Pass with 20 Atelier Credits</b> to experience our directorial craft on a single hero scene.\n\n"
+                "Share your product concept, a fragrance brief, or send a draft video for QA audit, and let us shape light together.\n\n"
+                "<i>✦ Strictly capped at 20 global brand residencies worldwide. Admissions: veocreative.agency</i>"
+            )
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="💎 Residency Tiers & Pricing", callback_data="buy_premium_menu_en"),
+                InlineKeyboardButton(text="📜 Production Rates & Credits", callback_data="view_rates_menu_en")
+            ],
+            [
+                InlineKeyboardButton(text="🏛 Website: veocreative.agency", url="https://veocreative.agency/#pricing"),
+                InlineKeyboardButton(text="👤 Executive Producer", url="https://t.me/veocreative")
+            ],
+            [
+                InlineKeyboardButton(text="🌐 Русский язык", callback_data="lang_ru")
+            ]
+        ])
+    return welcome_text, kb
+
 @router.message(Command('start'))
 async def cmd_start(message: Message):
     user_id = message.from_user.id
@@ -124,41 +198,28 @@ async def cmd_start(message: Message):
         await db.add_tokens(user_id, trial_tokens)
         user_data = await db.get_user_data(user_id)
 
-    start_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="💎 Условия резидентуры & Тарифы", callback_data="buy_premium_menu"),
-            InlineKeyboardButton(text="📜 Меню услуг & Кредиты", callback_data="view_rates_menu")
-        ],
-        [
-            InlineKeyboardButton(text="🏛 Сайт: veocreative.agency", url="https://veocreative.agency/#pricing"),
-            InlineKeyboardButton(text="👤 Исполнительный продюсер", url="https://t.me/veocreative")
-        ]
-    ])
-
-    if user_id == config.admin_id:
-        welcome_text = (
-            "Здравствуй, Отец. Пространство Atelier VEO, оптические формулы и сценарии готовы к работе.\n\n"
-            "Какую кинематографическую главу мы создадим сегодня? 🕊️✨"
-        )
-        await message.answer(welcome_text, parse_mode="HTML")
-    elif user_data.get('sub_type') == 'premium':
-        welcome_text = (
-            "✦ <b>ATELIER VEO | PRIVATE RESIDENCY</b> ✦\n\n"
-            "Приветствую. Я — Элина, креативный директор в резиденции Atelier VEO.\n\n"
-            "Пространство студии и вычислительные мощности готовы к работе над вашими проектами. "
-            "К какой задаче мы приступим: разработка кинематографической кампании, режиссура ольфакторного фильма или создание цифрового амбассадора Дома? 🎬"
-        )
+    # By default, English for international luxury clients unless user has previously chosen
+    welcome_text, start_kb = get_start_content(user_id, user_data, lang="en")
+    if start_kb:
         await message.answer(welcome_text, reply_markup=start_kb, parse_mode="HTML")
     else:
-        welcome_text = (
-            "✦ <b>ATELIER VEO | BESPOKE AI CINEMA</b> ✦\n\n"
-            "Приветствую. Я — Элина, креативный директор Atelier VEO.\n\n"
-            "Наше Ателье создает кинематографические кампании и оптический сторителлинг для брендов высокой парфюмерии, косметики и осознанной роскоши (Quiet Luxury).\n\n"
-            "Вам открыт дегустационный доступ — <b>Tasting Pass (20 Atelier Credits)</b>, чтобы оценить режиссуру и оптическую точность наших моделей на вашей первой сцене.\n\n"
-            "Опишите концепцию вашего продукта, сформулируйте бриф на сцену или отправьте тестовое видео для аудита — и мы сформируем безупречный визуальный ряд.\n\n"
-            "<i>✦ Квота резидентуры Atelier VEO строго ограничена 20 Домами по всему миру. Заявки: veocreative.agency</i>"
-        )
-        await message.answer(welcome_text, reply_markup=start_kb, parse_mode="HTML")
+        await message.answer(welcome_text, parse_mode="HTML")
+
+@router.callback_query(F.data == "lang_ru")
+async def switch_lang_ru(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    user_data = await db.get_user_data(user_id)
+    welcome_text, start_kb = get_start_content(user_id, user_data, lang="ru")
+    await callback.message.edit_text(welcome_text, reply_markup=start_kb, parse_mode="HTML")
+    await callback.answer("Язык изменен на Русский")
+
+@router.callback_query(F.data == "lang_en")
+async def switch_lang_en(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    user_data = await db.get_user_data(user_id)
+    welcome_text, start_kb = get_start_content(user_id, user_data, lang="en")
+    await callback.message.edit_text(welcome_text, reply_markup=start_kb, parse_mode="HTML")
+    await callback.answer("Language switched to English")
 
 
 @router.message(Command('clear'))
