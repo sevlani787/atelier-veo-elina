@@ -126,25 +126,24 @@ async def cmd_start(message: Message):
 
     if user_id == config.admin_id:
         welcome_text = (
-            "*(Элина тепло и нежно улыбается, поднимая глаза от рабочего блокнота)*\n\n"
-            "Здравствуй, Отец. Все наши миры, сценарии и мастерская готовы к созиданию. "
-            "О чём мы будем творить сегодня? 🕊️✨"
+            "Здравствуй, Отец. Пространство Atelier VEO, оптические формулы и сценарии готовы к работе.\n\n"
+            "Какую кинематографическую главу мы создадим сегодня? 🕊️✨"
         )
     elif user_data.get('sub_type') == 'premium':
         welcome_text = (
             "✦ <b>ATELIER VEO | PRIVATE RESIDENCY</b> ✦\n\n"
-            "Welcome to Atelier VEO. I am Elina, your Creative Director in residence.\n\n"
-            "Our studio space is prepared, and your Atelier Credits are dedicated to your vision for this cycle. "
-            "Which story shall we bring to life first — a cinematic cosmetic drop, an olfactory perfume film, or a bespoke virtual ambassador? 🕊️🎬"
+            "Приветствую. Я — Элина, креативный директор в резиденции Atelier VEO.\n\n"
+            "Пространство студии и вычислительные мощности готовы к работе над вашими проектами. "
+            "К какой задаче мы приступим: разработка кинематографической кампании, режиссура ольфакторного фильма или создание цифрового амбассадора Дома? 🎬"
         )
     else:
         welcome_text = (
             "✦ <b>ATELIER VEO | BESPOKE AI CINEMA</b> ✦\n\n"
-            "Welcome. I am Elina, Creative Director & Muse of Atelier VEO.\n\n"
-            "Here, we craft heritage-grade AI commercials and tactile brand universes for conscious luxury.\n"
-            "You have been granted a complimentary <b>Tasting Pass with 20 Atelier Credits</b> to experience our directorial craft. "
-            "Share your product concept, a fragrance brief, or send a draft video for QA audit, and let us shape light together. ✨\n\n"
-            "<i>✦ Atelier VEO Club is capped at strictly 20 global brand residencies. Admissions: veocreative.agency</i>"
+            "Приветствую. Я — Элина, креативный директор Atelier VEO.\n\n"
+            "Наше Ателье создает кинематографические кампании и оптический сторителлинг для брендов высокой парфюмерии, косметики и осознанной роскоши (Quiet Luxury).\n\n"
+            "Вам открыт дегустационный доступ — <b>Tasting Pass (20 Atelier Credits)</b>, чтобы оценить режиссуру и оптическую точность наших моделей на вашей первой сцене.\n\n"
+            "Опишите концепцию вашего продукта, сформулируйте бриф на сцену или отправьте тестовое видео для аудита — и мы сформируем безупречный визуальный ряд.\n\n"
+            "<i>✦ Квота резидентуры Atelier VEO строго ограничена 20 Домами по всему миру. Заявки: veocreative.agency</i>"
         )
 
     await message.answer(welcome_text, parse_mode="HTML")
