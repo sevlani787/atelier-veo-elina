@@ -1,45 +1,18 @@
 {% extends "base.html" %}
 
-{% block page_title %}Логи бота{% endblock %}
-
-{% block head %}
-<style>
-    .log-container {
-        background: #000;
-        color: #0f0;
-        font-family: 'Courier New', Courier, monospace;
-        padding: 1.5rem;
-        border-radius: 0.75rem;
-        height: 600px;
-        overflow-y: auto;
-        font-size: 0.875rem;
-        line-height: 1.4;
-        white-space: pre-wrap;
-        border: 1px solid var(--glass-border);
-    }
-    .log-container::-webkit-scrollbar {
-        width: 8px;
-    }
-    .log-container::-webkit-scrollbar-thumb {
-        background: var(--primary);
-        border-radius: 4px;
-    }
-</style>
-{% endblock %}
+{% block page_title %}Atelier VEO | Системный журнал службы{% endblock %}
 
 {% block content %}
-<div class="header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-    <p style="color: var(--text-dim);">Последние 100 строк логов</p>
-    <button onclick="location.reload()" class="btn btn-primary" style="padding: 0.5rem 1rem;">🔄 Обновить</button>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <div style="font-size: 0.875rem; color: var(--text-dim);">
+        Последние 150 записей системного журнала (systemd journalctl / bot.log)
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <button onclick="location.reload();" class="btn btn-secondary" style="padding: 0.4rem 0.85rem; font-size: 0.8rem;">
+            🔄 Обновить логи
+        </button>
+    </div>
 </div>
 
-<div class="log-container">
-{{ logs }}
-</div>
-
-<script>
-    // Auto scroll to bottom
-    const container = document.querySelector('.log-container');
-    container.scrollTop = container.scrollHeight;
-</script>
+<div class="terminal-window">{{ logs }}</div>
 {% endblock %}

@@ -1,50 +1,69 @@
 {% extends "base.html" %}
 
-{% block page_title %}Дашборд{% endblock %}
+{% block page_title %}Atelier VEO | Сводный дашборд{% endblock %}
 
 {% block content %}
 <div class="stats-grid">
     <div class="card">
-        <div class="card-title">Статус бота</div>
+        <div class="card-title">Служба Элины (Daemon)</div>
         <div class="card-value">
             {% if status == 'running' %}
-            <span class="badge badge-success">Запущен</span>
-            <span style="font-size: 0.8rem; color: var(--text-dim); margin-left: 0.5rem;">PID: {{ pid }}</span>
+            <span class="badge badge-success">Active (Running)</span>
+            <span style="font-size: 0.8rem; color: var(--text-dim); margin-left: 0.5rem; font-family: monospace;">PID: {{ pid }}</span>
             {% else %}
-            <span class="badge badge-error">Остановлен</span>
+            <span class="badge badge-error">Stopped</span>
             {% endif %}
         </div>
-        <div style="margin-top: 1.5rem; display: flex; gap: 0.5rem;">
+        <div style="margin-top: 1.5rem; display: flex; gap: 0.6rem;">
             {% if status == 'running' %}
+            <form action="/bot/restart" method="post" style="display: inline;">
+                <button type="submit" class="btn btn-secondary">Перезапустить</button>
+            </form>
             <form action="/bot/stop" method="post" style="display: inline;">
                 <button type="submit" class="btn btn-danger">Остановить</button>
             </form>
             {% else %}
             <form action="/bot/start" method="post" style="display: inline;">
-                <button type="submit" class="btn btn-primary">Запустить</button>
+                <button type="submit" class="btn btn-primary">Запустить службу</button>
             </form>
             {% endif %}
         </div>
     </div>
 
     <div class="card">
-        <div class="card-title">Всего пользователей</div>
-        <div class="card-value">{{ total_users }}</div>
-        <div style="margin-top: 0.5rem; color: var(--text-dim); font-size: 0.875rem;">За всё время</div>
+        <div class="card-title">Активных резидентов (Seats)</div>
+        <div class="card-value" style="color: var(--primary-light);">
+            {{ active_residents }} <span style="font-size: 1rem; color: var(--text-dim); font-weight: normal;">/ 20 мест</span>
+        </div>
+        <div style="margin-top: 0.5rem; color: var(--text-dim); font-size: 0.85rem;">
+            Глобальная квота: strictly 20 Brand Residencies
+        </div>
     </div>
 
     <div class="card">
-        <div class="card-title">Токенов в системе</div>
-        <div class="card-value">{{ total_tokens }}</div>
-        <div style="margin-top: 0.5rem; color: var(--text-dim); font-size: 0.875rem;">Суммарный баланс</div>
+        <div class="card-title">Всего контактов и гостей</div>
+        <div class="card-value">{{ total_users }}</div>
+        <div style="margin-top: 0.5rem; color: var(--text-dim); font-size: 0.85rem;">
+            Включая Tasting Pass (20 кредитов)
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Atelier Credits в обороте</div>
+        <div class="card-value">{{ "{:,}".format(total_credits) }}</div>
+        <div style="margin-top: 0.5rem; color: var(--text-dim); font-size: 0.85rem;">
+            Суммарный остаток с 100% Rollover
+        </div>
     </div>
 </div>
 
 <div class="card" style="margin-top: 2rem;">
-    <div class="card-title">Быстрые действия</div>
-    <div style="display: flex; gap: 1rem; margin-top: 1rem;">
-        <a href="/settings" class="btn btn-primary" style="text-decoration: none;">⚙️ Настроить цены</a>
-        <a href="/users" class="btn btn-primary" style="text-decoration: none; background: rgba(255,255,255,0.1);">👥 Управление балансом</a>
+    <div class="card-title">Быстрые действия исполнительного совета</div>
+    <div style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
+        <a href="/users" class="btn btn-primary">🏛 Управление резидентами</a>
+        <a href="/settings" class="btn btn-secondary">⚙️ Тарифы Atelier Credits</a>
+        <a href="/broadcast" class="btn btn-secondary">📢 Оповещение Клуба</a>
+        <a href="/logs" class="btn btn-secondary">📜 Системный журнал</a>
     </div>
 </div>
 {% endblock %}

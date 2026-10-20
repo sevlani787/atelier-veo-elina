@@ -1,29 +1,31 @@
 {% extends "base.html" %}
 
-{% block page_title %}Настройки бота{% endblock %}
+{% block page_title %}Atelier VEO | Тарифы и параметры Клуба{% endblock %}
 
 {% block content %}
 <div class="table-container">
     <table>
         <thead>
             <tr>
-                <th>Параметр</th>
-                <th>Значение</th>
-                <th>Действие</th>
+                <th style="width: 30%;">Ключ параметра</th>
+                <th style="width: 50%;">Текущее значение</th>
+                <th style="width: 20%;">Действие</th>
             </tr>
         </thead>
         <tbody>
             {% for setting in settings %}
             <tr>
-                <td style="font-weight: 600; color: var(--primary-light);">{{ setting.key }}</td>
+                <td style="font-weight: 600; color: var(--primary-light); font-family: monospace;">{{ setting.key }}</td>
                 <td>
                     <form action="/settings/update" method="post" id="form-{{ setting.key }}" style="display: flex; gap: 0.5rem;">
                         <input type="hidden" name="key" value="{{ setting.key }}">
-                        <input type="text" name="value" value="{{ setting.value }}" style="max-width: 300px;">
+                        <input type="text" name="value" value="{{ setting.value }}" style="width: 100%; max-width: 450px;">
                     </form>
                 </td>
                 <td>
-                    <button type="submit" form="form-{{ setting.key }}" class="btn btn-primary" style="padding: 0.4rem 1rem; font-size: 0.75rem;">Сохранить</button>
+                    <button type="submit" form="form-{{ setting.key }}" class="btn btn-primary" style="padding: 0.4rem 1rem; font-size: 0.75rem;">
+                        Сохранить
+                    </button>
                 </td>
             </tr>
             {% endfor %}
@@ -31,13 +33,16 @@
     </table>
 </div>
 
-<div class="card" style="margin-top: 2rem; border-color: rgba(245, 158, 11, 0.3);">
-    <h3 style="margin-bottom: 1rem; color: var(--warning);">💡 Подсказка</h3>
-    <ul style="color: var(--text-dim); font-size: 0.875rem; padding-left: 1.5rem;">
-        <li><b>trial_tokens</b>: сколько токенов давать новому пользователю.</li>
-        <li><b>token_cost_msg</b>: цена обычного сообщения.</li>
-        <li><b>token_cost_search</b>: цена сообщения с поиском в интернете.</li>
-        <li><b>ai_model</b>: идентификатор модели (например, <code>gpt-4o</code> или <code>claude-3-5-sonnet</code>).</li>
+<div class="card" style="margin-top: 2rem; border-color: rgba(197, 160, 89, 0.3);">
+    <h3 style="margin-bottom: 1rem; color: var(--primary-light); font-size: 1rem;">✦ Эталонный регламент Atelier VEO Club</h3>
+    <ul style="color: var(--text-dim); font-size: 0.85rem; padding-left: 1.5rem; line-height: 1.8;">
+        <li><b style="color: #ffffff;">trial_tokens:</b> <code>20</code> — Дегустационный Tasting Pass для новых контактов (на 1 сцену).</li>
+        <li><b style="color: #ffffff;">credit_cost_prompt:</b> <code>20</code> — Двухслойный режиссерский промпт (Veo 2 / Kling 5-компонентная формула).</li>
+        <li><b style="color: #ffffff;">credit_cost_qa:</b> <code>25</code> — Multimodal Video QA аудит (диагностика света, анатомии, физики).</li>
+        <li><b style="color: #ffffff;">credit_cost_audit:</b> <code>50</code> — Глубокий аудит ДНК бренда и веб-аналитика.</li>
+        <li><b style="color: #ffffff;">credit_cost_ambassador:</b> <code>100</code> — Синтез цифрового амбассадора бренда.</li>
+        <li><b style="color: #ffffff;">credit_cost_msg:</b> <code>1</code> — Короткая текстовая реплика/консультация.</li>
+        <li><b style="color: #ffffff;">ai_model:</b> <code>google/gemini-4-argon</code> — Флагманская мультимодальная архитектура Элины.</li>
     </ul>
 </div>
 {% endblock %}

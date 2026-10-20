@@ -1,71 +1,44 @@
 {% extends "base.html" %}
 
-{% block title %}Рассылка сообщений{% endblock %}
-{% block page_title %}📢 Массовая рассылка{% endblock %}
+{% block page_title %}Atelier VEO | Директорское оповещение{% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header">
-        <h2>Отправить сообщение всем подписчикам</h2>
-        <p>Сообщение будет отправлено всем пользователям, которые есть в базе данных.</p>
-    </div>
+<div class="card" style="max-width: 800px;">
+    <div class="card-title">Трансляция сообщения от Исполнительного Совета</div>
     
     {% if request.query_params.get('success') %}
-    <div class="alert alert-success">
-        Рассылка завершена! Отправлено: {{ request.query_params.get('success') }}, Ошибок: {{ request.query_params.get('errors') }}
+    <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid var(--success); color: var(--success); padding: 0.85rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.875rem;">
+        ✓ Успешно отправлено резидентам: {{ request.query_params.get('success') }} (Ошибок: {{ request.query_params.get('errors') }})
     </div>
     {% endif %}
 
-    <form action="/broadcast/send" method="post" class="broadcast-form" onsubmit="return confirm('Вы уверены, что хотите отправить это сообщение ВСЕМ пользователям?');">
-        <div class="form-group">
-            <label for="message_text">Текст сообщения (поддерживается HTML):</label>
-            <textarea name="message_text" id="message_text" rows="10" class="form-control" placeholder="Введите текст сообщения..." required></textarea>
+    <form action="/broadcast/send" method="post" style="display: flex; flex-direction: column; gap: 1.25rem;">
+        <div>
+            <label style="display: block; font-size: 0.825rem; color: var(--text-dim); margin-bottom: 0.5rem;">
+                Целевая аудитория:
+            </label>
+            <select name="target_audience" style="width: 100%; max-width: 350px;">
+                <option value="all">Все зарегистрированные контакты (Резиденты + Гости)</option>
+                <option value="residents">Только резиденты Клуба (Founding & Standard Residencies)</option>
+                <option value="guests">Только гости с Tasting Pass (для приглашения в Резидентуру)</option>
+            </select>
         </div>
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary">🚀 Запустить рассылку</button>
+
+        <div>
+            <label style="display: block; font-size: 0.825rem; color: var(--text-dim); margin-bottom: 0.5rem;">
+                Текст сообщения (поддерживается HTML-разметка):
+            </label>
+            <textarea name="message_text" rows="8" style="width: 100%; resize: vertical;" placeholder="Уважаемые резиденты Atelier VEO Club..." required></textarea>
+        </div>
+
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <button type="submit" class="btn btn-primary" onclick="return confirm('Вы уверены, что хотите отправить это сообщение выбранным пользователям?');">
+                📢 Запустить рассылку
+            </button>
+            <span style="font-size: 0.8rem; color: var(--text-dim);">
+                Сообщения доставляются напрямую через официальный Telegram-бот @Elina_Veo_Bot
+            </span>
         </div>
     </form>
 </div>
-
-<div class="card mt-4">
-    <div class="card-header">
-        <h3>📝 Доступные теги HTML</h3>
-    </div>
-    <div class="card-body">
-        <ul>
-            <li><code>&lt;b&gt;жирный&lt;/b&gt;</code></li>
-            <li><code>&lt;i&gt;курсив&lt;/i&gt;</code></li>
-            <li><code>&lt;a href="url"&gt;ссылка&lt;/a&gt;</code></li>
-            <li><code>&lt;code&gt;моноширинный&lt;/code&gt;</code></li>
-        </ul>
-        <p class="text-warning">⚠️ <b>Важно:</b> Слишком частые рассылки могут привести к блокировке бота пользователями.</p>
-    </div>
-</div>
-{% endblock %}
-
-{% block head %}
-<style>
-    .broadcast-form {
-        margin-top: 20px;
-    }
-    .mt-4 {
-        margin-top: 2rem;
-    }
-    .text-warning {
-        color: #856404;
-        background-color: #fff3cd;
-        padding: 10px;
-        border-radius: 4px;
-        margin-top: 10px;
-    }
-    .alert-success {
-        color: #155724;
-        background-color: #d4edda;
-        border-color: #c3e6cb;
-        padding: 15px;
-        margin-bottom: 20px;
-        border: 1px solid transparent;
-        border-radius: 4px;
-    }
-</style>
 {% endblock %}

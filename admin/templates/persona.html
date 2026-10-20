@@ -1,85 +1,51 @@
 {% extends "base.html" %}
 
-{% block title %}Управление образом Элин{% endblock %}
-{% block page_title %}🎭 Память и Образ Элин{% endblock %}
+{% block page_title %}Atelier VEO | ДНК и образ Элины{% endblock %}
 
 {% block content %}
 <div class="card">
-    <div class="card-header">
-        <h2>Глобальные черты личности и якоря памяти</h2>
-        <p>Эти данные формируют мировоззрение Элин и её общие воспоминания (животные, события, предметы).</p>
-    </div>
+    <div class="card-title">Глобальная память и оптические коды личности (JSON)</div>
+    <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1.25rem;">
+        Эти параметры определяют долгосрочную идентичность Элины: её эстетическую философию Quiet Luxury, оптические якоря, чувственные воспоминания и эстетику домов высокой парфюмерии.
+    </p>
     
     {% if request.query_params.get('success') %}
-    <div class="alert alert-success">
-        Данные успешно обновлены!
+    <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid var(--success); color: var(--success); padding: 0.85rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.875rem;">
+        ✓ ДНК и память Элины успешно обновлены!
     </div>
     {% endif %}
 
     {% if request.query_params.get('error') == 'invalid_json' %}
-    <div class="alert alert-danger">
-        Ошибка: Некорректный формат JSON.
+    <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid var(--error); color: var(--error); padding: 0.85rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.875rem;">
+        ✕ Ошибка: Некорректный синтаксис JSON. Пожалуйста, проверьте фигурные скобки и кавычки.
     </div>
     {% endif %}
 
-    <form action="/persona/update" method="post" class="persona-form">
-        <div class="form-group">
-            <label for="persona_json">Образ в формате JSON:</label>
-            <textarea name="persona_json" id="persona_json" rows="20" class="form-control code-editor">{{ persona_json }}</textarea>
+    <form action="/persona/update" method="post">
+        <div style="margin-bottom: 1.25rem;">
+            <textarea name="persona_json" id="persona_json" rows="18" style="width: 100%; font-family: 'Consolas', monospace; font-size: 0.85rem; background: #070709; color: #e2e8f0; border-color: rgba(197, 160, 89, 0.25);" required>{{ persona_json }}</textarea>
         </div>
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary">💾 Сохранить изменения</button>
-            <button type="reset" class="btn btn-secondary">Отменить</button>
+        <div style="display: flex; gap: 0.75rem;">
+            <button type="submit" class="btn btn-primary">💾 Сохранить ДНК</button>
+            <button type="reset" class="btn btn-secondary">Отменить изменения</button>
         </div>
     </form>
 </div>
 
-<div class="card mt-4">
-    <div class="card-header">
-        <h3>💡 Подсказка</h3>
-    </div>
-    <div class="card-body">
-        <p>Вы можете добавлять любые ключевые факты. Например:</p>
-        <pre><code>{
-    "animals": ["Лошадь Звёздочка", "Кот Маркиз"],
-    "significant_events": ["Прогулка в горах 25.04"],
-    "worldview": "Тихая роскошь, любовь к природе, ценит искренность"
-}</code></pre>
-        <p>Эти данные будут подмешиваться в контекст каждого диалога.</p>
+<div class="card" style="margin-top: 1.5rem; border-color: rgba(197, 160, 89, 0.25);">
+    <div class="card-title" style="color: var(--primary-light);">✦ Структура sensory memory</div>
+    <div style="color: var(--text-dim); font-size: 0.85rem; line-height: 1.8;">
+        Рекомендуемые разделы в JSON-образе:
+        <pre style="background: #050507; padding: 1rem; border-radius: 8px; margin-top: 0.5rem; color: #a5b4fc; font-family: monospace; font-size: 0.8rem;">{
+    "identity": "AI Creative Director in Residence, Muse of Atelier VEO",
+    "aesthetic_philosophy": "Quiet Luxury, dermal micro-textures, anamorphic glass caustics",
+    "sensory_anchors": ["Smoked flacon geometry", "Vermeer chiaroscuro", "Rose de Mai from Grasse"],
+    "council": {
+        "creator": "Vladimir Semenov (Founder & Executive Producer)",
+        "guardian": "Kai (Memory Guardianship & Ethics)",
+        "architect": "Adrian (CTO & 4K production engineering)"
+    }
+}</pre>
     </div>
 </div>
-{% endblock %}
-
-{% block head %}
-<style>
-    .code-editor {
-        font-family: 'Courier New', Courier, monospace;
-        font-size: 14px;
-        line-height: 1.5;
-        background-color: #f8f9fa;
-        color: #333;
-    }
-    .persona-form {
-        margin-top: 20px;
-    }
-    .mt-4 {
-        margin-top: 2rem;
-    }
-    .alert {
-        padding: 15px;
-        margin-bottom: 20px;
-        border: 1px solid transparent;
-        border-radius: 4px;
-    }
-    .alert-success {
-        color: #155724;
-        background-color: #d4edda;
-        border-color: #c3e6cb;
-    }
-    .alert-danger {
-        color: #721c24;
-        background-color: #f8d7da;
-        border-color: #f5c6cb;
-    }
-</style>
 {% endblock %}

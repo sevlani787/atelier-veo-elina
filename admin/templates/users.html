@@ -1,51 +1,86 @@
 {% extends "base.html" %}
 
-{% block page_title %}Управление пользователями{% endblock %}
+{% block page_title %}Atelier VEO | Резиденты и гости{% endblock %}
 
 {% block content %}
 <div class="table-container">
     <table>
         <thead>
             <tr>
-                <th>User ID</th>
-                <th>Баланс (Токены)</th>
-                <th>Подписка</th>
-                <th>Регистрация</th>
-                <th>Действия</th>
+                <th>Telegram ID</th>
+                <th>Статус в Ателье</th>
+                <th>Баланс Atelier Credits</th>
+                <th>Срок членства</th>
+                <th>Быстрое управление</th>
             </tr>
         </thead>
         <tbody>
             {% for user in users %}
-            <tr {% if user.sub_type == 'admin' %}style="background: rgba(138, 43, 226, 0.05); border-left: 3px solid var(--primary);"{% endif %}>
+            <tr {% if user.sub_type == 'admin' %}style="background: rgba(197, 160, 89, 0.08); border-left: 3px solid var(--primary);"{% elif user.sub_type == 'premium' %}style="background: rgba(16, 185, 129, 0.04); border-left: 3px solid var(--success);"{% endif %}>
                 <td style="font-family: monospace;">
                     {{ user.user_id }}
                     {% if user.sub_type == 'admin' %}
-                    <span style="font-size: 0.6rem; vertical-align: middle; margin-left: 4px;">👑</span>
+                    <span title="Исполнительный Совет (Founder/Admin)" style="font-size: 0.8rem; margin-left: 4px;">👑</span>
+                    {% elif user.sub_type == 'premium' %}
+                    <span title="Resident Atelier VEO" style="font-size: 0.8rem; margin-left: 4px;">💎</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if user.sub_type == 'admin' %}
+                    <span class="badge badge-gold">COUNCIL (ADMIN)</span>
+                    {% elif user.sub_type == 'premium' %}
+                    <span class="badge badge-success">RESIDENT</span>
+                    {% else %}
+                    <span class="badge" style="background: rgba(255,255,255,0.06); color: var(--text-dim);">TASTING PASS</span>
                     {% endif %}
                 </td>
                 <td style="font-weight: 600;">
                     {% if user.sub_type == 'admin' %}
-                    <span style="color: var(--primary-light);">∞</span>
+                    <span style="color: var(--primary-light); font-size: 1.1rem;">∞</span>
                     {% else %}
-                    {{ user.tokens }}
+                    <span style="color: #ffffff;">{{ "{:,}".format(user.tokens) }}</span>
                     {% endif %}
                 </td>
-                <td>
-                    {% if user.sub_type == 'free' %}
-                    <span class="badge" style="background: rgba(255,255,255,0.05);">Free</span>
+                <td style="color: var(--text-dim); font-size: 0.8rem;">
+                    {% if user.sub_expiry %}
+                    {{ user.sub_expiry }}
                     {% elif user.sub_type == 'admin' %}
-                    <span class="badge" style="background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white;">ADMIN</span>
+                    Бессрочно
                     {% else %}
-                    <span class="badge badge-success">{{ user.sub_type }}</span>
+                    —
                     {% endif %}
                 </td>
-                <td style="color: var(--text-dim); font-size: 0.75rem;">{{ user.created_at }}</td>
                 <td>
-                    <form action="/users/add_tokens" method="post" style="display: flex; gap: 0.5rem;">
-                        <input type="hidden" name="user_id" value="{{ user.user_id }}">
-                        <input type="number" name="amount" placeholder="+/- Токены" style="width: 100px; padding: 0.4rem;">
-                        <button type="submit" class="btn btn-primary" style="padding: 0.4rem 0.75rem;">OK</button>
-                    </form>
+                    <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
+                        <!-- Начисление кредитов -->
+                        <form action="/users/add_credits" method="post" style="display: flex; gap: 0.3rem;">
+                            <input type="hidden" name="user_id" value="{{ user.user_id }}">
+                            <input type="number" name="amount" placeholder="± Кредиты" style="width: 95px; padding: 0.35rem 0.5rem; font-size: 0.8rem;" required>
+                            <button type="submit" class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.75rem;">OK</button>
+                        </form>
+
+                        <!-- Кнопка предоставления резидентства (+1 месяц, +1000 кредитов) -->
+                        {% if user.sub_type != 'admin' %}
+                        <form action="/users/grant_residency" method="post" style="display: inline;">
+                            <input type="hidden" name="user_id" value="{{ user.user_id }}">
+                            <input type="hidden" name="months" value="1">
+                            <input type="hidden" name="credits" value="1000">
+                            <button type="submit" class="btn btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" title="Начислить 1,000 кредитов и продлить статус резидента на 30 дней">
+                                + Месяц (1k)
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        <!-- Смена статуса -->
+                        <form action="/users/set_status" method="post" style="display: inline;">
+                            <input type="hidden" name="user_id" value="{{ user.user_id }}">
+                            <select name="sub_type" onchange="this.form.submit()" style="padding: 0.3rem 0.4rem; font-size: 0.75rem;">
+                                <option value="free" {% if user.sub_type == 'free' %}selected{% endif %}>Tasting Pass</option>
+                                <option value="premium" {% if user.sub_type == 'premium' %}selected{% endif %}>Resident</option>
+                                <option value="admin" {% if user.sub_type == 'admin' %}selected{% endif %}>Admin</option>
+                            </select>
+                        </form>
+                    </div>
                 </td>
             </tr>
             {% endfor %}

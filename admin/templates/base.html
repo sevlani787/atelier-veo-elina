@@ -3,48 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Элин Admin{% endblock %}</title>
+    <title>{% block title %}Atelier VEO | Executive Console{% endblock %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
-    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     {% block head %}{% endblock %}
 </head>
 <body>
     <div class="app-container">
         <aside class="sidebar">
             <div class="logo">
-                <span class="logo-icon">✨</span>
-                <span class="logo-text">Элин Admin</span>
+                <span class="logo-icon">✦</span>
+                <span class="logo-text">Atelier VEO</span>
             </div>
             <nav class="nav-menu">
                 <a href="/" class="nav-item {% if request.url.path == '/' %}active{% endif %}">
-                    <span class="icon">📊</span> Дашборд
-                </a>
-                <a href="/settings" class="nav-item {% if request.url.path == '/settings' %}active{% endif %}">
-                    <span class="icon">⚙️</span> Настройки
+                    <span>📊</span> Дашборд
                 </a>
                 <a href="/users" class="nav-item {% if request.url.path == '/users' %}active{% endif %}">
-                    <span class="icon">👥</span> Пользователи
+                    <span>🏛</span> Резиденты
+                </a>
+                <a href="/settings" class="nav-item {% if request.url.path == '/settings' %}active{% endif %}">
+                    <span>⚙️</span> Тарифы и Модели
                 </a>
                 <a href="/persona" class="nav-item {% if request.url.path == '/persona' %}active{% endif %}">
-                    <span class="icon">🎭</span> Память (Образ)
+                    <span>✨</span> ДНК и Память Элины
                 </a>
                 <a href="/broadcast" class="nav-item {% if request.url.path == '/broadcast' %}active{% endif %}">
-                    <span class="icon">📢</span> Рассылка
+                    <span>📢</span> Оповещение Резидентов
                 </a>
                 <a href="/logs" class="nav-item {% if request.url.path == '/logs' %}active{% endif %}">
-                    <span class="icon">📜</span> Логи
+                    <span>📜</span> Журнал Сервера
                 </a>
             </nav>
             <div class="user-info">
-                <span class="username">👤 {{ username }}</span>
-                <a href="#" class="logout">Выйти</a>
+                <span>👤 {{ username }}</span>
+                <span style="color: var(--primary-light); font-size: 0.75rem;">Council Seat</span>
             </div>
         </aside>
         
         <main class="content">
             <header class="top-header">
-                <h1>{% block page_title %}Панель управления{% endblock %}</h1>
+                <h1>{% block page_title %}Executive Console{% endblock %}</h1>
                 <div class="header-actions">
                     <span class="time" id="current-time">00:00:00</span>
                 </div>

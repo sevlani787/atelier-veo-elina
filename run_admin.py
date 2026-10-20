@@ -2,13 +2,17 @@ import uvicorn
 import os
 from dotenv import load_dotenv
 
-# Load environment variables
+# Загружаем переменные окружения
 load_dotenv()
 
 if __name__ == "__main__":
-    print("🚀 Запуск админ-панели Элин...")
-    print("URL: http://127.0.0.1:8000")
-    print("Логин по умолчанию: admin")
-    print("Пароль по умолчанию: elin2024 (если не задан в .env)")
+    host = os.getenv("ADMIN_HOST", "0.0.0.0")
+    port = int(os.getenv("ADMIN_PORT", 8080))
+    user = os.getenv("ADMIN_USERNAME", "admin")
     
-    uvicorn.run("admin.app:app", host="127.0.0.1", port=8000, reload=True)
+    print("✦ Atelier VEO Club | Executive Console")
+    print(f"URL: http://{host}:{port}")
+    print(f"Пользователь: {user}")
+    print("Статус: Готов к приему запросов управления")
+    
+    uvicorn.run("admin.app:app", host=host, port=port, reload=False)
