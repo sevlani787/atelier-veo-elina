@@ -14,6 +14,8 @@ class Config:
     # Telegram
     telegram_token: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
     admin_id: int = int(os.getenv("ADMIN_ID", "0"))
+    telegram_api_server: str = os.getenv("TELEGRAM_API_SERVER", "")
+    max_video_size_mb: int = int(os.getenv("MAX_VIDEO_SIZE_MB", "2000" if os.getenv("TELEGRAM_API_SERVER") else "20"))
 
     # OpenRouter
     openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")

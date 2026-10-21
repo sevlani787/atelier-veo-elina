@@ -15,7 +15,7 @@ from bot.config import config
 from bot.services.llm import llm
 from bot.services.memory import memory
 from bot.services.database import db
-from bot.utils import send_long_message, extract_keyframes_from_video
+from bot.utils import send_long_message, extract_keyframes_from_video, get_video_duration, extract_video_url_from_text, download_cloud_video
 
 router = Router()
 
@@ -526,48 +526,41 @@ async def handle_photo(message: Message):
         print(f'Vision Error: {e}')
 
 
-@router.message(F.video | F.video_note)
-async def handle_video(message: Message):
-    """Обработка видеосообщений и видеофайлов через раскадровку и Vision/Multimodal."""
-    user_id = message.from_user.id
-    video = message.video or message.video_note
+def is_video_document(message: Message) -> bool:
+    """Проверяет, является ли прикрепленный документ несжатым видеофайлом."""
+    if not message.document:
+        return False
+    mime = (message.document.mime_type or "").lower()
+    name = (message.document.file_name or "").lower()
+    return mime.startswith("video/") or name.endswith(('.mp4', '.mov', '.mkv', '.avi', '.webm', '.m4v'))
 
-    # 1. Проверка баланса на услугу Video QA (25 кредитов)
-    cost = await config.get_token_cost(action='qa')
-    user_data = await check_user_and_balance(user_id, message, cost=cost)
-    if not user_data:
-        return
 
-    # Лимит Telegram Bot API на скачивание файлов ботом — 20 МБ
-    if video.file_size and video.file_size > 20 * 1024 * 1024:
-        await message.answer(
-            "Этот видеоролик немного больше 20 МБ — лимита Telegram для ботов. "
-            "Пожалуйста, отправь ролик меньшего размера или сжатую версию, чтобы я смогла заглянуть в него. 🌿"
-        )
-        return
-
-    temp_video_path = None
+async def process_video_audit(
+    message: Message,
+    temp_video_path: str,
+    duration: float,
+    caption: str,
+    user_id: int,
+    user_data: dict,
+    wait_msg: Optional[Message] = None
+):
+    """Единое ядро эстетического и режиссерского аудита видео (Prompt Doctor / Multimodal QA)."""
     try:
-        await message.bot.send_chat_action(chat_id=message.chat.id, action="upload_video")
-
-        # Скачиваем видео во временный файл
-        file = await message.bot.get_file(video.file_id)
-        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp_file:
-            temp_video_path = tmp_file.name
-
-        await message.bot.download_file(file.file_path, temp_video_path)
-
-        duration = getattr(video, 'duration', 10) or 10
         # Извлекаем раскадровку в отдельном потоке (до 6 ключевых кадров)
         frames = await asyncio.to_thread(extract_keyframes_from_video, temp_video_path, float(duration), 6)
 
         if not frames:
-            await message.answer("Не удалось извлечь кадры из этого видео... Попробуй отправить ролик в стандартном формате MP4.")
+            err_text = "Не удалось извлечь кадры из этого видео... Попробуй отправить ролик в стандартном формате MP4 или MOV."
+            if wait_msg:
+                await wait_msg.edit_text(err_text)
+            else:
+                await message.answer(err_text)
             return
 
-        caption = message.caption or "Посмотри это видео. Дай свою эстетическую и режиссерскую оценку."
+        if not caption:
+            caption = "Посмотри это видео. Дай свою эстетическую и режиссерскую оценку."
 
-        # Формируем мультимодальный запрос с раскадровкой
+        # Формируем мультимодальный запрос с раскадровкой в эстетике VEO
         video_instruction = (
             "Ты — режиссер и эстетический куратор креативного агентства VEO. "
             "Собеседник прислал видеоролик. Ниже представлена покадровая раскадровка этого ролика по таймкодам.\n"
@@ -579,7 +572,7 @@ async def handle_video(message: Message):
         )
 
         video_content = [
-            {'type': 'text', 'text': f"{video_instruction}Запрос к ролику: {caption}\nОбщая длительность видео: {duration} сек.\nРаскадровка по таймкодам:"}
+            {'type': 'text', 'text': f"{video_instruction}Запрос к ролику: {caption}\nОбщая длительность видео: {round(duration, 1)} сек.\nРаскадровка по таймкодам:"}
         ]
 
         for ts, b64_frame in frames:
@@ -616,6 +609,12 @@ async def handle_video(message: Message):
         new_balance = (await db.get_user_data(user_id))['tokens']
         balance_info = f"\n\n<i>✦ Atelier Credits: {new_balance}</i>" if (user_data.get('sub_type') != 'admin' and user_id != config.admin_id) else ""
 
+        if wait_msg:
+            try:
+                await wait_msg.delete()
+            except Exception:
+                pass
+
         await send_long_message(message, response + balance_info, parse_mode="HTML")
 
         # Фоновое обновление фактов
@@ -624,13 +623,67 @@ async def handle_video(message: Message):
             asyncio.create_task(extract_and_save_all_task(user_id))
 
     except Exception as e:
-        await message.answer('Знаешь, при просмотре видео у меня возникли трудности... Попробуй отправить его ещё раз или немного укоротить.')
-        print(f'Video Error: {e}')
+        if wait_msg:
+            try:
+                await wait_msg.delete()
+            except Exception:
+                pass
+        await message.answer('Знаешь, при анализе видеоряда у меня возникли сложности... Попробуй отправить его ещё раз или немного укоротить.')
+        print(f'Video QA Error: {e}')
     finally:
         if temp_video_path and os.path.exists(temp_video_path):
             try:
                 os.unlink(temp_video_path)
-            except:
+            except Exception:
+                pass
+
+
+@router.message(F.video | F.video_note | (F.document & F.func(is_video_document)))
+async def handle_video(message: Message):
+    """Обработка видеосообщений, видеофайлов и несжатых видеодокументов через раскадровку и Vision/Multimodal."""
+    user_id = message.from_user.id
+    video = message.video or message.video_note or message.document
+
+    # 1. Проверка баланса на услугу Video QA (25 кредитов)
+    cost = await config.get_token_cost(action='qa')
+    user_data = await check_user_and_balance(user_id, message, cost=cost)
+    if not user_data:
+        return
+
+    # Проверка лимита размера видеофайла (20 МБ для облачного Bot API или до 2000 МБ для локального сервера)
+    max_bytes = config.max_video_size_mb * 1024 * 1024
+    if video.file_size and video.file_size > max_bytes:
+        await message.answer(
+            f"Этот видеоролик немного больше {config.max_video_size_mb} МБ — текущего предела загрузки.\n"
+            "Пожалуйста, отправь ссылку на файл в Google Drive или Dropbox, чтобы я смогла скачать оригинал. 🌿"
+        )
+        return
+
+    temp_video_path = None
+    try:
+        await message.bot.send_chat_action(chat_id=message.chat.id, action="upload_video")
+
+        # Скачиваем видео во временный файл
+        file = await message.bot.get_file(video.file_id)
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp_file:
+            temp_video_path = tmp_file.name
+
+        await message.bot.download_file(file.file_path, temp_video_path, timeout=300)
+
+        duration = getattr(video, 'duration', 0) or 0
+        if duration <= 0:
+            duration = get_video_duration(temp_video_path)
+
+        caption = message.caption or (message.text if hasattr(message, 'text') else "") or ""
+        await process_video_audit(message, temp_video_path, duration, caption, user_id, user_data)
+
+    except Exception as e:
+        await message.answer('Знаешь, при получении видеофайла возникла ошибка... Попробуй отправить его ещё раз.')
+        print(f'Video Download Error: {e}')
+        if temp_video_path and os.path.exists(temp_video_path):
+            try:
+                os.unlink(temp_video_path)
+            except Exception:
                 pass
 
 
@@ -758,6 +811,41 @@ async def handle_message(message: Message):
         # 1. Проверка баланса
         user_data = await check_user_and_balance(user_id, target_message)
         if not user_data:
+            return
+
+        # Поиск ссылок в тексте сообщения
+        # Проверяем, не является ли ссылка облачным видео (Google Drive, Dropbox, прямой видеофайл)
+        cloud_video_url = extract_video_url_from_text(user_text)
+        if cloud_video_url:
+            qa_cost = await config.get_token_cost(action='qa')
+            user_data = await check_user_and_balance(user_id, target_message, cost=qa_cost)
+            if not user_data:
+                return
+
+            wait_msg = await target_message.answer(
+                "Приняла ссылку на видеоматериал. Начинаю загрузку в оригинальном качестве и готовлю раскадровку для эстетического аудита... 🎬"
+            )
+
+            with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp_file:
+                temp_video_path = tmp_file.name
+
+            success = await download_cloud_video(cloud_video_url, temp_video_path, max_size_mb=config.max_video_size_mb)
+            if not success or not os.path.exists(temp_video_path) or os.path.getsize(temp_video_path) == 0:
+                if temp_video_path and os.path.exists(temp_video_path):
+                    try:
+                        os.unlink(temp_video_path)
+                    except Exception:
+                        pass
+                await wait_msg.edit_text(
+                    "Не удалось получить доступ к видеофайлу по этой ссылке. "
+                    "Убедись, пожалуйста, что ссылка открыта для просмотра («Доступно всем, у кого есть ссылка»), "
+                    "или отправь видеофайл напрямую в чат."
+                )
+                return
+
+            duration = get_video_duration(temp_video_path)
+            clean_caption = user_text.replace(cloud_video_url, "").strip()
+            await process_video_audit(target_message, temp_video_path, duration, clean_caption, user_id, user_data, wait_msg=wait_msg)
             return
 
         # Поиск ссылок в тексте сообщения

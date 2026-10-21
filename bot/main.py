@@ -18,9 +18,18 @@ async def main():
     # Initialize database
     await db.init()
 
+    bot_session = None
+    if config.telegram_api_server:
+        from aiogram.client.session.aiohttp import AiohttpSession
+        from aiogram.client.telegram import TelegramAPIServer
+        server = TelegramAPIServer.from_base(config.telegram_api_server)
+        bot_session = AiohttpSession(api=server)
+        logging.info(f"Using local Telegram Bot API server at {config.telegram_api_server}")
+
     bot = Bot(
         token=config.telegram_token,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+        session=bot_session
     )
 
     dp = Dispatcher()
