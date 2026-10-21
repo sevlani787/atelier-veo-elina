@@ -32,7 +32,7 @@ async def send_out_of_credits_message(message: Message, sub_type: str = "free"):
     """Служебное уведомление об исчерпании кредитов (Элина никогда не говорит о деньгах)."""
     if sub_type == "premium":
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="💳 Top-Up Atelier Credits", url="https://veocreative.agency/#pricing")],
+            [InlineKeyboardButton(text="💳 Top-Up Atelier Credits", url="https://veocreative.agency/club")],
             [InlineKeyboardButton(text="🏛 Contact Executive Producer", url="https://t.me/veocreative")]
         ])
         await message.answer(
@@ -44,7 +44,7 @@ async def send_out_of_credits_message(message: Message, sub_type: str = "free"):
         )
     else:
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="💎 Apply for Atelier Residency (20 Seats)", url="https://veocreative.agency/#pricing")],
+            [InlineKeyboardButton(text="💎 Apply for Atelier Residency (20 Seats)", url="https://veocreative.agency/club")],
             [InlineKeyboardButton(text="🏛 Explore Atelier VEO Portfolio", url="https://veocreative.agency")]
         ])
         await message.answer(
@@ -148,7 +148,7 @@ def get_start_content(user_id: int, user_data: dict, lang: str = "en"):
                 InlineKeyboardButton(text="📜 Меню услуг & Кредиты", callback_data="view_rates_menu_ru")
             ],
             [
-                InlineKeyboardButton(text="🏛 Сайт: veocreative.agency", url="https://veocreative.agency/#pricing"),
+                InlineKeyboardButton(text="🏛 Сайт: veocreative.agency", url="https://veocreative.agency/club"),
                 InlineKeyboardButton(text="👤 Исполнительный продюсер", url="https://t.me/veocreative")
             ],
             [
@@ -179,7 +179,7 @@ def get_start_content(user_id: int, user_data: dict, lang: str = "en"):
                 InlineKeyboardButton(text="📜 Production Rates & Credits", callback_data="view_rates_menu_en")
             ],
             [
-                InlineKeyboardButton(text="🏛 Website: veocreative.agency", url="https://veocreative.agency/#pricing"),
+                InlineKeyboardButton(text="🏛 Website: veocreative.agency", url="https://veocreative.agency/club"),
                 InlineKeyboardButton(text="👤 Executive Producer", url="https://t.me/veocreative")
             ],
             [
@@ -273,7 +273,7 @@ async def cmd_switch_argon(message: Message):
         await message.answer(
             "✦ <b>ATELIER VEO | ACCESS RESTRICTION</b>\n\n"
             "Режим глубокого созидания (<b>Gemini 4 Argon</b>) зарезервирован для резидентов Atelier VEO Club.\n\n"
-            "Подать заявку на резидентство: <a href='https://veocreative.agency/#pricing'>veocreative.agency</a>",
+            "Подать заявку на резидентство: <a href='https://veocreative.agency/club'>veocreative.agency</a>",
             parse_mode="HTML"
         )
         return
@@ -382,7 +382,7 @@ async def cmd_status(message: Message):
             InlineKeyboardButton(text="💎 Резидентура & Подписка", callback_data="buy_premium_menu"),
             InlineKeyboardButton(text="📜 Меню услуг & Кредиты", callback_data="view_rates_menu")
         ],
-        [InlineKeyboardButton(text="🏛 Сайт: veocreative.agency", url="https://veocreative.agency/#pricing")]
+        [InlineKeyboardButton(text="🏛 Сайт: veocreative.agency", url="https://veocreative.agency/club")]
     ])
 
     text = (

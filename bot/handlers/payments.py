@@ -41,7 +41,7 @@ async def cmd_premium(message: Message, user_id: int = None, lang: str = "en"):
             "<b>Оплата и активация:</b> Прямой B2B-расчет через <b>Payoneer</b> на официальном сайте."
         )
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="💎 Вступить в Клуб / Оплата (Payoneer)", url="https://veocreative.agency/#pricing")],
+            [InlineKeyboardButton(text="💎 Вступить в Клуб / Оплата (Payoneer)", url="https://veocreative.agency/club")],
             [InlineKeyboardButton(text="📜 Сетка услуг & Стоимость в кредитах", callback_data="view_rates_menu_ru")],
             [InlineKeyboardButton(text="🏛 Связаться с Исполнительным продюсером", url="https://t.me/veocreative")],
             [InlineKeyboardButton(text="🌐 Switch to English", callback_data="buy_premium_menu_en")]
@@ -70,7 +70,7 @@ async def cmd_premium(message: Message, user_id: int = None, lang: str = "en"):
             "<b>Payment & Activation:</b> Direct B2B settlement via <b>Payoneer</b> with instant VIP onboarding."
         )
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="💎 Apply for Residency / Pay via Payoneer", url="https://veocreative.agency/#pricing")],
+            [InlineKeyboardButton(text="💎 Apply for Residency / Pay via Payoneer", url="https://veocreative.agency/club")],
             [InlineKeyboardButton(text="📜 Production Rates & Credits Menu", callback_data="view_rates_menu_en")],
             [InlineKeyboardButton(text="🏛 Contact Executive Producer Vladimir", url="https://t.me/veocreative")],
             [InlineKeyboardButton(text="🌐 Русский язык", callback_data="buy_premium_menu_ru")]
@@ -124,7 +124,7 @@ async def view_rates_menu_internal(target, lang: str = "en"):
             "<i>✦ 100% Rollover Policy: Все неиспользованные кредиты бессрочно переносятся на следующий месяц.</i>"
         )
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="💎 Вступить в Клуб / Оплата (Payoneer)", url="https://veocreative.agency/#pricing")],
+            [InlineKeyboardButton(text="💎 Вступить в Клуб / Оплата (Payoneer)", url="https://veocreative.agency/club")],
             [InlineKeyboardButton(text="« Вернуться к условиям резидентуры", callback_data="buy_premium_menu_ru")],
             [InlineKeyboardButton(text="🌐 Switch to English", callback_data="view_rates_menu_en")]
         ])
@@ -145,7 +145,7 @@ async def view_rates_menu_internal(target, lang: str = "en"):
             "<i>✦ 100% Rollover Privilege: Unused credits never expire upon monthly residency renewal.</i>"
         )
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="💎 Apply for Residency via Payoneer", url="https://veocreative.agency/#pricing")],
+            [InlineKeyboardButton(text="💎 Apply for Residency via Payoneer", url="https://veocreative.agency/club")],
             [InlineKeyboardButton(text="« Return to Residency Menu", callback_data="buy_premium_menu_en")],
             [InlineKeyboardButton(text="🌐 Русский язык", callback_data="view_rates_menu_ru")]
         ])
