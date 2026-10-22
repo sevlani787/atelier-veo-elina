@@ -47,6 +47,9 @@ class Config:
         if action == "prompt":
             val = await db.get_setting("credit_cost_prompt", "20")
             return int(val)
+        if action in ("remediation", "shield", "finishing"):
+            val = await db.get_setting("credit_cost_remediation", "100")
+            return int(val)
         if action == "ambassador":
             val = await db.get_setting("credit_cost_ambassador", "100")
             return int(val)
