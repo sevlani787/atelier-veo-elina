@@ -22,9 +22,9 @@ async def main():
     if config.telegram_api_server:
         from aiogram.client.session.aiohttp import AiohttpSession
         from aiogram.client.telegram import TelegramAPIServer
-        server = TelegramAPIServer.from_base(config.telegram_api_server)
+        server = TelegramAPIServer.from_base(config.telegram_api_server, is_local=True)
         bot_session = AiohttpSession(api=server)
-        logging.info(f"Using local Telegram Bot API server at {config.telegram_api_server}")
+        logging.info(f"Using local Telegram Bot API server at {config.telegram_api_server} (is_local=True)")
 
     bot = Bot(
         token=config.telegram_token,

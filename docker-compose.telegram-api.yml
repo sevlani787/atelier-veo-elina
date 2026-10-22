@@ -12,7 +12,4 @@ services:
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
       - TELEGRAM_LOCAL=1
     volumes:
-      - telegram-bot-api-data:/var/lib/telegram-bot-api
-
-volumes:
-  telegram-bot-api-data:
+      - /var/lib/telegram-bot-api:/var/lib/telegram-bot-api

@@ -16,6 +16,10 @@ else
     echo "[2/4] Docker is already installed."
 fi
 
+# Ensure host shared storage directory exists with full read/write permissions
+mkdir -p /var/lib/telegram-bot-api
+chmod 777 /var/lib/telegram-bot-api
+
 # 3. Configure .env with API credentials
 echo "[3/4] Updating .env..."
 ENV_FILE=".env"
@@ -35,14 +39,19 @@ set_env "TELEGRAM_API_HASH" "4f7a2efd1717ddb1eee7373e6a59f3cc"
 set_env "TELEGRAM_API_SERVER" "http://localhost:8081"
 set_env "MAX_VIDEO_SIZE_MB" "2000"
 
-# 4. Start local Telegram Bot API container
-echo "[4/4] Starting telegram-bot-api container (2GB limit)..."
+# Install aiofiles in virtualenv if not installed
+if [ -f "/root/atelier-veo-elina/.venv/bin/pip" ]; then
+    /root/atelier-veo-elina/.venv/bin/pip install aiofiles>=23.2.1 --quiet || true
+fi
+
+# 4. Start local Telegram Bot API container with direct host volume mount
+echo "[4/4] Starting telegram-bot-api container (2GB local storage)..."
 docker rm -f telegram-bot-api 2>/dev/null || true
 docker run -d \
   -p 127.0.0.1:8081:8081 \
   --name=telegram-bot-api \
   --restart=always \
-  -v telegram-bot-api-data:/var/lib/telegram-bot-api \
+  -v /var/lib/telegram-bot-api:/var/lib/telegram-bot-api \
   -e TELEGRAM_API_ID="31048518" \
   -e TELEGRAM_API_HASH="4f7a2efd1717ddb1eee7373e6a59f3cc" \
   -e TELEGRAM_LOCAL=1 \

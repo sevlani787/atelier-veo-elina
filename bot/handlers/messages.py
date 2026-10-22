@@ -464,14 +464,16 @@ async def handle_photo(message: Message):
     try:
         await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
 
-        # Скачиваем файл через Telegram Bot API
+        # Скачиваем файл через Telegram Bot API или считываем напрямую с диска
         file = await message.bot.get_file(photo.file_id)
-        buffer = io.BytesIO()
-        await message.bot.download_file(file.file_path, buffer)
-        buffer.seek(0)
-
-        # Кодируем в base64
-        image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+        if file.file_path and os.path.exists(file.file_path):
+            with open(file.file_path, "rb") as f:
+                image_base64 = base64.b64encode(f.read()).decode('utf-8')
+        else:
+            buffer = io.BytesIO()
+            await message.bot.download_file(file.file_path, buffer)
+            buffer.seek(0)
+            image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
 
         # Формируем Vision-контент с эстетическими инструкциями
         vision_instruction = (
@@ -542,7 +544,8 @@ async def process_video_audit(
     caption: str,
     user_id: int,
     user_data: dict,
-    wait_msg: Optional[Message] = None
+    wait_msg: Optional[Message] = None,
+    is_temp_file: bool = False
 ):
     """Единое ядро эстетического и режиссерского аудита видео (Prompt Doctor / Multimodal QA)."""
     try:
@@ -631,7 +634,7 @@ async def process_video_audit(
         await message.answer('Знаешь, при анализе видеоряда у меня возникли сложности... Попробуй отправить его ещё раз или немного укоротить.')
         print(f'Video QA Error: {e}')
     finally:
-        if temp_video_path and os.path.exists(temp_video_path):
+        if is_temp_file and temp_video_path and os.path.exists(temp_video_path):
             try:
                 os.unlink(temp_video_path)
             except Exception:
@@ -660,27 +663,32 @@ async def handle_video(message: Message):
         return
 
     temp_video_path = None
+    is_temp_file = False
     try:
         await message.bot.send_chat_action(chat_id=message.chat.id, action="upload_video")
 
-        # Скачиваем видео во временный файл
+        # Скачиваем видео во временный файл или считываем напрямую с диска
         file = await message.bot.get_file(video.file_id)
-        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp_file:
-            temp_video_path = tmp_file.name
-
-        await message.bot.download_file(file.file_path, temp_video_path, timeout=300)
+        if file.file_path and os.path.exists(file.file_path):
+            temp_video_path = file.file_path
+            is_temp_file = False
+        else:
+            with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp_file:
+                temp_video_path = tmp_file.name
+            is_temp_file = True
+            await message.bot.download_file(file.file_path, temp_video_path, timeout=300)
 
         duration = getattr(video, 'duration', 0) or 0
         if duration <= 0:
             duration = get_video_duration(temp_video_path)
 
         caption = message.caption or (message.text if hasattr(message, 'text') else "") or ""
-        await process_video_audit(message, temp_video_path, duration, caption, user_id, user_data)
+        await process_video_audit(message, temp_video_path, duration, caption, user_id, user_data, is_temp_file=is_temp_file)
 
     except Exception as e:
         await message.answer('Знаешь, при получении видеофайла возникла ошибка... Попробуй отправить его ещё раз.')
         print(f'Video Download Error: {e}')
-        if temp_video_path and os.path.exists(temp_video_path):
+        if is_temp_file and temp_video_path and os.path.exists(temp_video_path):
             try:
                 os.unlink(temp_video_path)
             except Exception:
@@ -845,7 +853,7 @@ async def handle_message(message: Message):
 
             duration = get_video_duration(temp_video_path)
             clean_caption = user_text.replace(cloud_video_url, "").strip()
-            await process_video_audit(target_message, temp_video_path, duration, clean_caption, user_id, user_data, wait_msg=wait_msg)
+            await process_video_audit(target_message, temp_video_path, duration, clean_caption, user_id, user_data, wait_msg=wait_msg, is_temp_file=True)
             return
 
         # Поиск ссылок в тексте сообщения
