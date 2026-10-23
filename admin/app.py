@@ -387,9 +387,17 @@ async def boardroom_extract_label(payload: ExtractLabelRequest, username: str = 
 class VisualQARequest(BaseModel):
     media_path: str
 
+class CompareVariantsRequest(BaseModel):
+    media_paths: list[str]
+
 @app.post("/api/boardroom/visual_qa")
 async def boardroom_visual_qa(payload: VisualQARequest, username: str = Depends(get_current_username)):
     res = await boardroom_service.execute_visual_qa(payload.media_path)
+    return JSONResponse(content=res)
+
+@app.post("/api/boardroom/compare_variants")
+async def boardroom_compare_variants(payload: CompareVariantsRequest, username: str = Depends(get_current_username)):
+    res = await boardroom_service.execute_variants_comparison(payload.media_paths)
     return JSONResponse(content=res)
 
 @app.post("/api/boardroom/upload")

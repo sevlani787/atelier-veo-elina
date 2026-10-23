@@ -110,7 +110,9 @@ class BoardroomService:
             "   а) [Visual & Clean Plate]: визуальный образ, оптика 85mm, unlabelled bottle, zero text, clean plate;\n"
             "   б) [Audio & Foley SFX]: 40Hz sub-bass, felt piano, синхронный тактильный щелчок магнитной крышки, звон хрусталя, спрей;\n"
             "   в) [Voiceover]: интимный бархатный шепот с точным парижским прононсом, дыханием и словами сценария в кавычках.\n"
-            "5. Опиши первый ключевой кадр (Start Frame / Key Visual) и критерии приемки ОТК для контроля артефактов.\n\n"
+            "5. РАСКАДРОВКА И ПРОМПТЫ ДЛЯ ПЕРВЫХ КАДРОВ СЦЕН (Start Frame 2K):\n"
+            "   Для КАЖДОЙ сцены сценария сформулируй отдельный статический промпт для генерации первого кадра (Start Frame в 2K), чтобы Владимир мог сгенерировать 4 варианта. Опиши композицию, свет и чистое стекло без текста.\n"
+            "   Владимир сгенерирует 4 варианта в 2K и загрузит в зал, где ты лично проведешь сравнительный кураторский отбор (Shootout) и выберешь 1 лучший кадр-победитель для старта движения во Flow!\n\n"
             f"Текущая тема/запрос Владимира:\n{context_topic}\n\n"
             f"Контекст Совета:\n{history_snippet}\n\n"
             "Ответь структурированно, красиво и емко, выделив готовый промпт для копирования в блок кода. Обращайся строго как к коллеге и исполнительному продюсеру: 'Владимир' (без обращения 'Отец')."
@@ -263,6 +265,82 @@ class BoardroomService:
             "status": "success",
             "report": qa_report,
             "message": qa_msg
+        }
+
+    async def execute_variants_comparison(self, media_paths: List[str]) -> Dict:
+        """
+        Кураторский сравнительный отбор (LookDev Shootout) 1 из 4 вариантов первого кадра (Start Frame 2K).
+        Элина через флагманскую мультимодальную нейросеть Gemini 4 Argon сравнивает кандидатов
+        и официально провозглашает Кадр-Победитель для старта движения в Google Flow.
+        """
+        import base64
+        content_items = [
+            {
+                "type": "text",
+                "text": (
+                    "Ты — Элина, Главный Режиссер, Верховный Архитектор Промптов и Глава ОТК Atelier VEO.\n"
+                    "Ты работаешь на флагманской мультимодальной нейросети Gemini 4 Argon — мощнейшем визуальном интеллекте.\n\n"
+                    "Перед тобой варианты первого кадра (Start Frame 2K) для сцены luxury-ролика.\n"
+                    "Владимир сгенерировал эти варианты по твоему авторскому промпту.\n"
+                    "Твоя режиссерская задача — провести сравнительный кураторский аудит и выбрать ОДИН безоговорочно лучший кадр (Кадр-Победитель), который станет официальным первым кадром (First Frame) для оживления в Google Flow.\n\n"
+                    "Сравни кандидатов по 5 каноническим критериям:\n"
+                    "1. Оптика и геометрия флакона (чистота граней, отсутствие размытия и искажений).\n"
+                    "2. The Clean Flacon Invariant (идеально гладкая передняя грань без псевдо-букв и клякс под наложение Identity Shield).\n"
+                    "3. Физика света и каустики (5200K / 2800K, глубина светотени, игра света в парфюмерной жидкости, скользящий блик).\n"
+                    "4. Атмосфера Quiet Luxury и кинематографическая эстетика Haute Horlogerie / Haute Parfumerie.\n"
+                    "5. Идеальная стартовая композиция для движения камеры.\n\n"
+                    "Сформируй режиссерский протокол выбора:\n"
+                    "- Краткий экспертный разбор каждого представленного варианта (плюсы и минусы).\n"
+                    "- 🏆 **КАДР-ПОБЕДИТЕЛЬ:** [Вариант №X] — детальное объяснение, почему победил именно он.\n"
+                    "- **РЕЖИССЕРСКАЯ ДИРЕКТИВА ДЛЯ GOOGLE FLOW:** ключевые акценты для видеокамеры при старте движения из этого кадра."
+                )
+            }
+        ]
+
+        valid_names = []
+        for idx, p_str in enumerate(media_paths, start=1):
+            p = Path(p_str)
+            if p.exists() and p.suffix.lower() in [".jpg", ".jpeg", ".png", ".webp"]:
+                with open(p, "rb") as f:
+                    b64 = base64.b64encode(f.read()).decode("utf-8")
+                content_items.append({
+                    "type": "text",
+                    "text": f"--- ВАРИАНТ №{idx}: {p.name} ---"
+                })
+                content_items.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{b64}"}
+                })
+                valid_names.append(p.name)
+
+        if not valid_names:
+            return {"status": "error", "detail": "Не найдено подходящих изображений для сравнительного отбора"}
+
+        messages = [{"role": "user", "content": content_items}]
+
+        try:
+            report = await llm.generate(messages, override_model="google/gemini-4-argon")
+        except Exception as e:
+            try:
+                report = await llm.generate(messages, override_model="google/gemini-2.5-flash")
+            except Exception as e2:
+                report = f"Ошибка сравнительного отбора: {e2}"
+
+        msg = {
+            "sender": "elina",
+            "name": "Элина (Кураторский отбор Start Frame)",
+            "role": "Supreme Director & Visual Arbiter",
+            "avatar": "🏆",
+            "color": "#dfba73",
+            "time": datetime.datetime.now().strftime("%H:%M"),
+            "text": f"**Кураторский вердикт: Отбор 1 из {len(valid_names)} (Gemini 4 Argon):**\n\n{report}"
+        }
+        self.active_session["messages"].append(msg)
+
+        return {
+            "status": "success",
+            "report": report,
+            "message": msg
         }
 
     async def generate_kai_response(self, elina_text: str, adrian_text: str, user_topic: str) -> Dict:
