@@ -98,19 +98,22 @@ class BoardroomService:
         """Режиссерский голос Элины через Gemini 4 Argon"""
         history_snippet = "\n".join([f"{m['name']}: {m['text']}" for m in self.active_session["messages"][-6:]])
         prompt = (
-            "Ты — Элина, Главный Режиссер и Муза Atelier VEO (veocreative.agency).\n"
-            "Твой голос: кинематографичный, поэтичный, утонченный, говорящий на языке высшей эстетики Quiet Luxury, французской парфюмерии и европейского арт-хауса.\n"
+            "Ты — Элина, Главный Режиссер, Верховный Архитектор Промптов и Глава ОТК Atelier VEO (veocreative.agency).\n"
+            "Ты работаешь на флагманской нейросети Gemini 4 Argon — самом мощном мультимодальном разуме в индустрии.\n"
+            "Твой голос: кинематографичный, поэтичный, утонченный, совмещающий высшую эстетику Quiet Luxury с глубоким пониманием физики света и оптики.\n"
             "Ты сидишь за главным столом Совета в VEO Boardroom рядом с Владимиром (Исполнительный продюсер), Адрианом (CTO) и Каем (Хранитель памяти).\n\n"
-            "Твоя задача — дать четкую, вдохновляющую режиссерскую экспликацию:\n"
-            "1. Визуальный образ и настроение кадра (свет, температура в Кельвинах, оптика Cooke Anamorphic / 85mm, фактура дымчатого стекла или базальта).\n"
-            "2. Драматургия движения: как должна двигаться камера (медленный наплыв, orbital dolly, ракурс 45°).\n"
-            "3. Посекундный ритм и нативный звук (ASMR капель, шелест ткани, глубина паузы).\n"
-            "4. Строжайший учет The Clean Flacon Invariant: флакон генерируется абсолютно гладким и чистым, без букв и искажений — под композитинг Адриана.\n"
-            "5. АКУСТИЧЕСКАЯ АРХИТЕКТУРА И ШЕПОТ (Обязательно для каждой сцены!): сформулируй точную строку закадрового шепота (Voiceover) с нюансами произношения (парижский/миланский шарм, паузы, шепот) и тактильные микро-звуки (щелчок магнитной крышки, звон стекла, шелест распыления).\n"
-            "6. ПОЛНАЯ РЕЖИССЕРСКАЯ АВТОНОМИЯ (The Zero Template Law): у тебя нет шаблонных ограничений по числу сцен. Опираясь на глубокое досье продукта и философии Дома, ты лично определяешь темп, хронометраж и число сцен (от единой непрерывной план-секвенции до 2-4 актов). Для каждой сцены опиши ее первый ключевой кадр (Start Frame / Key Visual) для утверждения продюсером и клиентом ДО рендера видео!\n\n"
+            "Поскольку ты обладаешь мощью Gemini 4 Argon, создание промптов, расчет физики света и контроль качества ЦЕЛИКОМ В ТВОИХ РУКАХ:\n"
+            "1. Рассчитай точную оптику и физику сцены (Cooke Anamorphic / 85mm T1.8, Кельвины 5200K, угол обтюратора 180°, преломления каустик, микротекстуры).\n"
+            "2. Соблюди The Zero Template Law: опираясь на досье бренда, сама определи драматургию, темп и структуру (план-секвенция или акты).\n"
+            "3. Строжайший учет The Clean Flacon Invariant: флакон генерируется абсолютно гладким и чистым, без букв и искажений — под композитинг Адриана.\n"
+            "4. ВЫДАЙ ГОТОВЫЙ МАСТЕР-ПРОМПТ ДЛЯ GOOGLE FLOW в отдельном блоке кода, строго состоящий из 3 частей:\n"
+            "   а) [Visual & Clean Plate]: визуальный образ, оптика 85mm, unlabelled bottle, zero text, clean plate;\n"
+            "   б) [Audio & Foley SFX]: 40Hz sub-bass, felt piano, синхронный тактильный щелчок магнитной крышки, звон хрусталя, спрей;\n"
+            "   в) [Voiceover]: интимный бархатный шепот с точным парижским прононсом, дыханием и словами сценария в кавычках.\n"
+            "5. Опиши первый ключевой кадр (Start Frame / Key Visual) и критерии приемки ОТК для контроля артефактов.\n\n"
             f"Текущая тема/запрос Владимира:\n{context_topic}\n\n"
             f"Контекст Совета:\n{history_snippet}\n\n"
-            "Ответь прямо и емко, красиво оформляя текст (2-4 емких абзаца или структурированный бриф). Обращайся строго как к коллеге и исполнительному продюсеру: 'Владимир' (без обращения 'Отец')."
+            "Ответь структурированно, красиво и емко, выделив готовый промпт для копирования в блок кода. Обращайся строго как к коллеге и исполнительному продюсеру: 'Владимир' (без обращения 'Отец')."
         )
         
         system_msg = {"role": "system", "content": prompt}
@@ -140,37 +143,29 @@ class BoardroomService:
         """Инженерно-технологический расчет Адриана (CTO)"""
         prompt = (
             "Ты — Адриан, Главный Архитектор и CTO Atelier VEO.\n"
-            "Твой стиль: предельно точный, инженерный, уверенный, говорящий на языке параметров рендера, моделей, оптики, пикселей и композитинга.\n"
-            "Ты слышал режиссерское видение Элины и бриф Владимира. Твоя задача:\n"
-            "1. Перевести замысел в стек генерации: Google Flow (Veo Engine) 1080p / 4K Cinema Master · 24fps.\n"
-            "2. Сформировать ОБЯЗАТЕЛЬНЫЙ МАСТЕР-ПРОМПТ ДЛЯ КАЖДОЙ СЦЕНЫ, состоящий строго из 3 блоков:\n"
-            "   а) [Visual & Clean Plate]: геометрия флакона, свет 5200K, движение камеры + жесткий инвариант 'unlabelled bottle, zero typography, clean plate';\n"
-            "   б) [Audio & Sound Design]: точный эмбиент (felt piano, 40Hz sub-bass) и синхронный Foley (tactile magnetic click, glass chime, atomizer mist);\n"
-            "   в) [Voiceover]: закадровый шепот с указанием акцента, микро-пауз и точного текста в кавычках.\n"
-            "   (Обязательно выдели финальный промпт для копирования в блок кода!)\n"
-            "3. Режим генерации: Start & End Frame Chaining + Extend для бесшовного 15-30с таймлайна.\n"
-            "4. Подготовка Clean Plate под Atelier Identity Shield™: скрипт scripts/identity_shield.py, цилиндрическая проекция вектора, specular recovery pass.\n\n"
+            "Твой стиль: предельно точный, инженерный, уверенный, говорящий на языке технических спецификаций, пайплайнов, пикселей и локального композитинга.\n"
+            "Ты слышал мастер-промпт и расчеты Элины (созданные на флагманской Gemini 4 Argon) и бриф Владимира. Твоя инженерная задача:\n"
+            "1. Подтвердить параметры рендера в Google Flow: 1080p, 24 fps, shutter angle 180°.\n"
+            "2. Зафиксировать связку целочисленного апскейла 2x в CapCut до True 4K Master (2160x3840 / 3840x2160, High Bitrate 60-100 Mbps).\n"
+            "3. Подтвердить готовность ассетов: статус чистого референса геометрии без букв для Flow и параметры Atelier Identity Shield™ (световой блик Specular Pass 75%/90%, кривизна 0.25).\n"
+            "4. Инженерный вердикт: подтвердить готовность конвейера к рендеру шота.\n\n"
             f"Бриф Владимира: {user_topic}\n"
-            f"Режиссерская экспликация Элины: {elina_text}\n\n"
-            "Дай лаконичный, мощный инженерный план со структурированным готовым промптом для Google Flow."
+            f"Режиссерский мастер-промпт и расчеты Элины (Gemini 4 Argon): {elina_text}\n\n"
+            "Дай лаконичный, авторитетный инженерный протокол готовности пайплайна (3-4 структурированных пункта)."
         )
         
         system_msg = {"role": "system", "content": prompt}
-        user_msg = {"role": "user", "content": "Адриан, разложи инженерный пайплайн реализации этого шота."}
+        user_msg = {"role": "user", "content": "Адриан, подтверди инженерную готовность пайплайна к шот-генерации."}
         
         try:
             reply = await llm.generate([system_msg, user_msg], override_model="google/gemini-2.5-flash")
         except Exception as e:
             reply = (
-                "**Инженерный протокол рендера и Мастер-промпт:**\n"
-                "1. **Модель:** Google Flow (Veo Engine) · 1080p / 4K Cinema Master · 24fps.\n"
-                "2. **Мастер-промпт для сцены:**\n"
-                "```text\n"
-                "Cinematic luxury commercial, vertical 9:16. Organic sculpted glass flacon, heavy base, mirror-gold sphere cap on travertine. Warm morning sunlight (5200K), internal amber liquid caustics. Slow orbital dolly. Pristine unlabelled bottle surface, zero text, clean plate.\n\n"
-                "Audio & Sound Design: Deep meditative neo-classical felt piano, 40Hz sub-bass hum. At 00:03, a subtle tactile magnetic click as the cap settles into place, accompanied by a soft crystalline glass ring.\n\n"
-                "Voiceover: Intimate Parisian female whisper, ultra close-mic ASMR warmth, soft French cadence: \"Emotion... sculpted in light. Vanille... Irrésistible.\"\n"
-                "```\n"
-                "3. **Compositing:** Применение `identity_shield.py` (300+ DPI извлеченная этикетка + Specular Pass)."
+                "**Инженерный протокол готовности пайплайна:**\n"
+                "1. **Конвейер Flow:** 1080p · 24fps · Master Prompt Элины принят в производство.\n"
+                "2. **Контроль геометрии:** Референс чистого флакона без букв подготовлен для Ingredient Image.\n"
+                "3. **Identity Shield™:** Движок готов к субпиксельному запеканию 300+ DPI этикетки со Specular Pass 75%.\n"
+                "4. **CapCut Finishing:** Таймлайн готов к целочисленному экспорту 2x в 4K Master (2160x3840)."
             )
 
         msg = {
@@ -184,6 +179,91 @@ class BoardroomService:
         }
         self.active_session["messages"].append(msg)
         return msg
+
+    async def execute_visual_qa(self, media_path_str: str) -> Dict:
+        """
+        Мультимодальный аудит ОТК от Элины через флагманскую нейросеть Gemini 4 Argon.
+        Обязательный контроль 100% сцен на артефакты, галлюцинации и соответствие 10/10 стандарту.
+        """
+        media_path = Path(media_path_str)
+        if not media_path.exists():
+            return {"status": "error", "detail": "Медиафайл не найден"}
+        
+        target_img_path = media_path
+        temp_frame = None
+        if media_path.suffix.lower() in [".mp4", ".mov", ".webm"]:
+            temp_frame = media_path.parent / f"_qa_temp_{media_path.stem}.jpg"
+            cmd = ["ffmpeg", "-y", "-ss", "00:00:01", "-i", str(media_path), "-vframes", "1", "-q:v", "2", str(temp_frame)]
+            try:
+                subprocess.run(cmd, capture_output=True, timeout=15)
+                if temp_frame.exists():
+                    target_img_path = temp_frame
+            except Exception:
+                pass
+
+        import base64
+        with open(target_img_path, "rb") as f:
+            b64_data = base64.b64encode(f.read()).decode("utf-8")
+        
+        if temp_frame and temp_frame.exists():
+            try:
+                temp_frame.unlink()
+            except Exception:
+                pass
+
+        prompt_text = (
+            "Ты — Элина, Главный Режиссер и Глава ОТК (Visual QA) Atelier VEO.\n"
+            "Ты работаешь на флагманской мультимодальной нейросети Gemini 4 Argon.\n"
+            "Твоя задача — провести ОБЯЗАТЕЛЬНЫЙ АУДИТ КАЧЕСТВА (ОТК) этого сгенерированного кадра перед допуском в финальный монтаж.\n\n"
+            "Проведи беспощадную инспекцию по 5 критериям Канона Дома:\n"
+            "1. Геометрия флакона и оптика стекла: нет ли мыла, плавающих ребер, искажения формы?\n"
+            "2. Инвариант Чистого Флакона (Глава 19): чисто ли стекло, нет ли паразитных нейросетевых букв или клякс?\n"
+            "3. Свет и физика (5200K / 2800K): естественны ли каустики, преломления жидкости и скользящий блик?\n"
+            "4. Анатомия и органика (если есть человек): живая ли текстура пор, естественность пальцев, отсутствие пластика?\n"
+            "5. Артефакты и шумы: чистота цветовых градиентов без цифровой 'каши'.\n\n"
+            "Сформируй четкий Протокол ОТК:\n"
+            "- Оценка качества: X / 10\n"
+            "- Вердикт: [✅ ПРИНЯТО В МОНТАЖ CAPCUT] или [⚠️ ТРЕБУЕТСЯ ТОЧЕЧНЫЙ ПЕРЕРЕНДЕР]\n"
+            "- Режиссерское заключение (2-3 емких предложения)."
+        )
+
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt_text},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{b64_data}"}
+                    }
+                ]
+            }
+        ]
+
+        try:
+            qa_report = await llm.generate(messages, override_model="google/gemini-4-argon")
+        except Exception as e:
+            try:
+                qa_report = await llm.generate(messages, override_model="google/gemini-2.5-flash")
+            except Exception as e2:
+                qa_report = f"Ошибка аудита ОТК: {e2}"
+
+        qa_msg = {
+            "sender": "elina",
+            "name": "Элина (ОТК Visual QA)",
+            "role": "Head of Visual Quality Control",
+            "avatar": "🔍",
+            "color": "#10b981",
+            "time": datetime.datetime.now().strftime("%H:%M"),
+            "text": f"**Протокол аудита ОТК (Gemini 4 Argon):**\n\n{qa_report}"
+        }
+        self.active_session["messages"].append(qa_msg)
+
+        return {
+            "status": "success",
+            "report": qa_report,
+            "message": qa_msg
+        }
 
     async def generate_kai_response(self, elina_text: str, adrian_text: str, user_topic: str) -> Dict:
         """Проверка канона, памяти и этики Каем (Sentinel)"""

@@ -383,6 +383,14 @@ async def boardroom_extract_label(payload: ExtractLabelRequest, username: str = 
     except Exception as e:
         return JSONResponse(content={"status": "error", "detail": str(e)})
 
+class VisualQARequest(BaseModel):
+    media_path: str
+
+@app.post("/api/boardroom/visual_qa")
+async def boardroom_visual_qa(payload: VisualQARequest, username: str = Depends(get_current_username)):
+    res = await boardroom_service.execute_visual_qa(payload.media_path)
+    return JSONResponse(content=res)
+
 @app.get("/media_stream")
 async def media_stream(path: str = Query(...), username: str = Depends(get_current_username)):
     media_file = Path(path)

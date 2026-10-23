@@ -488,6 +488,9 @@
                 <button id="loupe-btn" class="stage-btn" onclick="toggleLoupe()">
                     🔍 Horological Loupe x4.0
                 </button>
+                <button class="stage-btn" style="border-color: #10b981; color: #34d399; background: rgba(16,185,129,0.1);" onclick="runVisualQA()">
+                    🔎 Аудит ОТК (Элина Gemini 4 Argon)
+                </button>
                 <button class="stage-btn" onclick="triggerIdentityShieldOnCurrent()">
                     🛡 Применить Shield к кадру
                 </button>
@@ -689,6 +692,39 @@
         const div = document.createElement('div');
         div.innerText = text;
         return div.innerHTML.replace(/\n/g, '<br>');
+    }
+
+    async function runVisualQA() {
+        const sel = document.getElementById('media-selector');
+        const mediaPath = sel.value;
+        if (!mediaPath) {
+            alert('Пожалуйста, выберите медиа-актив в селекторе LookDev для аудита ОТК!');
+            return;
+        }
+
+        const thinkingBanner = document.getElementById('thinking-banner');
+        const thinkingText = document.getElementById('thinking-text');
+        thinkingText.textContent = 'Элина (Gemini 4 Argon) проводит мультимодальный аудит ОТК...';
+        thinkingBanner.style.display = 'flex';
+
+        try {
+            const resp = await fetch('/api/boardroom/visual_qa', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ media_path: mediaPath })
+            });
+            const res = await resp.json();
+            thinkingBanner.style.display = 'none';
+            if (res.status === 'success') {
+                const m = res.message;
+                appendMessage(m.sender, m.name, m.role, m.avatar, m.color, m.text);
+            } else {
+                alert('Ошибка аудита: ' + res.detail);
+            }
+        } catch (e) {
+            thinkingBanner.style.display = 'none';
+            alert('Сбой: ' + e);
+        }
     }
 
     // Media Loading
