@@ -1080,9 +1080,26 @@
     }
 
     function copyFlowDirective() {
-        const directive = `TOOL NAME: Atelier VEO — Clean Flacon Optical Matrix (v1.0)\n\nSYSTEM DIRECTIVE FOR FLOW AGENT:\nBuild a specialized luxury product cinematography & key visual generator using Imagen 3 and Veo.\nSTRICT INVARIANT: Under no circumstances generate text, typography, brand names, or logos on bottles. All glassware must feature a 100% pristine, smooth, unlabelled front surface to serve as a Clean Plate for post-production vector tracking.\n\nPROMPT:\n16:9 widescreen cinema master, shot on 85mm anamorphic prime lens at T1.8. A bespoke pristine unlabelled smoked obsidian glass perfume flacon with completely smooth blank front surface. 5000K soft diffused window light. Authentic glass refraction, internal liquid caustics, and clean vertical specular highlight.`;
+        const directive = `TOOL NAME: Atelier VEO — Clean Flacon Optical Matrix (v1.0)
+
+SYSTEM DIRECTIVE FOR FLOW AGENT:
+Build a specialized luxury product cinematography & key visual generator using Imagen 3 and Veo.
+STRICT INVARIANT (The Clean Flacon Law): Under no circumstances generate text, typography, brand names, or logos on any bottle or glassware. All glassware must feature a 100% pristine, smooth, unlabelled front surface to serve as a Clean Plate for post-production vector tracking.
+
+REQUIRED CONTROLS TO BUILD:
+1. [Image Input] Clean Flacon Reference: Reference image to anchor bottle geometry, silhouette, and liquid color without text hallucinations.
+2. [Image Input] Start Frame Keyframe: Approved 2K Key Visual winner to anchor exact camera start position.
+3. [Dropdown] Vessel Material & Finish: Heavy Architectural Crystal / Frosted Matte Glass / Smoked Obsidian Glass / Bisque Porcelain.
+4. [Dropdown] Global Lighting & Kelvin: Paris Morning (5000K) / Iceland Coast (6500K) / Kyoto Bamboo (5400K) / Amalfi Terrace (4200K).
+5. [Slider: 0-100%] Raking Specular Highlight Intensity.
+6. [Toggle] Mode: 8K Static Key Visual / 4K 24fps Slow Orbital Dolly (Veo Engine with native ASMR acoustics).
+
+MASTER PROMPT STRUCTURE:
+[1. VISUAL & CLEAN PLATE]: 85mm anamorphic prime lens T1.8, unlabelled bespoke flacon, clean plate, zero text, raking specular caustics.
+[2. AUDIO & FOLEY]: 40Hz sub-bass, felt piano, crisp magnetic cap click / crystal chime / atomizer mist.
+[3. VOICEOVER]: Intimate whisper, Parisian/Milanese cadence, ASMR close-mic.`;
         navigator.clipboard.writeText(directive).then(() => {
-            alert('Спецификация инструмента для Google Flow скопирована в буфер обмена!');
+            alert('Спецификация инструмента Clean Flacon Matrix скопирована! Вставьте её в диалог создания инструмента в Google Flow.');
         });
     }
 
