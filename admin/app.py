@@ -368,11 +368,15 @@ async def boardroom_extract_label(payload: ExtractLabelRequest, username: str = 
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if proc.returncode == 0:
+            clean_ref_file = output_dir / f"clean_ref_{input_path.stem}.jpg"
             return JSONResponse(content={
                 "status": "success",
                 "output_file": output_file.name,
                 "output_path": str(output_file),
-                "preview_url": f"/media_stream?path={str(output_file)}"
+                "preview_url": f"/media_stream?path={str(output_file)}",
+                "clean_ref_file": clean_ref_file.name if clean_ref_file.exists() else None,
+                "clean_ref_path": str(clean_ref_file) if clean_ref_file.exists() else None,
+                "clean_ref_url": f"/media_stream?path={str(clean_ref_file)}" if clean_ref_file.exists() else None
             })
         else:
             return JSONResponse(content={"status": "error", "detail": proc.stderr or proc.stdout})

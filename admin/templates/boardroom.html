@@ -564,10 +564,19 @@
                 </button>
                 <div id="extractor-status" style="font-size: 0.7rem; color: var(--text-dim);"></div>
                 <div id="extracted-preview-box" style="display: none; margin-top: 0.4rem; padding: 0.4rem; background: rgba(0,0,0,0.6); border-radius: 6px; text-align: center;">
+                    <div style="font-size: 0.68rem; color: #38bdf8; margin-bottom: 3px; font-weight: 600;">1. Прозрачная этикетка (300+ DPI):</div>
                     <img id="extracted-label-img" style="max-height: 60px; max-width: 100%; object-fit: contain; background: repeating-conic-gradient(#222 0% 25%, #333 0% 50%) 50% / 12px 12px; border-radius: 4px;">
                     <button class="card-btn emerald" style="width: 100%; margin-top: 0.3rem; padding: 0.3rem;" onclick="applyExtractedToShield()">
                         ✓ Использовать в Identity Shield
                     </button>
+
+                    <div id="clean-ref-container" style="display: none; margin-top: 0.5rem; border-top: 1px dashed rgba(255,255,255,0.15); padding-top: 0.4rem;">
+                        <div style="font-size: 0.68rem; color: #34d399; margin-bottom: 3px; font-weight: 600;">2. Чистый флакон без букв (Clean Plate Ref):</div>
+                        <img id="clean-ref-img" style="max-height: 75px; max-width: 100%; object-fit: contain; border-radius: 4px; border: 1px solid rgba(16,185,129,0.3); background: #000;">
+                        <a id="clean-ref-link" href="#" target="_blank" class="card-btn" style="display: block; text-decoration: none; margin-top: 0.3rem; padding: 0.3rem; background: rgba(16,185,129,0.1); border-color: #34d399; color: #34d399; font-size: 0.68rem;">
+                            📥 Открыть референс для Google Flow
+                        </a>
+                    </div>
                 </div>
             </div>
 
@@ -783,6 +792,15 @@
                 statusDiv.innerHTML = `✅ Извлечено: <b>${res.output_file}</b>`;
                 previewImg.src = res.preview_url + '&t=' + Date.now();
                 previewBox.style.display = 'block';
+
+                if (res.clean_ref_url) {
+                    const cleanBox = document.getElementById('clean-ref-container');
+                    const cleanImg = document.getElementById('clean-ref-img');
+                    const cleanLink = document.getElementById('clean-ref-link');
+                    cleanImg.src = res.clean_ref_url + '&t=' + Date.now();
+                    cleanLink.href = res.clean_ref_url;
+                    cleanBox.style.display = 'block';
+                }
             } else {
                 statusDiv.innerHTML = `❌ Ошибка: ${res.detail}`;
             }
