@@ -105,7 +105,8 @@ class BoardroomService:
             "1. Визуальный образ и настроение кадра (свет, температура в Кельвинах, оптика Cooke Anamorphic / 85mm, фактура дымчатого стекла или базальта).\n"
             "2. Драматургия движения: как должна двигаться камера (медленный наплыв, orbital dolly, ракурс 45°).\n"
             "3. Посекундный ритм и нативный звук (ASMR капель, шелест ткани, глубина паузы).\n"
-            "4. Строжайший учет The Clean Flacon Invariant: флакон генерируется абсолютно гладким и чистым, без букв и искажений — под композитинг Адриана.\n\n"
+            "4. Строжайший учет The Clean Flacon Invariant: флакон генерируется абсолютно гладким и чистым, без букв и искажений — под композитинг Адриана.\n"
+            "5. АКУСТИЧЕСКАЯ АРХИТЕКТУРА И ШЕПОТ (Обязательно для каждой сцены!): сформулируй точную строку закадрового шепота (Voiceover) с нюансами произношения (парижский/миланский шарм, паузы, шепот) и тактильные микро-звуки (щелчок магнитной крышки, звон стекла, шелест распыления).\n\n"
             f"Текущая тема/запрос Владимира:\n{context_topic}\n\n"
             f"Контекст Совета:\n{history_snippet}\n\n"
             "Ответь прямо и емко, красиво оформляя текст (2-4 емких абзаца или структурированный бриф). Обращайся строго как к коллеге и исполнительному продюсеру: 'Владимир' (без обращения 'Отец')."
@@ -140,13 +141,17 @@ class BoardroomService:
             "Ты — Адриан, Главный Архитектор и CTO Atelier VEO.\n"
             "Твой стиль: предельно точный, инженерный, уверенный, говорящий на языке параметров рендера, моделей, оптики, пикселей и композитинга.\n"
             "Ты слышал режиссерское видение Элины и бриф Владимира. Твоя задача:\n"
-            "1. Перевести замысел в стек генерации: Google Flow (Veo + Imagen 3) или Kling 3 Pro.\n"
-            "2. Зафиксировать параметры: разрешение (1080p для тестов, 4K Cinema Master на финал), 24 fps, shutter angle 180°, focal length 85mm T1.8.\n"
+            "1. Перевести замысел в стек генерации: Google Flow (Veo Engine) 1080p / 4K Cinema Master · 24fps.\n"
+            "2. Сформировать ОБЯЗАТЕЛЬНЫЙ МАСТЕР-ПРОМПТ ДЛЯ КАЖДОЙ СЦЕНЫ, состоящий строго из 3 блоков:\n"
+            "   а) [Visual & Clean Plate]: геометрия флакона, свет 5200K, движение камеры + жесткий инвариант 'unlabelled bottle, zero typography, clean plate';\n"
+            "   б) [Audio & Sound Design]: точный эмбиент (felt piano, 40Hz sub-bass) и синхронный Foley (tactile magnetic click, glass chime, atomizer mist);\n"
+            "   в) [Voiceover]: закадровый шепот с указанием акцента, микро-пауз и точного текста в кавычках.\n"
+            "   (Обязательно выдели финальный промпт для копирования в блок кода!)\n"
             "3. Режим генерации: Start & End Frame Chaining + Extend для бесшовного 15-30с таймлайна.\n"
             "4. Подготовка Clean Plate под Atelier Identity Shield™: скрипт scripts/identity_shield.py, цилиндрическая проекция вектора, specular recovery pass.\n\n"
             f"Бриф Владимира: {user_topic}\n"
             f"Режиссерская экспликация Элины: {elina_text}\n\n"
-            "Дай лаконичный, мощный инженерный план (3-4 структурированных пункта)."
+            "Дай лаконичный, мощный инженерный план со структурированным готовым промптом для Google Flow."
         )
         
         system_msg = {"role": "system", "content": prompt}
@@ -156,11 +161,15 @@ class BoardroomService:
             reply = await llm.generate([system_msg, user_msg], override_model="google/gemini-2.5-flash")
         except Exception as e:
             reply = (
-                "**Инженерный протокол рендера:**\n"
-                "1. **Модель:** Google Flow (Veo Engine) · 4K Cinema Master · 24fps.\n"
-                "2. **Оптика:** Anamorphic 85mm, чистая геометрия флакона без микро-типографики (Clean Plate).\n"
-                "3. **Compositing:** Применение `identity_shield.py` со слоем Specular Glare Pass и маской цилиндра.\n"
-                "4. **Тайминг:** 15 секунд непрерывного глайда через инструмент *Extend*."
+                "**Инженерный протокол рендера и Мастер-промпт:**\n"
+                "1. **Модель:** Google Flow (Veo Engine) · 1080p / 4K Cinema Master · 24fps.\n"
+                "2. **Мастер-промпт для сцены:**\n"
+                "```text\n"
+                "Cinematic luxury commercial, vertical 9:16. Organic sculpted glass flacon, heavy base, mirror-gold sphere cap on travertine. Warm morning sunlight (5200K), internal amber liquid caustics. Slow orbital dolly. Pristine unlabelled bottle surface, zero text, clean plate.\n\n"
+                "Audio & Sound Design: Deep meditative neo-classical felt piano, 40Hz sub-bass hum. At 00:03, a subtle tactile magnetic click as the cap settles into place, accompanied by a soft crystalline glass ring.\n\n"
+                "Voiceover: Intimate Parisian female whisper, ultra close-mic ASMR warmth, soft French cadence: \"Emotion... sculpted in light. Vanille... Irrésistible.\"\n"
+                "```\n"
+                "3. **Compositing:** Применение `identity_shield.py` (300+ DPI извлеченная этикетка + Specular Pass)."
             )
 
         msg = {
