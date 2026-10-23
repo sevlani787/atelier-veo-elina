@@ -272,6 +272,9 @@ class ShieldRunRequest(BaseModel):
     media_path: str
     logo_text: str = "SHIKŨMO"
     label_image: Optional[str] = None
+    reference_with_label: Optional[str] = None
+    y_offset: Optional[float] = None
+    scale: float = 1.0
     curvature: float = 0.25
     specular: float = 0.75
 
@@ -335,6 +338,12 @@ async def boardroom_run_shield(payload: ShieldRunRequest, username: str = Depend
     ]
     if payload.label_image and os.path.exists(payload.label_image):
         cmd.extend(["--label-image", str(payload.label_image)])
+    if payload.reference_with_label and os.path.exists(payload.reference_with_label):
+        cmd.extend(["--reference-with-label", str(payload.reference_with_label)])
+    if payload.y_offset is not None:
+        cmd.extend(["--y-offset", str(payload.y_offset)])
+    if payload.scale != 1.0:
+        cmd.extend(["--scale", str(payload.scale)])
 
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
@@ -370,6 +379,13 @@ async def boardroom_extract_label(payload: ExtractLabelRequest, username: str = 
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if proc.returncode == 0:
             clean_ref_file = output_dir / f"clean_ref_{input_path.stem}.jpg"
+            profile_file = output_dir / f"profile_{input_path.stem}.json"
+            profile_data = None
+            if profile_file.exists():
+                try:
+                    profile_data = json.loads(profile_file.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
             return JSONResponse(content={
                 "status": "success",
                 "output_file": output_file.name,
@@ -377,7 +393,12 @@ async def boardroom_extract_label(payload: ExtractLabelRequest, username: str = 
                 "preview_url": f"/media_stream?path={str(output_file)}",
                 "clean_ref_file": clean_ref_file.name if clean_ref_file.exists() else None,
                 "clean_ref_path": str(clean_ref_file) if clean_ref_file.exists() else None,
-                "clean_ref_url": f"/media_stream?path={str(clean_ref_file)}" if clean_ref_file.exists() else None
+                "clean_ref_url": f"/media_stream?path={str(clean_ref_file)}" if clean_ref_file.exists() else None,
+                "profile_file": profile_file.name if profile_file.exists() else None,
+                "profile_path": str(profile_file) if profile_file.exists() else None,
+                "profile_data": profile_data,
+                "reference_packshot_path": str(input_path),
+                "reference_packshot_name": input_path.name
             })
         else:
             return JSONResponse(content={"status": "error", "detail": proc.stderr or proc.stdout})
