@@ -521,9 +521,39 @@
                 </div>
                 <button class="card-btn" onclick="runShieldAction()">Запустить композитинг</button>
                 <div id="shield-status" style="font-size: 0.7rem; color: var(--text-dim);"></div>
+                <input type="hidden" id="shield-custom-label" value="">
+                <div id="active-label-badge" style="display:none; font-size:0.68rem; color:#38bdf8; background:rgba(56,189,248,0.1); padding:3px 6px; border-radius:4px; border:1px solid rgba(56,189,248,0.3);"></div>
             </div>
 
-            <!-- Card 2: Google Flow Clean Flacon Directive -->
+            <!-- Card 2: Flacon Label Extractor (From Bottle Photo) -->
+            <div class="action-card" style="border-color: rgba(56, 189, 248, 0.3);">
+                <div class="card-heading" style="color: #38bdf8;">
+                    <span>🏷️</span> Распаковщик этикетки (Dewarp)
+                </div>
+                <div style="font-size: 0.725rem; color: var(--text-dim); line-height: 1.4;">
+                    Выпрямляет кривизну стекла с фото флакона и отделяет текст от фона в прозрачный PNG.
+                </div>
+                <div class="param-row">
+                    <span class="param-label">Контраст текста:</span>
+                    <select id="extractor-mode">
+                        <option value="dark_text">Темный текст на светлом стекле</option>
+                        <option value="light_text">Белый/Золотой текст на темном стекле</option>
+                        <option value="paper_patch">Бумажная плашка / этикетка</option>
+                    </select>
+                </div>
+                <button class="card-btn" style="border-color: #38bdf8; color: #38bdf8; background: rgba(56,189,248,0.1);" onclick="extractLabelFromCurrentStage()">
+                    ✨ Извлечь этикетку из кадра LookDev
+                </button>
+                <div id="extractor-status" style="font-size: 0.7rem; color: var(--text-dim);"></div>
+                <div id="extracted-preview-box" style="display: none; margin-top: 0.4rem; padding: 0.4rem; background: rgba(0,0,0,0.6); border-radius: 6px; text-align: center;">
+                    <img id="extracted-label-img" style="max-height: 60px; max-width: 100%; object-fit: contain; background: repeating-conic-gradient(#222 0% 25%, #333 0% 50%) 50% / 12px 12px; border-radius: 4px;">
+                    <button class="card-btn emerald" style="width: 100%; margin-top: 0.3rem; padding: 0.3rem;" onclick="applyExtractedToShield()">
+                        ✓ Использовать в Identity Shield
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 3: Google Flow Clean Flacon Directive -->
             <div class="action-card">
                 <div class="card-heading">
                     <span>🎬</span> Google Flow Directive
@@ -705,12 +735,60 @@
         loupeLens.style.display = 'none';
     }
 
+    let extractedMasterLabelPath = null;
+
+    // Extractor Action: Extract Label from LookDev Stage
+    async function extractLabelFromCurrentStage() {
+        const sel = document.getElementById('media-selector');
+        const mediaPath = sel.value;
+        const statusDiv = document.getElementById('extractor-status');
+        const mode = document.getElementById('extractor-mode').value;
+        const previewBox = document.getElementById('extracted-preview-box');
+        const previewImg = document.getElementById('extracted-label-img');
+
+        if (!mediaPath) {
+            alert('Пожалуйста, выберите фото флакона в центральном плеере LookDev!');
+            return;
+        }
+
+        statusDiv.innerHTML = '⚙️ Выпрямление геометрии и изоляция букв...';
+
+        try {
+            const resp = await fetch('/api/boardroom/extract_label', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image_path: mediaPath, mode: mode, curvature: 0.25 })
+            });
+            const res = await resp.json();
+            if (res.status === 'success') {
+                extractedMasterLabelPath = res.output_path;
+                statusDiv.innerHTML = `✅ Извлечено: <b>${res.output_file}</b>`;
+                previewImg.src = res.preview_url + '&t=' + Date.now();
+                previewBox.style.display = 'block';
+            } else {
+                statusDiv.innerHTML = `❌ Ошибка: ${res.detail}`;
+            }
+        } catch (e) {
+            statusDiv.innerHTML = `❌ Сбой: ${e}`;
+        }
+    }
+
+    function applyExtractedToShield() {
+        if (!extractedMasterLabelPath) return;
+        document.getElementById('shield-custom-label').value = extractedMasterLabelPath;
+        const badge = document.getElementById('active-label-badge');
+        badge.innerHTML = '🏷️ Активна извлеченная этикетка: ' + extractedMasterLabelPath.split('\\').pop().split('/').pop();
+        badge.style.display = 'block';
+        alert('Извлеченная этикетка подключена к модулю Atelier Identity Shield™!');
+    }
+
     // Pipeline Action: Run Identity Shield
     async function runShieldAction() {
         const logo = document.getElementById('shield-logo').value;
         const sel = document.getElementById('media-selector');
         const mediaPath = sel.value;
         const statusDiv = document.getElementById('shield-status');
+        const customLabel = document.getElementById('shield-custom-label').value;
 
         if (!mediaPath) {
             alert('Пожалуйста, выберите медиа-файл в центральном плеере LookDev!');
@@ -720,16 +798,21 @@
         statusDiv.innerHTML = '⚙️ Запущен Identity Shield™...';
 
         try {
+            const payload = {
+                media_path: mediaPath,
+                logo_text: logo,
+                label_image: customLabel || null,
+                curvature: 0.25,
+                specular: 0.75
+            };
             const resp = await fetch('/api/boardroom/run_shield', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ media_path: mediaPath, logo_text: logo })
+                body: JSON.stringify(payload)
             });
             const res = await resp.json();
             if (res.status === 'success') {
                 statusDiv.innerHTML = `✅ Композитинг завершен: <b>${res.output_file}</b>`;
-                // reload selector to show new output
-                refreshMediaSelector();
             } else {
                 statusDiv.innerHTML = `❌ Ошибка: ${res.detail}`;
             }

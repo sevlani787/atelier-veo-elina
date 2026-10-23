@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
+from typing import Optional
 import secrets
 import logging
 import aiosqlite
@@ -25,9 +26,10 @@ logging.basicConfig(level=logging.INFO)
 app = FastAPI(title="Atelier VEO | Executive Console")
 security = HTTPBasic()
 
-# Статика и шаблоны
-app.mount("/static", StaticFiles(directory="admin/static"), name="static")
-templates = Jinja2Templates(directory="admin/templates")
+# Статика и шаблоны с абсолютными путями (иммунитет к рабочей директории)
+BASE_DIR = Path(__file__).resolve().parent
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 # Аутентификация администратора
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
@@ -268,6 +270,14 @@ class CouncilSendRequest(BaseModel):
 class ShieldRunRequest(BaseModel):
     media_path: str
     logo_text: str = "SHIKŨMO"
+    label_image: Optional[str] = None
+    curvature: float = 0.25
+    specular: float = 0.75
+
+class ExtractLabelRequest(BaseModel):
+    image_path: str
+    mode: str = "dark_text"
+    curvature: float = 0.25
 
 @app.get("/boardroom", response_class=HTMLResponse)
 async def boardroom_page(request: Request, username: str = Depends(get_current_username)):
@@ -311,15 +321,20 @@ async def boardroom_run_shield(payload: ShieldRunRequest, username: str = Depend
         raise HTTPException(status_code=404, detail="Медиа-файл не найден на диске")
     
     shield_script = Path("d:/Antigravity/AI_Video_Agency/scripts/identity_shield.py")
-    output_path = media_path.parent / f"shielded_{media_path.stem}.mp4"
+    ext = ".mp4" if media_path.suffix.lower() in [".mp4", ".mov", ".webm"] else ".png"
+    output_path = media_path.parent / f"shielded_{media_path.stem}{ext}"
     
-    # Запуск композитинга через Python
     cmd = [
         "python", str(shield_script),
         "--input", str(media_path),
         "--output", str(output_path),
-        "--logo", payload.logo_text
+        "--logo", payload.logo_text,
+        "--curvature", str(payload.curvature),
+        "--specular", str(payload.specular)
     ]
+    if payload.label_image and os.path.exists(payload.label_image):
+        cmd.extend(["--label-image", str(payload.label_image)])
+
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
         return JSONResponse(content={
@@ -329,6 +344,38 @@ async def boardroom_run_shield(payload: ShieldRunRequest, username: str = Depend
             "stdout": proc.stdout[-500:] if proc.stdout else "",
             "stderr": proc.stderr[-500:] if proc.stderr else ""
         })
+    except Exception as e:
+        return JSONResponse(content={"status": "error", "detail": str(e)})
+
+@app.post("/api/boardroom/extract_label")
+async def boardroom_extract_label(payload: ExtractLabelRequest, username: str = Depends(get_current_username)):
+    input_path = Path(payload.image_path)
+    if not input_path.exists():
+        raise HTTPException(status_code=404, detail="Файл не найден на диске")
+    
+    output_dir = input_path.parent / "extracted_labels"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_file = output_dir / f"label_{input_path.stem}.png"
+    
+    script = Path("d:/Antigravity/AI_Video_Agency/scripts/extract_label.py")
+    cmd = [
+        "python", str(script),
+        "--input", str(input_path),
+        "--output", str(output_file),
+        "--mode", payload.mode,
+        "--curvature", str(payload.curvature)
+    ]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if proc.returncode == 0:
+            return JSONResponse(content={
+                "status": "success",
+                "output_file": output_file.name,
+                "output_path": str(output_file),
+                "preview_url": f"/media_stream?path={str(output_file)}"
+            })
+        else:
+            return JSONResponse(content={"status": "error", "detail": proc.stderr or proc.stdout})
     except Exception as e:
         return JSONResponse(content={"status": "error", "detail": str(e)})
 
