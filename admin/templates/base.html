@@ -16,6 +16,9 @@
                 <span class="logo-text">Atelier VEO</span>
             </div>
             <nav class="nav-menu">
+                <a href="/boardroom" class="nav-item {% if request.url.path == '/boardroom' %}active{% endif %}" style="border: 1px solid rgba(197, 160, 89, 0.4); background: rgba(197, 160, 89, 0.08);">
+                    <span>🏛</span> <b>Совет (Boardroom)</b>
+                </a>
                 <a href="/" class="nav-item {% if request.url.path == '/' %}active{% endif %}">
                     <span>📊</span> Дашборд
                 </a>

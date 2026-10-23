@@ -1,19 +1,23 @@
 import os
 import asyncio
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, Query
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from pydantic import BaseModel
 import secrets
 import logging
 import aiosqlite
 import json
+from pathlib import Path
+import subprocess
 
 from bot.services.database import db
 from bot.services.memory import memory
 from bot.config import config
 from admin.manager import bot_manager
+from admin.boardroom_service import boardroom_service
 from aiogram import Bot
 
 logging.basicConfig(level=logging.INFO)
@@ -253,7 +257,104 @@ async def logs_page(request: Request, username: str = Depends(get_current_userna
         }
     )
 
+
+# ==========================================
+# ATELIER VEO | EXECUTIVE BOARDROOM ROUTES
+# ==========================================
+
+class CouncilSendRequest(BaseModel):
+    text: str
+
+class ShieldRunRequest(BaseModel):
+    media_path: str
+    logo_text: str = "SHIKŨMO"
+
+@app.get("/boardroom", response_class=HTMLResponse)
+async def boardroom_page(request: Request, username: str = Depends(get_current_username)):
+    session = boardroom_service.get_session()
+    media_items = boardroom_service.list_media()
+    return templates.TemplateResponse(
+        request=request,
+        name="boardroom.html",
+        context={
+            "request": request,
+            "username": username,
+            "session": session,
+            "media_items": media_items
+        }
+    )
+
+@app.post("/api/boardroom/send")
+async def boardroom_send(payload: CouncilSendRequest, username: str = Depends(get_current_username)):
+    responses = await boardroom_service.execute_council_cycle(payload.text)
+    return JSONResponse(content={"status": "success", "responses": responses})
+
+@app.post("/api/boardroom/export_memo")
+async def boardroom_export_memo(username: str = Depends(get_current_username)):
+    res = boardroom_service.export_session_memo()
+    return JSONResponse(content=res)
+
+@app.post("/api/boardroom/reset")
+async def boardroom_reset(username: str = Depends(get_current_username)):
+    res = boardroom_service.reset_session()
+    return JSONResponse(content={"status": "success", "session": res})
+
+@app.get("/api/boardroom/media")
+async def boardroom_media(username: str = Depends(get_current_username)):
+    items = boardroom_service.list_media()
+    return JSONResponse(content={"status": "success", "media": items})
+
+@app.post("/api/boardroom/run_shield")
+async def boardroom_run_shield(payload: ShieldRunRequest, username: str = Depends(get_current_username)):
+    media_path = Path(payload.media_path)
+    if not media_path.exists():
+        raise HTTPException(status_code=404, detail="Медиа-файл не найден на диске")
+    
+    shield_script = Path("d:/Antigravity/AI_Video_Agency/scripts/identity_shield.py")
+    output_path = media_path.parent / f"shielded_{media_path.stem}.mp4"
+    
+    # Запуск композитинга через Python
+    cmd = [
+        "python", str(shield_script),
+        "--input", str(media_path),
+        "--output", str(output_path),
+        "--logo", payload.logo_text
+    ]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        return JSONResponse(content={
+            "status": "success" if proc.returncode == 0 else "error",
+            "output_file": output_path.name,
+            "output_path": str(output_path),
+            "stdout": proc.stdout[-500:] if proc.stdout else "",
+            "stderr": proc.stderr[-500:] if proc.stderr else ""
+        })
+    except Exception as e:
+        return JSONResponse(content={"status": "error", "detail": str(e)})
+
+@app.get("/media_stream")
+async def media_stream(path: str = Query(...), username: str = Depends(get_current_username)):
+    media_file = Path(path)
+    if not media_file.exists() or not media_file.is_file():
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    
+    ext = media_file.suffix.lower()
+    media_type = "video/mp4"
+    if ext in [".png"]:
+        media_type = "image/png"
+    elif ext in [".jpg", ".jpeg"]:
+        media_type = "image/jpeg"
+    elif ext in [".webp"]:
+        media_type = "image/webp"
+    elif ext in [".mov"]:
+        media_type = "video/quicktime"
+    elif ext in [".webm"]:
+        media_type = "video/webm"
+        
+    return FileResponse(media_file, media_type=media_type)
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("ADMIN_PORT", 8080))
     uvicorn.run("admin.app:app", host="0.0.0.0", port=port, reload=True)
+
