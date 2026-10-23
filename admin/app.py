@@ -1,6 +1,7 @@
 import os
 import asyncio
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, Query
+import shutil
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, Query, File, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -390,6 +391,38 @@ class VisualQARequest(BaseModel):
 async def boardroom_visual_qa(payload: VisualQARequest, username: str = Depends(get_current_username)):
     res = await boardroom_service.execute_visual_qa(payload.media_path)
     return JSONResponse(content=res)
+
+@app.post("/api/boardroom/upload")
+async def boardroom_upload(
+    file: UploadFile = File(...),
+    campaign: Optional[str] = Form(None),
+    username: str = Depends(get_current_username)
+):
+    """
+    Прием тяжелых видеофайлов (до 2 Гб и более, 4K ProRes) в студийное хранилище.
+    Потоковая запись чанками по 16 Мб исключает перегрузку оперативной памяти.
+    """
+    try:
+        base_campaigns = Path("D:/Antigravity/AI_Video_Agency/campaigns")
+        target_dir = base_campaigns / (campaign if campaign else "uploads")
+        target_dir.mkdir(parents=True, exist_ok=True)
+        
+        target_path = target_dir / file.filename
+        
+        with open(target_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer, length=1024 * 1024 * 16)
+            
+        file_size_mb = round(target_path.stat().st_size / (1024 * 1024), 2)
+        
+        return JSONResponse(content={
+            "status": "success",
+            "filename": file.filename,
+            "path": str(target_path),
+            "size_mb": file_size_mb,
+            "type": "video" if target_path.suffix.lower() in [".mp4", ".mov", ".webm"] else "image"
+        })
+    except Exception as e:
+        return JSONResponse(content={"status": "error", "detail": str(e)}, status_code=500)
 
 @app.get("/media_stream")
 async def media_stream(path: str = Query(...), username: str = Depends(get_current_username)):

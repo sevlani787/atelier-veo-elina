@@ -458,21 +458,37 @@
     <div class="board-pane stage-container">
         <div class="stage-toolbar">
             <span class="pane-title"><span>🎬</span> LookDev & Cinema Stage</span>
-            <select id="media-selector" class="media-select" onchange="loadSelectedMedia()">
-                <option value="">-- Выберите медиа-актив для инспекции --</option>
-                {% for item in media_items %}
-                <option value="{{ item.path }}" data-type="{{ item.type }}">
-                    {{ item.name }} ({{ item.size_mb }} MB)
-                </option>
-                {% endfor %}
-            </select>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex: 1; justify-content: flex-end;">
+                <select id="media-selector" class="media-select" onchange="loadSelectedMedia()">
+                    <option value="">-- Выберите медиа-актив для инспекции --</option>
+                    {% for item in media_items %}
+                    <option value="{{ item.path }}" data-type="{{ item.type }}">
+                        {{ item.name }} ({{ item.size_mb }} MB)
+                    </option>
+                    {% endfor %}
+                </select>
+                <input type="file" id="media-file-input" style="display: none;" onchange="handleFileInputChange(this)" accept="video/*,image/*">
+                <button class="stage-btn" style="border-color: rgba(197, 160, 89, 0.4); color: var(--primary-light); background: rgba(197, 160, 89, 0.1);" onclick="document.getElementById('media-file-input').click()" title="Загрузить видео или изображение до 2GB+">
+                    📁 Загрузить (до 2GB+)
+                </button>
+            </div>
         </div>
 
         <div class="stage-viewport" id="viewport-stage" onmousemove="handleLoupeMove(event)" onmouseleave="hideLoupe()">
+            <!-- Upload Overlay HUD -->
+            <div id="upload-overlay" style="display: none; position: absolute; inset: 0; background: rgba(5, 5, 8, 0.92); z-index: 50; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem;">
+                <div style="font-size: 2rem;">⚡</div>
+                <div id="upload-title" style="color: var(--primary-light); font-size: 0.9rem; font-weight: 600;">Загрузка файла в LookDev...</div>
+                <div style="width: 300px; height: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 4px; overflow: hidden; border: 1px solid rgba(197, 160, 89, 0.3);">
+                    <div id="upload-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #c5a059, #10b981); transition: width 0.1s ease;"></div>
+                </div>
+                <div id="upload-status" style="color: var(--text-dim); font-size: 0.775rem;">0% (0 MB / 0 MB)</div>
+            </div>
+
             <video id="stage-video" loop controls style="display: none;"></video>
             <img id="stage-image" style="display: none;" />
-            <div id="stage-placeholder" style="color: var(--text-dim); font-size: 0.85rem; text-align: center;">
-                ✦ Загрузите шот из Google Flow / Veo для инспекции и композитинга ✦
+            <div id="stage-placeholder" style="color: var(--text-dim); font-size: 0.85rem; text-align: center; padding: 1rem;">
+                ✦ Перетащите сюда шот (до 2GB+) или выберите в селекторе ✦
             </div>
             <!-- Horological Loupe Lens -->
             <div id="loupe-lens" class="loupe-lens"></div>
@@ -727,6 +743,93 @@
         }
     }
 
+    // Direct & Drag-and-Drop Media Upload (Supports 2GB+ Videos)
+    function handleFileInputChange(input) {
+        if (input.files && input.files[0]) {
+            uploadMediaFile(input.files[0]);
+            input.value = '';
+        }
+    }
+
+    function uploadMediaFile(file) {
+        const overlay = document.getElementById('upload-overlay');
+        const bar = document.getElementById('upload-progress-bar');
+        const status = document.getElementById('upload-status');
+        const title = document.getElementById('upload-title');
+
+        overlay.style.display = 'flex';
+        title.textContent = `Загрузка в LookDev: ${file.name}`;
+        bar.style.width = '0%';
+        status.textContent = 'Инициализация...';
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/boardroom/upload');
+
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                bar.style.width = percent + '%';
+                const loadedMB = (e.loaded / (1024 * 1024)).toFixed(1);
+                const totalMB = (e.total / (1024 * 1024)).toFixed(1);
+                status.textContent = `${percent}% (${loadedMB} MB / ${totalMB} MB)`;
+            }
+        };
+
+        xhr.onload = async () => {
+            overlay.style.display = 'none';
+            if (xhr.status === 200) {
+                try {
+                    const res = JSON.parse(xhr.responseText);
+                    if (res.status === 'success') {
+                        await refreshMediaList(res.path);
+                    } else {
+                        alert('Ошибка загрузки: ' + (res.detail || 'Неизвестная ошибка'));
+                    }
+                } catch (err) {
+                    alert('Сбой обработки ответа сервера: ' + err);
+                }
+            } else {
+                alert('Сбой загрузки на сервер: HTTP ' + xhr.status);
+            }
+        };
+
+        xhr.onerror = () => {
+            overlay.style.display = 'none';
+            alert('Сетевая ошибка при загрузке медиафайла');
+        };
+
+        xhr.send(formData);
+    }
+
+    async function refreshMediaList(selectPath) {
+        try {
+            const resp = await fetch('/api/boardroom/media');
+            const data = await resp.json();
+            if (data.status === 'success') {
+                const sel = document.getElementById('media-selector');
+                sel.innerHTML = '<option value="">-- Выберите медиа-актив для инспекции --</option>';
+                data.media.forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.path;
+                    opt.setAttribute('data-type', item.type);
+                    opt.textContent = `${item.name} (${item.size_mb} MB)`;
+                    if (selectPath && item.path === selectPath) {
+                        opt.selected = true;
+                    }
+                    sel.appendChild(opt);
+                });
+                if (selectPath) {
+                    loadSelectedMedia();
+                }
+            }
+        } catch (e) {
+            console.error('Ошибка обновления списка медиа:', e);
+        }
+    }
+
     // Media Loading
     function loadSelectedMedia() {
         const sel = document.getElementById('media-selector');
@@ -964,5 +1067,25 @@
             sendCouncilMessage();
         }
     });
+
+    // Drag-and-Drop Video / Media onto LookDev Stage
+    const viewportStage = document.getElementById('viewport-stage');
+    if (viewportStage) {
+        viewportStage.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            viewportStage.style.boxShadow = 'inset 0 0 0 2px var(--primary)';
+        });
+        viewportStage.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            viewportStage.style.boxShadow = 'none';
+        });
+        viewportStage.addEventListener('drop', (e) => {
+            e.preventDefault();
+            viewportStage.style.boxShadow = 'none';
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                uploadMediaFile(e.dataTransfer.files[0]);
+            }
+        });
+    }
 </script>
 {% endblock %}
