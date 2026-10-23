@@ -503,14 +503,33 @@
 
         <div class="action-scroll">
             <!-- Card 1: Identity Shield Direct Launch -->
-            <div class="action-card">
+            <div class="action-card" id="card-identity-shield">
                 <div class="card-heading">
                     <span>🛡️</span> Atelier Identity Shield™
                 </div>
                 <div class="param-row">
-                    <span class="param-label">Векторный логотип:</span>
-                    <input type="text" id="shield-logo" value="SHIKŨMO" style="width: 100%;">
+                    <span class="param-label">Источник айдентики:</span>
+                    <select id="shield-source-mode" onchange="toggleShieldSourceMode()">
+                        <option value="extracted">🏷️ Извлеченная этикетка (PNG / Альфа)</option>
+                        <option value="text">✍️ Векторный текст шрифтом (Fallback)</option>
+                    </select>
                 </div>
+
+                <!-- Режим 1: Извлеченная этикетка (Основной) -->
+                <div id="shield-extracted-block" style="margin: 0.4rem 0;">
+                    <div id="active-label-badge" style="font-size:0.72rem; color:#38bdf8; background:rgba(56,189,248,0.1); padding:5px 8px; border-radius:5px; border:1px solid rgba(56,189,248,0.3); line-height: 1.3;">
+                        <span id="active-label-text">⚠️ Этикетка не выбрана. Извлеките её из фото флакона в карточке ниже (или файл подтянется автоматически).</span>
+                    </div>
+                </div>
+
+                <!-- Режим 2: Текст вручную (Fallback) -->
+                <div id="shield-text-block" style="display:none; margin: 0.4rem 0;">
+                    <div class="param-row">
+                        <span class="param-label">Текст логотипа:</span>
+                        <input type="text" id="shield-logo" value="EDENISTE" style="width: 100%;">
+                    </div>
+                </div>
+
                 <div class="param-row">
                     <span class="param-label">Specular Highlight Pass:</span>
                     <select id="shield-specular">
@@ -522,7 +541,6 @@
                 <button class="card-btn" onclick="runShieldAction()">Запустить композитинг</button>
                 <div id="shield-status" style="font-size: 0.7rem; color: var(--text-dim);"></div>
                 <input type="hidden" id="shield-custom-label" value="">
-                <div id="active-label-badge" style="display:none; font-size:0.68rem; color:#38bdf8; background:rgba(56,189,248,0.1); padding:3px 6px; border-radius:4px; border:1px solid rgba(56,189,248,0.3);"></div>
             </div>
 
             <!-- Card 2: Flacon Label Extractor (From Bottle Photo) -->
@@ -773,13 +791,38 @@
         }
     }
 
+    function toggleShieldSourceMode() {
+        const mode = document.getElementById('shield-source-mode').value;
+        const extBlock = document.getElementById('shield-extracted-block');
+        const textBlock = document.getElementById('shield-text-block');
+        if (mode === 'extracted') {
+            extBlock.style.display = 'block';
+            textBlock.style.display = 'none';
+        } else {
+            extBlock.style.display = 'none';
+            textBlock.style.display = 'block';
+        }
+    }
+
     function applyExtractedToShield() {
         if (!extractedMasterLabelPath) return;
         document.getElementById('shield-custom-label').value = extractedMasterLabelPath;
+        document.getElementById('shield-source-mode').value = 'extracted';
+        toggleShieldSourceMode();
+        
+        const fname = extractedMasterLabelPath.split('\\').pop().split('/').pop();
         const badge = document.getElementById('active-label-badge');
-        badge.innerHTML = '🏷️ Активна извлеченная этикетка: ' + extractedMasterLabelPath.split('\\').pop().split('/').pop();
-        badge.style.display = 'block';
-        alert('Извлеченная этикетка подключена к модулю Atelier Identity Shield™!');
+        badge.style.background = 'rgba(16, 185, 129, 0.15)';
+        badge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+        badge.style.color = '#34d399';
+        badge.innerHTML = `✅ <b>Подключена этикетка:</b> ${fname} (Alpha 300+ DPI)`;
+        
+        // Visual cue
+        const card = document.getElementById('card-identity-shield');
+        if (card) {
+            card.style.borderColor = 'rgba(16, 185, 129, 0.6)';
+            setTimeout(() => { card.style.borderColor = ''; }, 2000);
+        }
     }
 
     // Pipeline Action: Run Identity Shield
@@ -795,13 +838,19 @@
             return;
         }
 
+        const mode = document.getElementById('shield-source-mode').value;
+        if (mode === 'extracted' && !customLabel) {
+            alert('⚠️ В режиме извлеченной этикетки сначала нажмите «✨ Извлечь этикетку» в карточке ниже (или переключите источник на «Векторный текст шрифтом»).');
+            return;
+        }
+
         statusDiv.innerHTML = '⚙️ Запущен Identity Shield™...';
 
         try {
             const payload = {
                 media_path: mediaPath,
                 logo_text: logo,
-                label_image: customLabel || null,
+                label_image: (mode === 'extracted') ? customLabel : null,
                 curvature: 0.25,
                 specular: 0.75
             };
