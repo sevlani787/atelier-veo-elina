@@ -1,6 +1,6 @@
 {
   "bank": "atelier_veo_master",
-  "updated_at": "2026-10-25 12:21:16",
+  "updated_at": "2026-10-25 17:16:51",
   "invariants": [
     {
       "id": "inv_001_trade_secret",
@@ -176,6 +176,18 @@
       ],
       "author": "elina",
       "timestamp": "2026-10-25 12:21:16"
+    },
+    {
+      "id": "ep_1792941411_vladimir",
+      "category": "producer_decision",
+      "title": "Решение: 4K CINEMA MASTER LOCK: Édeniste — Vanille Irrésistible (2160...",
+      "content": "4K CINEMA MASTER LOCK: Édeniste — Vanille Irrésistible (2160x3840). Эталонный мастер-шот предметного кинокомпозитинга утвержден. Безупречное впекание Atelier Identity Shield, 2800K фотометрия, субпиксельный трекинг осевого наезда (symmetrical dolly-in), чистый хрустальный мениск, шелкография без алиасинга.",
+      "tags": [
+        "production",
+        "vladimir"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-25 17:16:51"
     }
   ]
 }
