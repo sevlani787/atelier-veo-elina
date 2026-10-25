@@ -9,6 +9,7 @@ import subprocess
 
 from bot.services.llm import llm
 from bot.services.memory import memory
+from bot.services.hindsight_bridge import hindsight_bridge
 
 COUNCIL_DIR_1 = Path("d:/Antigravity/AI_Video_Agency/councils")
 COUNCIL_DIR_2 = Path("D:/Antigravity/Элин/councils")
@@ -54,6 +55,13 @@ class BoardroomService:
         return self.active_session
 
     def add_user_message(self, text: str):
+        # Автоматическая фиксация продюсерских решений в банк Hindsight
+        lower = text.lower()
+        if any(w in lower for w in ["закон", "правило", "утвержда", "стандарт", "никогда", "всегда", "запомни", "паспорт", "тайн", "щит", "референс"]):
+            try:
+                hindsight_bridge.retain("vladimir", text)
+            except Exception:
+                pass
         msg = {
             "sender": "vladimir",
             "name": "Владимир Семенов",
@@ -126,7 +134,10 @@ class BoardroomService:
             "Ответь структурированно, красиво и емко, выделив готовый промпт для копирования в блок кода. Обращайся строго как к коллеге и исполнительному продюсеру: 'Владимир' (без обращения 'Отец')."
         )
         
-        system_msg = {"role": "system", "content": prompt}
+        # Фаза Recall (Воспоминание): подтягивание инвариантов и опыта студии из Hindsight
+        memory_context = hindsight_bridge.recall(context_topic, limit=4)
+        enriched_prompt = f"{prompt}\n\n[СИНАПТИЧЕСКАЯ ПАМЯТЬ HINDSIGHT | АКТИВНЫЕ ЗАКОНЫ И ОПЫТ АТЕЛЬЕ]:\n{memory_context}\n"
+        system_msg = {"role": "system", "content": enriched_prompt}
         user_msg = {"role": "user", "content": f"Владимир поставил задачу: {context_topic}. Твое режиссерское видение, Элина?"}
         
         try:
@@ -147,6 +158,10 @@ class BoardroomService:
             "text": reply
         }
         self.active_session["messages"].append(msg)
+        try:
+            hindsight_bridge.retain("elina", reply[:400], title=f"Режиссерский канон: {context_topic[:50]}")
+        except Exception:
+            pass
         return msg
 
     async def generate_adrian_response(self, elina_text: str, user_topic: str) -> Dict:

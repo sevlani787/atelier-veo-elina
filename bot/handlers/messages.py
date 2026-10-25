@@ -14,6 +14,7 @@ from aiogram.filters import Command
 from bot.config import config
 from bot.services.llm import llm
 from bot.services.memory import memory
+from bot.services.hindsight_bridge import hindsight_bridge
 from bot.services.database import db
 from bot.utils import send_long_message, extract_keyframes_from_video, get_video_duration, extract_video_url_from_text, download_cloud_video
 
@@ -944,6 +945,9 @@ async def handle_message(message: Message):
 
             elin_persona_enriched = elin_persona + analysis_instruction
             is_admin = (user_id == config.admin_id)
+            if is_admin:
+                hindsight_mem = hindsight_bridge.recall(user_text, limit=3)
+                lore_context = (lore_context or "") + f"\n\n[HINDSIGHT STUDIO MEMORY - EXCLUSIVE FOR VLADIMIR]:\n{hindsight_mem}\n"
             override_model = await db.get_setting(f"user_model_{user_id}", "google/gemini-4-argon") if (is_admin or user_data.get('sub_type') == 'premium') else None
 
             await target_message.bot.send_chat_action(chat_id=target_message.chat.id, action="typing")
@@ -1011,8 +1015,21 @@ async def handle_message(message: Message):
             elin_persona = await memory.get_elin_persona_text()
             lore_context = await memory.get_world_context(user_text)
 
+            is_admin = (user_id == config.admin_id)
+            if is_admin:
+                # Эксклюзивный доступ к синаптическому банку Hindsight только для Владимира
+                hindsight_mem = hindsight_bridge.recall(user_text, limit=4)
+                lore_context = (lore_context or "") + f"\n\n[HINDSIGHT STUDIO MEMORY - EXCLUSIVE FOR VLADIMIR]:\n{hindsight_mem}\n"
+                
+                # Фиксация директив Владимира из Telegram
+                lower_t = user_text.lower()
+                if any(w in lower_t for w in ["закон", "правило", "утвержда", "стандарт", "никогда", "всегда", "запомни", "паспорт", "тайн", "щит", "референс"]):
+                    try:
+                        hindsight_bridge.retain("vladimir", user_text)
+                    except Exception:
+                        pass
+
             try:
-                is_admin = (user_id == config.admin_id)
                 override_model = await db.get_setting(f"user_model_{user_id}", "google/gemini-4-argon") if (is_admin or user_data.get('sub_type') == 'premium' or is_prompt_req) else None
                 # Генерируем ответ
                 response = await llm.respond(

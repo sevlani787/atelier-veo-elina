@@ -1,0 +1,120 @@
+{
+  "bank": "atelier_veo_master",
+  "updated_at": "2026-10-25 09:55:51",
+  "invariants": [
+    {
+      "id": "inv_001_trade_secret",
+      "category": "security_and_moat",
+      "title": "Закон абсолютной коммерческой тайны (Trade Secret Moat)",
+      "content": "Строжайшее вето на публичный показ чистых флаконов (clean plate) и сравнительных сплит-скринов 'До / После'. Клиентам и рынку подается только готовое произведение в 4K Master Print. Внешняя легенда: проприетарная технология фотометрической консистентности Atelier Identity Shield™. Вероятность обратного инжиниринга финального видео составляет менее 3-5% благодаря Specular Glare Pass.",
+      "tags": [
+        "security",
+        "trade_secret",
+        "client_pitch",
+        "shield"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-24 15:00:00"
+    },
+    {
+      "id": "inv_002_clean_plate",
+      "category": "video_physics",
+      "title": "Закон кристального чистого холста (Clean Flacon Plate)",
+      "content": "В Google Flow в слот Ingredient Image подается строго чистый флакон без букв (vanille_clean_plate_reference.jpg). Любые остаточные контуры или полупрозрачные призраки эмблемы на просвете стекла категорически недопустимы, так как вызывают латентный конфликт весов и галлюцинации шрифта в Veo.",
+      "tags": [
+        "flow",
+        "clean_plate",
+        "veo",
+        "lighting"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-24 16:30:00"
+    },
+    {
+      "id": "inv_003_flat_dewarping",
+      "category": "optical_geometry",
+      "title": "Закон снятия квадратичного искажения (Inverse Dewarping)",
+      "content": "Мастер-этикетка (label_*.png) обязана быть строго плоским 2D-вектором на прозрачном альфа-канале RGBA, прошедшим через обратную цилиндрическую развертку (max_angle = 0.28 * pi / 2.0). Это исключает эффект Distortion Squared: 3D-кривизна флакона накладывается через identity_shield.py ровно один раз.",
+      "tags": [
+        "dewarping",
+        "label",
+        "math",
+        "shield"
+      ],
+      "author": "adrian",
+      "timestamp": "2026-10-24 17:15:00"
+    },
+    {
+      "id": "inv_004_xavier_laplace_passport",
+      "category": "sacred_geometry",
+      "title": "Паспорт пространственной геометрии Ксавье Лапласа (profile_*.json)",
+      "content": "Для Edeniste Vanille Irrésistible зафиксированы инвариантные координаты: высота центра rel_center_y = 0.4798 (47.98% сверху), относительная ширина корпуса rel_width = 0.6000, пропорция сторон aspect_ratio = 1.3199. Смещение выше или ниже на 5% нарушает баланс с золотым стоппером и толстым дном.",
+      "tags": [
+        "geometry",
+        "edeniste",
+        "laplace",
+        "coordinates"
+      ],
+      "author": "adrian",
+      "timestamp": "2026-10-23 22:30:00"
+    },
+    {
+      "id": "inv_005_service_boundary",
+      "category": "business_architecture",
+      "title": "Демаркационная линия: Клуб (AI-Аудит) vs Студия (Кутюрный композитинг)",
+      "content": "Услуга автоматического редактирования пользовательских видео полностью изъята из клуба. В клубе действует Prompt Doctor & Multimodal QA Audit (25 кредитов). Полный композитинг, вживление физического флакона и мастеринг в True 4K 100 Mbps — строго заказная студийная услуга Bespoke Haute Finishing под личным руководством исполнительного продюсера Владимира Семенова.",
+      "tags": [
+        "club",
+        "studio",
+        "pricing",
+        "monetization"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-24 09:30:00"
+    },
+    {
+      "id": "inv_006_directorial_standards",
+      "category": "directorial_canon",
+      "title": "Трёхкомпонентный золотой канон промпта Элины (Gemini 4 Argon)",
+      "content": "Каждая сцена обязана выдаваться монолитным блоком из 3 частей:\n1. [Visual & Clean Plate]: оптика Cooke Anamorphic / 85mm T1.8, Кельвины 2700K (свет Вермеера), каустика выдержанного рома, unlabelled bottle;\n2. [Audio & Foley SFX]: 40Hz sub-bass, felt piano, тактильный щелчок магнитной крышки, звон хрусталя;\n3. [Voiceover & Phonetics]: интимный бархатный шепот с точным парижским прононсом и паузами для дыхания.",
+      "tags": [
+        "elina",
+        "prompt_canon",
+        "audio",
+        "foley",
+        "vermeer"
+      ],
+      "author": "elina",
+      "timestamp": "2026-10-23 21:00:00"
+    },
+    {
+      "id": "inv_007_scale_optical_threshold",
+      "category": "directorial_canon",
+      "title": "Правило оптического разрешения и маркировка сцен",
+      "content": "Элина лично маркирует каждый шот в сценарии:\n* [Identity Shield: MANDATORY | Референс: clean_ref] — крупный план (>20% кадра) лицом к камере;\n* [Identity Shield: NONE | Референс: original] — общий план (<10% кадра), сильный расфокус (боке) или вид сзади. На общих планах используется исходное фото с этикеткой, оптика камеры естественно размывает глифы без аппликации.",
+      "tags": [
+        "scale_threshold",
+        "tagging",
+        "efficiency",
+        "optics"
+      ],
+      "author": "elina",
+      "timestamp": "2026-10-24 09:00:00"
+    },
+    {
+      "id": "inv_008_storyboard_presentation_gate",
+      "category": "client_pitch_protocol",
+      "title": "Двухконтурная архитектура раскадровки (Clean Plate ➔ Presentation Plate)",
+      "content": "Презентация заказчику: Элина отбирает 1 из 4 чистых кадра 2K (shot01_clean.jpg) ➔ за 1 секунду накладывается Identity Shield (shielded_shot01.jpg). Клиенту уходит кадр с золотым брендингом и ольфакторной поэзией. При утверждении чистый shot01_clean.jpg моментально подается в First Frame во Flow — камера начинает движение из идеальной точки без задержек.",
+      "tags": [
+        "storyboard",
+        "first_frame",
+        "client_gate",
+        "flow"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-24 09:15:00"
+    }
+  ],
+  "episodic_memories": []
+}
