@@ -158,15 +158,23 @@
 
     .chat-textarea {
         flex: 1;
-        background: rgba(0, 0, 0, 0.5);
-        border: 1px solid rgba(197, 160, 89, 0.25);
+        background: rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(197, 160, 89, 0.35);
         color: #fff;
-        border-radius: 6px;
-        padding: 0.6rem;
-        font-size: 0.825rem;
-        resize: none;
-        height: 60px;
+        border-radius: 8px;
+        padding: 0.65rem 0.75rem;
+        font-size: 0.875rem;
+        line-height: 1.45;
+        resize: vertical;
+        min-height: 75px;
         font-family: inherit;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .chat-textarea:focus {
+        outline: none;
+        border-color: #c5a059;
+        box-shadow: 0 0 12px rgba(197, 160, 89, 0.25);
     }
 
     .chat-textarea:focus {
@@ -176,21 +184,32 @@
 
     .btn-send {
         background: linear-gradient(135deg, #c5a059, #9e7d3b);
-        color: #000;
-        font-weight: 600;
+        color: #0b0b10;
+        font-weight: 700;
         border: none;
-        border-radius: 6px;
-        padding: 0 1rem;
+        border-radius: 8px;
+        width: 44px;
+        min-width: 44px;
+        max-width: 44px;
+        padding: 0;
+        align-self: stretch;
         cursor: pointer;
-        font-size: 0.85rem;
+        font-size: 1.15rem;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: opacity 0.2s;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px rgba(197, 160, 89, 0.25);
     }
 
     .btn-send:hover {
-        opacity: 0.9;
+        background: linear-gradient(135deg, #dfba73, #c5a059);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(197, 160, 89, 0.4);
+    }
+
+    .btn-send:active {
+        transform: translateY(1px);
     }
 
     /* CENTER: LookDev Stage */
@@ -450,9 +469,9 @@
                 <button class="pill-btn" onclick="setPillPrompt('@kai Проверь концепт по 19 главам Летописи и Clean Flacon Invariant')">@Кай</button>
             </div>
             <div class="input-row">
-                <textarea id="council-input" class="chat-textarea" placeholder="Задайте повестку или вопрос Совету..."></textarea>
-                <button class="btn-send" onclick="sendCouncilMessage()">
-                    <span>Отправить</span>
+                <textarea id="council-input" class="chat-textarea" placeholder="Задайте повестку или вопрос Совету... (Enter — отправить, Shift+Enter — перенос)"></textarea>
+                <button class="btn-send" onclick="sendCouncilMessage()" title="Отправить (Enter)">
+                    <span style="display: inline-block; transform: scale(1.1);">➤</span>
                 </button>
             </div>
         </div>
