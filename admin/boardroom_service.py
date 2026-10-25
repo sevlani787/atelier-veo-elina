@@ -378,8 +378,10 @@ class BoardroomService:
         Кураторский сравнительный отбор (LookDev Shootout) 1 из 4 вариантов первого кадра (Start Frame 2K).
         Элина через флагманскую мультимодальную нейросеть Gemini 4 Argon сравнивает кандидатов
         и официально провозглашает Кадр-Победитель для старта движения в Google Flow.
+        Кадр-победитель возвращается для автоматического вывода в центральный LookDev Stage.
         """
         import base64
+        import urllib.parse
         content_items = [
             {
                 "type": "text",
@@ -398,12 +400,15 @@ class BoardroomService:
                     "Сформируй режиссерский протокол выбора:\n"
                     "- Краткий экспертный разбор каждого представленного варианта (плюсы и минусы).\n"
                     "- 🏆 **КАДР-ПОБЕДИТЕЛЬ:** [Вариант №X] — детальное объяснение, почему победил именно он.\n"
-                    "- **РЕЖИССЕРСКАЯ ДИРЕКТИВА ДЛЯ GOOGLE FLOW:** ключевые акценты для видеокамеры при старте движения из этого кадра."
+                    "- **РЕЖИССЕРСКАЯ ДИРЕКТИВА ДЛЯ GOOGLE FLOW:** ключевые акценты для видеокамеры при старте движения из этого кадра.\n\n"
+                    "ВАЖНОЕ ТЕХНИЧЕСКОЕ ТРЕБОВАНИЕ: В самой последней строке своего ответа ОБЯЗАТЕЛЬНО напиши строго:\n"
+                    "WINNER_INDEX: X\n(где X — цифра от 1 до количества вариантов, указывающая победителя)."
                 )
             }
         ]
 
         valid_names = []
+        valid_paths = []
         for idx, p_str in enumerate(media_paths, start=1):
             p = Path(p_str)
             if p.exists() and p.suffix.lower() in [".jpg", ".jpeg", ".png", ".webp"]:
@@ -418,6 +423,7 @@ class BoardroomService:
                     "image_url": {"url": f"data:image/jpeg;base64,{b64}"}
                 })
                 valid_names.append(p.name)
+                valid_paths.append(str(p.resolve()))
 
         if not valid_names:
             return {"status": "error", "detail": "Не найдено подходящих изображений для сравнительного отбора"}
@@ -432,6 +438,27 @@ class BoardroomService:
             except Exception as e2:
                 report = f"Ошибка сравнительного отбора: {e2}"
 
+        # Автоматический парсинг выбранного кадра-победителя
+        winner_idx = 1
+        m_idx = re.search(r"WINNER_INDEX:\s*(\d+)", report, re.IGNORECASE)
+        if m_idx:
+            cand = int(m_idx.group(1))
+            if 1 <= cand <= len(valid_paths):
+                winner_idx = cand
+        else:
+            m_alt = re.search(r"(?:КАДР[- ]ПОБЕДИТЕЛЬ|победил|выбор)[^\n\d]*[№N]?\s*(\d+)", report, re.IGNORECASE)
+            if m_alt:
+                cand = int(m_alt.group(1))
+                if 1 <= cand <= len(valid_paths):
+                    winner_idx = cand
+
+        winner_path = valid_paths[winner_idx - 1]
+        winner_name = valid_names[winner_idx - 1]
+        winner_url = f"/media_stream?path={urllib.parse.quote(winner_path)}"
+
+        # Очищаем отчет от служебного тега перед выводом в чат
+        clean_report = re.sub(r"WINNER_INDEX:\s*\d+", "", report, flags=re.IGNORECASE).strip()
+
         msg = {
             "sender": "elina",
             "name": "Элина (Кураторский отбор Start Frame)",
@@ -439,15 +466,21 @@ class BoardroomService:
             "avatar": "🏆",
             "color": "#dfba73",
             "time": datetime.datetime.now().strftime("%H:%M"),
-            "text": f"**Кураторский вердикт: Отбор 1 из {len(valid_names)} (Gemini 4 Argon):**\n\n{report}"
+            "text": f"**Кураторский вердикт: Отбор 1 из {len(valid_names)} (Gemini 4 Argon):**\n\n{clean_report}\n\n---\n🏆 **Кадр-Победитель выведен в LookDev Stage:** `{winner_name}`",
+            "winner_path": winner_path,
+            "winner_name": winner_name
         }
         self.active_session["messages"].append(msg)
         self._save_session()
 
         return {
             "status": "success",
-            "report": report,
-            "message": msg
+            "report": clean_report,
+            "message": msg,
+            "winner_index": winner_idx,
+            "winner_name": winner_name,
+            "winner_path": winner_path,
+            "winner_url": winner_url
         }
 
     async def generate_kai_response(self, elina_text: str, adrian_text: str, user_topic: str) -> Dict:

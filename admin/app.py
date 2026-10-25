@@ -453,6 +453,38 @@ async def boardroom_upload(
     except Exception as e:
         return JSONResponse(content={"status": "error", "detail": str(e)}, status_code=500)
 
+class SaveWinnerRequest(BaseModel):
+    winner_path: str
+    target_folder: Optional[str] = None
+    new_filename: Optional[str] = None
+
+@app.post("/api/boardroom/save_winner")
+async def boardroom_save_winner(payload: SaveWinnerRequest, username: str = Depends(get_current_username)):
+    src = Path(payload.winner_path)
+    if not src.exists() or not src.is_file():
+        raise HTTPException(status_code=404, detail="Файл победителя не найден")
+    
+    target_dir = Path(payload.target_folder) if payload.target_folder else Path("D:/campaigns/заказ/выбрано/3")
+    target_dir.mkdir(parents=True, exist_ok=True)
+    
+    filename = payload.new_filename if payload.new_filename else f"start_frame_{src.name}"
+    dst = target_dir / filename
+    
+    shutil.copy2(src, dst)
+    return JSONResponse(content={
+        "status": "success",
+        "saved_path": str(dst),
+        "filename": filename,
+        "message": f"Кадр-победитель успешно сохранен в: {dst}"
+    })
+
+@app.get("/api/boardroom/download_media")
+async def boardroom_download_media(path: str = Query(...), username: str = Depends(get_current_username)):
+    p = Path(path)
+    if not p.exists() or not p.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(p, filename=p.name)
+
 @app.get("/media_stream")
 async def media_stream(path: str = Query(...), username: str = Depends(get_current_username)):
     media_file = Path(path)

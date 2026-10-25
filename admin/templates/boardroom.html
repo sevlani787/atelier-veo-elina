@@ -519,6 +519,24 @@
                 </div>
         </div>
 
+                <!-- Winner Banner HUD -->
+        <div id="winner-banner" style="display: none; margin: 0.5rem 0; background: linear-gradient(90deg, rgba(197, 160, 89, 0.18), rgba(16, 185, 129, 0.18)); border: 1px solid rgba(197, 160, 89, 0.5); border-radius: 8px; padding: 0.65rem 1rem; align-items: center; justify-content: space-between; gap: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span style="font-size: 1.4rem;">🏆</span>
+                <div>
+                    <div style="font-size: 0.775rem; color: #dfba73; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Кадр-Победитель выбран Элиной (Start Frame 2K)</div>
+                    <div id="winner-banner-name" style="font-size: 0.85rem; color: #ffffff; font-family: monospace; font-weight: 600;">-</div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button class="stage-btn" style="border-color: #38bdf8; color: #38bdf8; background: rgba(56,189,248,0.12); padding: 0.4rem 0.75rem; font-weight: 600;" onclick="downloadWinnerDirect()">
+                    📥 Скачать кадр
+                </button>
+                <button class="stage-btn" style="border-color: #10b981; color: #34d399; background: rgba(16,185,129,0.15); padding: 0.4rem 0.75rem; font-weight: 600;" onclick="saveWinnerToFolder()">
+                    📁 В папку «выбрано/3»
+                </button>
+            </div>
+        </div>
         <div class="stage-controls">
             <div class="control-group">
                 <button class="stage-btn" onclick="stepFrame(-1)">◀ -1 Frame</button>
@@ -811,6 +829,28 @@
             if (res.status === 'success') {
                 const m = res.message;
                 appendMessage(m.sender, m.name, m.role, m.avatar, m.color, m.text);
+
+                // ✦ АВТОМАТИЧЕСКИЙ ВЫВОД В ЦЕНТРАЛЬНОЕ ОКНО LOOKDEV STAGE:
+                if (res.winner_path) {
+                    currentWinnerPath = res.winner_path;
+                    currentWinnerName = res.winner_name;
+
+                    stagePlaceholder.style.display = 'none';
+                    stageVideo.style.display = 'none';
+                    stageVideo.pause();
+                    stageImage.style.display = 'block';
+                    stageImage.src = '/media_stream?path=' + encodeURIComponent(res.winner_path);
+
+                    // Обновляем селектор и показываем баннер
+                    await refreshMediaList(res.winner_path);
+
+                    const banner = document.getElementById('winner-banner');
+                    const bName = document.getElementById('winner-banner-name');
+                    if (banner && bName) {
+                        bName.textContent = res.winner_name;
+                        banner.style.display = 'flex';
+                    }
+                }
             } else {
                 alert('Ошибка аудита: ' + res.detail);
             }
@@ -1437,6 +1477,43 @@ MASTER PROMPT STRUCTURE:
         } catch (e) {
             thinkingBanner.style.display = 'none';
             alert('Сбой: ' + e);
+        }
+    }
+
+    let currentWinnerPath = null;
+    let currentWinnerName = null;
+
+    function downloadWinnerDirect() {
+        if (!currentWinnerPath) {
+            alert('Кадр-победитель не выбран');
+            return;
+        }
+        window.open('/api/boardroom/download_media?path=' + encodeURIComponent(currentWinnerPath), '_blank');
+    }
+
+    async function saveWinnerToFolder() {
+        if (!currentWinnerPath) {
+            alert('Кадр-победитель не выбран');
+            return;
+        }
+        try {
+            const resp = await fetch('/api/boardroom/save_winner', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    winner_path: currentWinnerPath,
+                    target_folder: 'D:/campaigns/заказ/выбрано/3'
+                })
+            });
+            const data = await resp.json();
+            if (data.status === 'success') {
+                alert('✅ ' + data.message);
+                await refreshMediaList(data.saved_path);
+            } else {
+                alert('Ошибка сохранения: ' + data.detail);
+            }
+        } catch (e) {
+            alert('Ошибка сети: ' + e);
         }
     }
 </script>
