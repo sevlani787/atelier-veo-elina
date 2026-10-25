@@ -13,7 +13,7 @@ from bot.services.hindsight_bridge import hindsight_bridge
 
 COUNCIL_DIR_1 = Path("d:/Antigravity/AI_Video_Agency/councils")
 COUNCIL_DIR_2 = Path("D:/Antigravity/Элин/councils")
-TEST_MEDIA_DIR = Path("D:/campaigns/тест")
+CAMPAIGNS_DIR = Path("D:/campaigns")
 AGENCY_CAMPAIGNS_DIR = Path("d:/Antigravity/AI_Video_Agency/campaigns")
 LORE_FILE = Path("D:/Antigravity/Элин/bot/resources/elina_lore.md")
 
@@ -78,6 +78,13 @@ class BoardroomService:
             "messages": []
         }
         self._init_welcome()
+        self._save_session()
+        # Также очищаем файл автосохранения на диске
+        try:
+            if SESSION_AUTOSAVE_FILE.exists():
+                SESSION_AUTOSAVE_FILE.unlink()
+        except Exception:
+            pass
         return self.active_session
 
     def add_user_message(self, text: str):
@@ -102,32 +109,67 @@ class BoardroomService:
         return msg
 
     def list_media(self) -> List[Dict]:
+        """Рекурсивно сканирует D:/campaigns (включая заказ/выбрано/3) и папку студии."""
         items = []
-        # Проверяем папку тест
-        if TEST_MEDIA_DIR.exists():
-            for p in TEST_MEDIA_DIR.glob("*.*"):
-                if p.suffix.lower() in [".mp4", ".mov", ".webm", ".png", ".jpg", ".jpeg", ".webp"]:
-                    items.append({
-                        "name": p.name,
-                        "path": str(p),
-                        "type": "video" if p.suffix.lower() in [".mp4", ".mov", ".webm"] else "image",
-                        "size_mb": round(p.stat().st_size / (1024 * 1024), 2),
-                        "modified": datetime.datetime.fromtimestamp(p.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
-                    })
-        # Проверяем папку campaigns
-        if AGENCY_CAMPAIGNS_DIR.exists():
-            for p in AGENCY_CAMPAIGNS_DIR.rglob("*.*"):
-                if p.suffix.lower() in [".mp4", ".mov", ".webm", ".png", ".jpg", ".jpeg", ".webp"]:
-                    items.append({
-                        "name": p.name,
-                        "path": str(p),
-                        "type": "video" if p.suffix.lower() in [".mp4", ".mov", ".webm"] else "image",
-                        "size_mb": round(p.stat().st_size / (1024 * 1024), 2),
-                        "modified": datetime.datetime.fromtimestamp(p.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
-                    })
-        # Сортировка по времени изменения (свежие первые)
+        seen = set()
+        valid_exts = {".mp4", ".mov", ".webm", ".png", ".jpg", ".jpeg", ".webp"}
+        
+        roots = [
+            Path("D:/campaigns"),
+            Path("d:/Antigravity/AI_Video_Agency/campaigns"),
+            Path("D:/campaigns/заказ"),
+            Path("D:/campaigns/заказ/выбрано/3")
+        ]
+
+        for root in roots:
+            if not root.exists():
+                continue
+            for p in root.rglob("*"):
+                if not p.is_file():
+                    continue
+                if p.suffix.lower() not in valid_exts:
+                    continue
+                # Игнорируем скрытые папки и временные файлы
+                if any(part.startswith(".") for part in p.parts):
+                    continue
+                
+                try:
+                    p_resolved = str(p.resolve())
+                except Exception:
+                    p_resolved = str(p)
+
+                if p_resolved in seen:
+                    continue
+                seen.add(p_resolved)
+
+                try:
+                    rel = p.relative_to(root)
+                    folder_str = str(rel.parent).replace(chr(92), "/")
+                    if folder_str != ".":
+                        display_name = f"[{root.name}/{folder_str}] {p.name}"
+                    else:
+                        display_name = f"[{root.name}] {p.name}"
+                except Exception:
+                    display_name = p.name
+
+                try:
+                    size_mb = round(p.stat().st_size / (1024 * 1024), 2)
+                    mtime = datetime.datetime.fromtimestamp(p.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+                except Exception:
+                    size_mb = 0.0
+                    mtime = ""
+
+                items.append({
+                    "name": display_name,
+                    "path": p_resolved,
+                    "type": "video" if p.suffix.lower() in [".mp4", ".mov", ".webm"] else "image",
+                    "size_mb": size_mb,
+                    "modified": mtime
+                })
+
+        # Сортировка по времени изменения (самые свежие первыми)
         items.sort(key=lambda x: x["modified"], reverse=True)
-        return items[:30]
+        return items[:150]
 
     async def generate_elina_response(self, context_topic: str) -> Dict:
         """Режиссерский голос Элины через Gemini 4 Argon"""

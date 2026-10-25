@@ -249,10 +249,11 @@
         height: 180px;
         border-radius: 50%;
         border: 3px solid #38bdf8;
-        box-shadow: 0 0 25px rgba(56, 189, 248, 0.5), inset 0 0 15px rgba(0, 0, 0, 0.6);
+        box-shadow: 0 0 30px rgba(56, 189, 248, 0.6), inset 0 0 20px rgba(0, 0, 0, 0.8);
         pointer-events: none;
         display: none;
-        background-repeat: no-repeat;
+        overflow: visible;
+        background: #000;
         z-index: 50;
         transform: translate(-50%, -50%);
     }
@@ -440,6 +441,9 @@
 
         <div class="chat-input-area">
             <div class="quick-pills">
+                    <button class="pill-btn" style="border-color: rgba(239, 68, 68, 0.4); color: #f87171; background: rgba(239, 68, 68, 0.08);" onclick="resetCouncilSession()" title="Очистить чат и начать с чистого листа">
+                        🔄 Новая сессия
+                    </button>
                 <button class="pill-btn" onclick="setPillPrompt('Совет, сформируйте бриф на кампанию мужского аромата в бруталистском интерьере')">✦ Полный Совет</button>
                 <button class="pill-btn" onclick="setPillPrompt('@elina Опиши режиссерскую световую экспликацию и оптику для флакона')">@Элина</button>
                 <button class="pill-btn" onclick="setPillPrompt('@adrian Рассчитай параметры генерации в Veo и наложение Identity Shield')">@Адриан</button>
@@ -491,7 +495,9 @@
                 ✦ Перетащите сюда шот (до 2GB+) или выберите в селекторе ✦
             </div>
             <!-- Horological Loupe Lens -->
-            <div id="loupe-lens" class="loupe-lens"></div>
+            <div id="loupe-lens" class="loupe-lens">
+                    <canvas id="loupe-canvas" width="180" height="180" style="width: 100%; height: 100%; border-radius: 50%; display: block;"></canvas>
+                </div>
         </div>
 
         <div class="stage-controls">
@@ -954,16 +960,38 @@
         }
     }
 
-    // Horological Loupe x4.0 Mechanics
+    // Horological Loupe x4.0 Mechanics (True Optical Canvas Magnifier)
+    let lastLoupeEvent = null;
+    let loupeAnimId = null;
+
     function toggleLoupe() {
         loupeActive = !loupeActive;
         const btn = document.getElementById('loupe-btn');
         btn.classList.toggle('active', loupeActive);
-        if (!loupeActive) hideLoupe();
+        if (!loupeActive) {
+            hideLoupe();
+        } else {
+            startLoupeLoop();
+        }
+    }
+
+    function startLoupeLoop() {
+        if (!loupeActive) return;
+        renderLoupeFrame();
+        loupeAnimId = requestAnimationFrame(startLoupeLoop);
+    }
+
+    function hideLoupe() {
+        loupeLens.style.display = 'none';
+        if (loupeAnimId) {
+            cancelAnimationFrame(loupeAnimId);
+            loupeAnimId = null;
+        }
     }
 
     function handleLoupeMove(e) {
         if (!loupeActive) return;
+        lastLoupeEvent = e;
         const stage = document.getElementById('viewport-stage');
         const rect = stage.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -973,18 +1001,88 @@
         loupeLens.style.left = `${x}px`;
         loupeLens.style.top = `${y}px`;
 
-        const activeElem = (stageVideo.style.display !== 'none') ? stageVideo : stageImage;
-        if (!activeElem || !activeElem.src) return;
-
-        // Magnification 4.0x
-        const zoom = 4.0;
-        loupeLens.style.backgroundImage = `url('${activeElem.src}')`;
-        loupeLens.style.backgroundSize = `${rect.width * zoom}px ${rect.height * zoom}px`;
-        loupeLens.style.backgroundPosition = `-${x * zoom - 90}px -${y * zoom - 90}px`;
+        renderLoupeFrame();
     }
 
-    function hideLoupe() {
-        loupeLens.style.display = 'none';
+    function renderLoupeFrame() {
+        if (!loupeActive || !lastLoupeEvent) return;
+        const canvas = document.getElementById('loupe-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        const activeElem = (stageVideo.style.display !== 'none') ? stageVideo : stageImage;
+        if (!activeElem) return;
+
+        const elemRect = activeElem.getBoundingClientRect();
+        const mouseX = lastLoupeEvent.clientX;
+        const mouseY = lastLoupeEvent.clientY;
+
+        // Check if inside video/image bounds
+        if (mouseX < elemRect.left || mouseX > elemRect.right || mouseY < elemRect.top || mouseY > elemRect.bottom) {
+            ctx.fillStyle = '#0a0a0f';
+            ctx.fillRect(0, 0, 180, 180);
+            drawLoupeReticle(ctx);
+            return;
+        }
+
+        // Relative cursor position on element (0.0 to 1.0)
+        const relX = (mouseX - elemRect.left) / elemRect.width;
+        const relY = (mouseY - elemRect.top) / elemRect.height;
+
+        const natW = activeElem.videoWidth || activeElem.naturalWidth || elemRect.width;
+        const natH = activeElem.videoHeight || activeElem.naturalHeight || elemRect.height;
+
+        // Center coordinates in native source pixels
+        const centerSrcX = relX * natW;
+        const centerSrcY = relY * natH;
+
+        // Magnification 4.0x: view window is 1/4th of the lens footprint
+        const zoom = 4.0;
+        const srcW = (180 / elemRect.width) * natW / zoom;
+        const srcH = (180 / elemRect.height) * natH / zoom;
+        const srcX = centerSrcX - srcW / 2;
+        const srcY = centerSrcY - srcH / 2;
+
+        ctx.clearRect(0, 0, 180, 180);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
+        try {
+            ctx.drawImage(activeElem, srcX, srcY, srcW, srcH, 0, 0, 180, 180);
+        } catch (err) {
+            // fallback if canvas tainted or loading
+        }
+
+        drawLoupeReticle(ctx);
+    }
+
+    function drawLoupeReticle(ctx) {
+        // Horological crosshair & measurement ring
+        ctx.save();
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        // Crosshair horizontal
+        ctx.moveTo(15, 90);
+        ctx.lineTo(75, 90);
+        ctx.moveTo(105, 90);
+        ctx.lineTo(165, 90);
+        // Crosshair vertical
+        ctx.moveTo(90, 15);
+        ctx.lineTo(90, 75);
+        ctx.moveTo(90, 105);
+        ctx.lineTo(90, 165);
+        // Sub-pixel center ring
+        ctx.arc(90, 90, 15, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Outer optical border vignette
+        const grad = ctx.createRadialGradient(90, 90, 60, 90, 90, 90);
+        grad.addColorStop(0, 'rgba(0,0,0,0)');
+        grad.addColorStop(1, 'rgba(0,0,0,0.55)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 180, 180);
+        ctx.restore();
     }
 
     let extractedMasterLabelPath = null;
