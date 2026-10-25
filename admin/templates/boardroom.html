@@ -2254,6 +2254,43 @@
 
 
 
+                    
+                    <!-- Автономный замкнутый контур ОТК (Identity Shield™ Auto-QA) -->
+                    <div style="margin: 0.8rem 0; padding: 0.75rem; border-radius: 8px; background: linear-gradient(145deg, rgba(16, 185, 129, 0.08), rgba(20, 20, 28, 0.6)); border: 1px solid rgba(16, 185, 129, 0.35); box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                            <span style="font-size: 0.72rem; color: #34d399; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.3rem;">
+                                <span>⚡</span> Автономный контур ОТК
+                            </span>
+                            <span id="auto-qa-badge" style="font-size: 0.62rem; color: #9ca3af; padding: 2px 7px; border-radius: 4px; background: rgba(255,255,255,0.06); font-weight: 600;">
+                                ГОТОВ К ЗАПУСКУ
+                            </span>
+                        </div>
+                        <p style="font-size: 0.68rem; color: var(--text-dim); margin-bottom: 0.5rem; line-height: 1.35;">
+                            Двухфазный цикл: пристрелка на статике 0.8с (демпфер 0.85) → Master Lock (0.4%) → Финальный 4K-прогон.
+                        </p>
+                        
+                        <button id="btn-auto-qa" class="stage-btn" style="width: 100%; justify-content: center; border-color: rgba(16, 185, 129, 0.6); background: rgba(16, 185, 129, 0.16); color: #6ee7b7; font-weight: 600; padding: 0.45rem 0.8rem; transition: all 0.25s ease;" onclick="toggleAutoQALoop()">
+                            ⚡ Запустить автономный контур ОТК
+                        </button>
+
+                        <!-- Живая телеметрия (Telemetry HUD) -->
+                        <div id="auto-qa-telemetry-hud" style="display: none; margin-top: 0.6rem; padding: 0.55rem; border-radius: 6px; background: rgba(0,0,0,0.5); border: 1px solid rgba(197, 160, 89, 0.25);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                                <span id="auto-qa-hud-step" style="font-size: 0.68rem; color: #dfba73; font-weight: 700;">Итерация 1/3 (Статика 0.8с)</span>
+                                <span id="auto-qa-hud-eps" style="font-size: 0.62rem; color: #a3b899; font-weight: 600;">ΔY: 0.0% | ΔScale: 0.0</span>
+                            </div>
+                            <div id="auto-qa-hud-status" style="font-size: 0.68rem; color: #e5e5e5; line-height: 1.35;">Оптический аудит Элины...</div>
+                            <div id="auto-qa-criticism" style="display: none; font-size: 0.65rem; color: #dfba73; font-style: italic; margin-top: 0.35rem; border-top: 1px dashed rgba(255,255,255,0.12); padding-top: 0.3rem; line-height: 1.3;"></div>
+                            
+                            <!-- Кнопка среза Dual-Canvas -->
+                            <div id="auto-qa-dual-link-wrap" style="display: none; margin-top: 0.4rem; text-align: right;">
+                                <a id="auto-qa-dual-link" href="#" target="_blank" style="font-size: 0.62rem; color: #c5a059; text-decoration: none; border-bottom: 1px dotted #c5a059;">
+                                    🔍 Открыть двухъярусный срез ОТК (2048x1536)
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Action Buttons -->
 
                     <div style="display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.6rem;">
@@ -4510,6 +4547,227 @@
     // Initialize layout on ready
 
     document.addEventListener('DOMContentLoaded', initLayout);
+
+
+    // =========================================================================
+    // SPRINT 2: IDENTITY SHIELD™ AUTO-QA CLOSED LOOP CONTROLLER
+    // =========================================================================
+    let autoQAPollingInterval = null;
+    let autoQAIsRunning = false;
+
+    function playAcousticFeedback(type) {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            if (type === 'master_lock') {
+                // Crystal chime (Horological victory, 0.35s)
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.12);
+                gain.gain.setValueAtTime(0.18, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.35);
+            } else if (type === 'warning') {
+                // Velvet dual tone (Producer attention needed, 0.4s)
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, ctx.currentTime);
+                osc.frequency.setValueAtTime(330, ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.4);
+            }
+        } catch (e) {
+            console.warn('AudioContext not available:', e);
+        }
+    }
+
+    async function toggleAutoQALoop() {
+        if (autoQAIsRunning) {
+            // Emergency Pause
+            await fetch('/api/boardroom/auto_qa/stop', { method: 'POST' });
+            return;
+        }
+
+        const selector = document.getElementById('media-selector');
+        const mediaPath = selector ? selector.value : '';
+        if (!mediaPath) {
+            alert('Сначала выберите медиа-файл в селекторе сцены');
+            return;
+        }
+
+        const yOffset = parseFloat(document.getElementById('shield-y').value);
+        const xOffset = parseFloat(document.getElementById('shield-x').value);
+        const scale = parseFloat(document.getElementById('shield-scale').value);
+        const angle = parseFloat(document.getElementById('shield-angle').value);
+        const defringe = parseInt(document.getElementById('shield-defringe').value);
+        const specular = parseFloat(document.getElementById('shield-blend').value);
+        const geometry = document.getElementById('shield-geometry').value;
+
+        // UI Transition to Running
+        autoQAIsRunning = true;
+        const btn = document.getElementById('btn-auto-qa');
+        const badge = document.getElementById('auto-qa-badge');
+        const hud = document.getElementById('auto-qa-telemetry-hud');
+
+        btn.textContent = '⏹ Прервать авто-подгонку';
+        btn.style.borderColor = 'rgba(223, 186, 115, 0.7)';
+        btn.style.background = 'rgba(223, 186, 115, 0.18)';
+        btn.style.color = '#dfba73';
+
+        badge.textContent = 'В РАБОТЕ';
+        badge.style.color = '#34d399';
+        badge.style.background = 'rgba(52, 211, 153, 0.15)';
+        hud.style.display = 'block';
+
+        // Start Loop on Backend
+        try {
+            const resp = await fetch('/api/boardroom/auto_qa/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    media_path: mediaPath,
+                    label_image: currentExtractedLabelPath || '',
+                    reference_packshot: '', // Backend automatically discovers vanille_irresistible packshot
+                    y_offset: yOffset,
+                    x_offset: xOffset,
+                    scale: scale,
+                    angle: angle,
+                    defringe_bottom: defringe,
+                    specular: specular,
+                    geometry: geometry
+                })
+            });
+
+            if (!resp.ok) {
+                const err = await resp.json();
+                alert('Ошибка старта контура ОТК: ' + (err.detail || ''));
+                resetAutoQAUI();
+                return;
+            }
+
+            // Start Telemetry Polling (every 750ms)
+            if (autoQAPollingInterval) clearInterval(autoQAPollingInterval);
+            autoQAPollingInterval = setInterval(pollAutoQATelemetry, 750);
+        } catch (e) {
+            alert('Сбой сети при запуске контура: ' + e);
+            resetAutoQAUI();
+        }
+    }
+
+    async function pollAutoQATelemetry() {
+        try {
+            const resp = await fetch('/api/boardroom/auto_qa/status');
+            if (!resp.ok) return;
+            const data = await resp.json();
+
+            const hudStep = document.getElementById('auto-qa-hud-step');
+            const hudEps = document.getElementById('auto-qa-hud-eps');
+            const hudStatus = document.getElementById('auto-qa-hud-status');
+            const hudCriticism = document.getElementById('auto-qa-criticism');
+            const dualWrap = document.getElementById('auto-qa-dual-link-wrap');
+            const dualLink = document.getElementById('auto-qa-dual-link');
+
+            if (data.status_text) hudStatus.textContent = data.status_text;
+
+            if (data.current_iteration) {
+                const phaseLabel = data.phase === 'PHASE_B_DYNAMIC' ? 'ФАЗА Б: 4K-Мастер' : 'Статика 0.8с';
+                hudStep.textContent = `Итерация ${data.current_iteration}/${data.max_iterations} (${phaseLabel})`;
+            }
+
+            // Update sliders in real time when new parameters arrive
+            if (data.current_params) {
+                const cp = data.current_params;
+                if (cp.y_offset !== undefined) {
+                    document.getElementById('shield-y').value = cp.y_offset;
+                    updateParamLabel('lbl-y', cp.y_offset + '%');
+                }
+                if (cp.x_offset !== undefined) {
+                    document.getElementById('shield-x').value = cp.x_offset;
+                    updateParamLabel('lbl-x', (cp.x_offset > 0 ? '+' : '') + cp.x_offset + '%');
+                }
+                if (cp.scale !== undefined) {
+                    document.getElementById('shield-scale').value = cp.scale;
+                    updateParamLabel('lbl-scale', cp.scale + 'x');
+                }
+                if (cp.angle !== undefined) {
+                    document.getElementById('shield-angle').value = cp.angle;
+                    updateParamLabel('lbl-angle', cp.angle + '°');
+                }
+                if (cp.defringe_bottom !== undefined) {
+                    document.getElementById('shield-defringe').value = cp.defringe_bottom;
+                    updateParamLabel('lbl-defringe', cp.defringe_bottom + ' px');
+                }
+            }
+
+            // Delta indicators & criticism
+            if (data.latest_delta) {
+                const ld = data.latest_delta;
+                hudEps.textContent = `ΔY: ${ld.delta_y_percent || 0.0}% | ΔScale: ${ld.delta_scale_factor || 0.0}`;
+                if (ld.criticism) {
+                    hudCriticism.style.display = 'block';
+                    hudCriticism.textContent = `«${ld.criticism}»`;
+                }
+            }
+
+            // Dual Canvas link
+            if (data.dual_canvas_url) {
+                dualWrap.style.display = 'block';
+                dualLink.href = data.dual_canvas_url;
+            }
+
+            // Loop Finished or Stopped
+            if (!data.is_running) {
+                clearInterval(autoQAPollingInterval);
+                autoQAPollingInterval = null;
+                autoQAIsRunning = false;
+
+                if (data.phase === 'MASTER_LOCKED') {
+                    playAcousticFeedback('master_lock');
+                    document.getElementById('auto-qa-badge').textContent = '✅ MASTER LOCK';
+                    document.getElementById('auto-qa-badge').style.color = '#34d399';
+
+                    // If 7.2s sanity frame available, display in LookDev Stage
+                    if (data.final_sanity_frame) {
+                        const stageImg = document.getElementById('cinema-image');
+                        const stageVid = document.getElementById('cinema-video');
+                        if (stageVid) stageVid.style.display = 'none';
+                        if (stageImg) {
+                            stageImg.src = `/media_stream?path=${data.final_sanity_frame}&t=${Date.now()}`;
+                            stageImg.style.display = 'block';
+                        }
+                    } else if (data.final_master_video) {
+                        loadMediaUrl(data.final_master_video, 'video');
+                    }
+                } else if (data.phase === 'MANUAL_ATTENTION_NEEDED') {
+                    playAcousticFeedback('warning');
+                    document.getElementById('auto-qa-badge').textContent = '⚠️ ВНИМАНИЕ (3/3)';
+                    document.getElementById('auto-qa-badge').style.color = '#dfba73';
+                }
+
+                resetAutoQAUI();
+            }
+        } catch (e) {
+            console.warn('Telemetry polling error:', e);
+        }
+    }
+
+    function resetAutoQAUI() {
+        autoQAIsRunning = false;
+        const btn = document.getElementById('btn-auto-qa');
+        btn.textContent = '⚡ Запустить автономный контур ОТК';
+        btn.style.borderColor = 'rgba(16, 185, 129, 0.6)';
+        btn.style.background = 'rgba(16, 185, 129, 0.16)';
+        btn.style.color = '#6ee7b7';
+    }
 
 </script>
 

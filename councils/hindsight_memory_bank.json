@@ -1,6 +1,6 @@
 {
   "bank": "atelier_veo_master",
-  "updated_at": "2026-10-25 17:16:51",
+  "updated_at": "2026-10-25 23:16:15",
   "invariants": [
     {
       "id": "inv_001_trade_secret",
@@ -188,6 +188,18 @@
       ],
       "author": "vladimir",
       "timestamp": "2026-10-25 17:16:51"
+    },
+    {
+      "id": "ep_1792962975_elina",
+      "category": "studio_experience",
+      "title": "Решение: SKU Profile Master Lock [vanille_irresistible_official_clean...",
+      "content": "SKU Profile Master Lock [vanille_irresistible_official_clean]: Y=58.0%, X=0.0%, Scale=1.0x, Defringe=2px",
+      "tags": [
+        "production",
+        "elina"
+      ],
+      "author": "elina",
+      "timestamp": "2026-10-25 23:16:15"
     }
   ]
 }

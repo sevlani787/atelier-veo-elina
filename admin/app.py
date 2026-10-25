@@ -1,5 +1,10 @@
 import os
+import sys
+from pathlib import Path
 
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 import asyncio
 
 import shutil
@@ -41,6 +46,7 @@ from bot.config import config
 from admin.manager import bot_manager
 
 from admin.boardroom_service import boardroom_service
+from admin.auto_qa_service import auto_qa_runner
 
 from aiogram import Bot
 
@@ -680,6 +686,57 @@ async def boardroom_preview_shield(payload: ShieldPreviewRequest, username: str 
             return JSONResponse(content={"status": "error", "detail": proc.stderr or proc.stdout})
     except Exception as e:
         return JSONResponse(content={"status": "error", "detail": str(e)})
+
+
+class AutoQAStartRequest(BaseModel):
+    media_path: str
+    label_image: Optional[str] = None
+    reference_packshot: Optional[str] = None
+    y_offset: float = 58.0
+    x_offset: float = 0.0
+    scale: float = 1.0
+    angle: float = 0.0
+    defringe_bottom: int = 2
+    specular: float = 0.75
+    geometry: str = "spherical"
+
+@app.post("/api/boardroom/auto_qa/start")
+async def boardroom_auto_qa_start(payload: AutoQAStartRequest, username: str = Depends(get_current_username)):
+    ref = payload.reference_packshot
+    if not ref or not Path(ref).exists():
+        fallback_ref = Path("D:/Antigravity/AI_Video_Agency/campaigns/edeniste_pilot/vanille_irresistible_official_clean.jpg")
+        if fallback_ref.exists():
+            ref = str(fallback_ref)
+        else:
+            raise HTTPException(status_code=400, detail="Эталон бренда (packshot) не найден на диске")
+    
+    # Run loop in background
+    asyncio.create_task(
+        auto_qa_runner.run(
+            media_path=payload.media_path,
+            label_image=payload.label_image or "",
+            reference_packshot=ref,
+            initial_params={
+                "y_offset": payload.y_offset,
+                "x_offset": payload.x_offset,
+                "scale": payload.scale,
+                "angle": payload.angle,
+                "defringe_bottom": payload.defringe_bottom,
+                "specular": payload.specular,
+                "geometry": payload.geometry
+            }
+        )
+    )
+    return JSONResponse(content={"status": "started"})
+
+@app.get("/api/boardroom/auto_qa/status")
+async def boardroom_auto_qa_status(username: str = Depends(get_current_username)):
+    return JSONResponse(content=auto_qa_runner.get_telemetry())
+
+@app.post("/api/boardroom/auto_qa/stop")
+async def boardroom_auto_qa_stop(username: str = Depends(get_current_username)):
+    auto_qa_runner.stop()
+    return JSONResponse(content={"status": "stopped"})
 
 @app.post("/api/boardroom/run_shield")
 
