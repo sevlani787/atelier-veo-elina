@@ -1,1865 +1,3730 @@
-{% extends "base.html" %}
-
-{% block title %}Atelier VEO | Executive Boardroom{% endblock %}
-{% block page_title %}
-<div style="display: flex; align-items: center; gap: 1rem; width: 100%; justify-content: space-between;">
-    <div style="display: flex; align-items: center; gap: 0.75rem;">
-        <span style="color: var(--primary); font-size: 1.35rem;">🏛</span>
-        <div>
-            <div style="font-weight: 700; font-size: 1.15rem; letter-spacing: 0.04em; background: linear-gradient(135deg, #ffffff 40%, var(--primary-light) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                ATELIER VEO | VEO BOARDROOM
-            </div>
-            <div style="font-size: 0.7rem; color: #94a3b8; letter-spacing: 0.05em; text-transform: uppercase;">
-                Executive Council & Cinema LookDev 4K
-            </div>
-        </div>
-        <span style="margin-left: 0.5rem; font-size: 0.725rem; color: #10b981; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 4px; padding: 0.2rem 0.55rem; font-weight: 600;">
-            ● Live Session
-        </span>
-    </div>
-
-    <div style="display: flex; align-items: center; gap: 0.75rem;">
-        <button class="stage-btn" onclick="toggleCinemaMode()" id="btn-cinema-mode" style="border-color: rgba(56, 189, 248, 0.4); color: #38bdf8; background: rgba(56, 189, 248, 0.08); padding: 0.35rem 0.75rem; font-size: 0.8rem; font-weight: 600;">
-            🎬 Cinema Focus (Макс. экран)
-        </button>
-        <a href="/" style="display: flex; align-items: center; gap: 0.45rem; background: rgba(197, 160, 89, 0.08); border: 1px solid rgba(197, 160, 89, 0.35); color: var(--primary-light); padding: 0.35rem 0.75rem; border-radius: 6px; text-decoration: none; font-size: 0.8rem; font-weight: 600; transition: all 0.2s ease;">
-            <span>⚙️</span> Панель управления (Админка)
-        </a>
-    </div>
-</div>
-{% endblock %}
-
-{% block head %}
-<style>
-    /* Fullscreen Boardroom layout - Hide admin sidebar */
-    .sidebar {
-        display: none !important;
-    }
-    .content {
-        margin-left: 0 !important;
-        padding: 0.6rem 1rem 1rem 1rem !important;
-        width: 100vw !important;
-        max-width: 100vw !important;
-        box-sizing: border-box !important;
-    }
-    .top-header {
-        margin-bottom: 0.6rem !important;
-        padding-bottom: 0.4rem !important;
-        border-bottom: 1px solid rgba(197, 160, 89, 0.2) !important;
-    }
-    .top-header h1 {
-        width: 100%;
-    }
-
-    /* 3-Column Cinema-First Grid (Center LookDev is HERO) */
-    .boardroom-container {
-        display: grid;
-        grid-template-columns: 390px 1fr 280px;
-        gap: 0.85rem;
-        height: calc(100vh - 82px);
-        min-height: 680px;
-        transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    /* When right panel is collapsed */
-    .boardroom-container.hub-collapsed {
-        grid-template-columns: 390px 1fr 38px;
-    }
-
-    /* Full Cinema Focus (Left slim 320px, Right collapsed 38px -> LookDev gets ~75% screen!) */
-    .boardroom-container.cinema-mode {
-        grid-template-columns: 320px 1fr 38px;
-    }
-
-    /* Base Card / Pane */
-    .board-pane {
-        background: var(--card-bg);
-        border: 1px solid var(--glass-border);
-        border-radius: 10px;
-        backdrop-filter: blur(16px);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-        position: relative;
-    }
-
-    .pane-header {
-        padding: 0.75rem 1rem;
-        border-bottom: 1px solid var(--glass-border);
-        background: rgba(10, 10, 14, 0.8);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-
-    .pane-title {
-        font-size: 0.825rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--primary-light);
-        display: flex;
-        align-items: center;
-        gap: 0.45rem;
-    }
-
-    /* Left Pane: Tabs Navigation */
-    .left-tabs-nav {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-        padding: 0.4rem 0.6rem;
-        background: rgba(8, 8, 12, 0.95);
-        border-bottom: 1px solid rgba(197, 160, 89, 0.15);
-    }
-
-    .left-tab-btn {
-        flex: 1;
-        padding: 0.35rem 0.6rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: var(--text-dim);
-        background: transparent;
-        border: 1px solid transparent;
-        border-radius: 6px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.35rem;
-        transition: all 0.2s ease;
-    }
-
-    .left-tab-btn:hover {
-        color: #ffffff;
-        background: rgba(255, 255, 255, 0.04);
-    }
-
-    .left-tab-btn.active {
-        color: #dfba73;
-        background: rgba(197, 160, 89, 0.12);
-        border-color: rgba(197, 160, 89, 0.35);
-        box-shadow: 0 0 10px rgba(197, 160, 89, 0.1);
-    }
-
-    .split-toggle-btn {
-        padding: 0.35rem 0.5rem;
-        font-size: 0.75rem;
-        color: var(--text-dim);
-        background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 6px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    .split-toggle-btn.active {
-        color: #38bdf8;
-        border-color: rgba(56, 189, 248, 0.4);
-        background: rgba(56, 189, 248, 0.1);
-    }
-
-    /* Chat Section */
-    .chat-messages {
-        flex: 1;
-        overflow-y: auto;
-        padding: 0.85rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-    }
-
-    .msg-card {
-        padding: 0.75rem 0.85rem;
-        border-radius: 8px;
-        background: rgba(0, 0, 0, 0.35);
-        border-left: 3px solid #666;
-        font-size: 0.825rem;
-        line-height: 1.5;
-        position: relative;
-    }
-
-    .msg-card.vladimir {
-        border-left-color: #c5a059;
-        background: rgba(197, 160, 89, 0.06);
-    }
-    .msg-card.elina {
-        border-left-color: #dfba73;
-        background: rgba(223, 186, 115, 0.05);
-    }
-    .msg-card.adrian {
-        border-left-color: #38bdf8;
-        background: rgba(56, 189, 248, 0.05);
-    }
-    .msg-card.kai {
-        border-left-color: #10b981;
-        background: rgba(16, 185, 129, 0.05);
-    }
-
-    .msg-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.35rem;
-        font-size: 0.725rem;
-    }
-
-    .msg-author {
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-    }
-
-    .msg-role {
-        font-size: 0.65rem;
-        color: var(--text-dim);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: 0.25rem;
-    }
-
-    .msg-body {
-        color: #e2e8f0;
-        word-break: break-word;
-    }
-
-    .pin-msg-btn {
-        background: rgba(197, 160, 89, 0.1);
-        border: 1px solid rgba(197, 160, 89, 0.3);
-        color: var(--primary-light);
-        padding: 0.15rem 0.45rem;
-        border-radius: 4px;
-        font-size: 0.675rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.2rem;
-    }
-    .pin-msg-btn:hover {
-        background: rgba(197, 160, 89, 0.25);
-        color: #ffffff;
-    }
-
-    /* Recipient Bar (NO TEMPLATES) */
-    .recipient-bar {
-        display: flex;
-        gap: 0.35rem;
-        align-items: center;
-        margin-bottom: 0.45rem;
-        flex-wrap: wrap;
-    }
-
-    .rcpt-btn {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: var(--text-dim);
-        padding: 0.25rem 0.55rem;
-        border-radius: 5px;
-        font-size: 0.725rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.15s ease;
-    }
-    .rcpt-btn:hover {
-        background: rgba(255, 255, 255, 0.08);
-        color: #fff;
-    }
-    .rcpt-btn.active {
-        background: rgba(197, 160, 89, 0.18);
-        border-color: #dfba73;
-        color: #dfba73;
-        box-shadow: 0 0 8px rgba(197, 160, 89, 0.2);
-    }
-    .rcpt-btn.reset-btn {
-        border-color: rgba(239, 68, 68, 0.35);
-        color: #f87171;
-        background: rgba(239, 68, 68, 0.06);
-        margin-left: auto;
-    }
-    .rcpt-btn.reset-btn:hover {
-        background: rgba(239, 68, 68, 0.15);
-    }
-
-    /* Chat Input Area */
-    .chat-input-area {
-        padding: 0.75rem;
-        background: rgba(10, 10, 14, 0.85);
-        border-top: 1px solid var(--glass-border);
-    }
-
-    .input-row {
-        display: flex;
-        gap: 0.5rem;
-        align-items: flex-end;
-    }
-
-    .chat-textarea {
-        flex: 1;
-        background: rgba(0, 0, 0, 0.4);
-        border: 1px solid rgba(197, 160, 89, 0.25);
-        border-radius: 6px;
-        padding: 0.65rem 0.8rem;
-        color: #fff;
-        font-family: inherit;
-        font-size: 0.85rem;
-        resize: vertical;
-        min-height: 70px;
-        max-height: 200px;
-        outline: none;
-    }
-    .chat-textarea:focus {
-        border-color: var(--primary);
-        box-shadow: 0 0 10px rgba(197, 160, 89, 0.2);
-    }
-
-    .btn-send {
-        background: linear-gradient(135deg, var(--primary), #a88438);
-        border: none;
-        border-radius: 6px;
-        width: 44px;
-        height: 70px;
-        color: #09090b;
-        font-weight: 700;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s ease;
-        font-size: 1.15rem;
-        flex-shrink: 0;
-    }
-    .btn-send:hover {
-        transform: translateY(-1px);
-        filter: brightness(1.1);
-        box-shadow: var(--gold-glow);
-    }
-
-    /* Thinking State */
-    .thinking-banner {
-        display: none;
-        padding: 0.45rem 0.75rem;
-        background: rgba(197, 160, 89, 0.1);
-        border: 1px dashed var(--primary);
-        border-radius: 6px;
-        font-size: 0.725rem;
-        color: var(--primary-light);
-        align-items: center;
-        gap: 0.4rem;
-        animation: pulse 1.5s infinite;
-        margin: 0.5rem 0.85rem;
-    }
-    @keyframes pulse {
-        0%, 100% { opacity: 0.6; }
-        50% { opacity: 1; }
-    }
-
-    /* Tablet Pane Styling */
-    .tablet-section {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-        height: 100%;
-        overflow: hidden;
-    }
-
-    .tablet-subtoolbar {
-        padding: 0.35rem 0.65rem;
-        background: rgba(15, 15, 22, 0.8);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.4rem;
-        font-size: 0.725rem;
-    }
-
-    .tablet-editor {
-        flex: 1;
-        width: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        border: none;
-        color: #f1f5f9;
-        font-family: 'JetBrains Mono', 'Consolas', monospace;
-        font-size: 0.8rem;
-        line-height: 1.55;
-        padding: 0.75rem;
-        resize: none;
-        outline: none;
-        overflow-y: auto;
-        white-space: pre-wrap;
-        word-break: break-word;
-    }
-
-    .tablet-statusbar {
-        padding: 0.35rem 0.65rem;
-        background: rgba(8, 8, 12, 0.9);
-        border-top: 1px solid rgba(255, 255, 255, 0.06);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        font-size: 0.675rem;
-        color: var(--text-dim);
-    }
-
-    /* Split Mode Specific Layout inside Left Pane */
-    .left-pane-unified.mode-split .pane-chat-wrapper {
-        flex: 1;
-        height: 60%;
-        display: flex;
-        flex-direction: column;
-        border-top: 1px solid var(--glass-border);
-    }
-    .left-pane-unified.mode-split .pane-tablet-wrapper {
-        height: 40%;
-        display: flex;
-        flex-direction: column;
-    }
-
-    /* Tab Mode Specific Layout */
-    .left-pane-unified.mode-tab-chat .pane-tablet-wrapper {
-        display: none !important;
-    }
-    .left-pane-unified.mode-tab-chat .pane-chat-wrapper {
-        display: flex !important;
-        flex: 1;
-        height: 100%;
-        flex-direction: column;
-    }
-
-    .left-pane-unified.mode-tab-tablet .pane-chat-wrapper {
-        display: none !important;
-    }
-    .left-pane-unified.mode-tab-tablet .pane-tablet-wrapper {
-        display: flex !important;
-        flex: 1;
-        height: 100%;
-        flex-direction: column;
-    }
-
-    /* ========================================================= */
-    /* 2. LOOKDEV & CINEMA STAGE 4K (CENTER HERO)                 */
-    /* ========================================================= */
-    .stage-container {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        background: #030305;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .stage-toolbar {
-        padding: 0.6rem 0.85rem;
-        background: rgba(10, 10, 14, 0.8);
-        border-bottom: 1px solid var(--glass-border);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    .media-select {
-        background: rgba(0, 0, 0, 0.45);
-        border: 1px solid var(--glass-border);
-        color: var(--text-main);
-        padding: 0.35rem 0.65rem;
-        border-radius: 6px;
-        font-size: 0.8rem;
-        outline: none;
-        flex: 1;
-        max-width: 480px;
-    }
-
-    .stage-viewport {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-        overflow: hidden;
-        background: radial-gradient(circle at center, #111118, #050508);
-        cursor: crosshair;
-        min-height: 440px;
-    }
-
-    #stage-video, #stage-image {
-        max-width: 100%;
-        max-height: 100%;
-        object-fit: contain;
-        box-shadow: 0 0 35px rgba(0, 0, 0, 0.85);
-    }
-
-    /* Horological Loupe */
-    .loupe-lens {
-        position: absolute;
-        width: 180px;
-        height: 180px;
-        border: 2px solid #dfba73;
-        border-radius: 50%;
-        box-shadow: 0 0 25px rgba(0,0,0,0.9), 0 0 15px rgba(223, 186, 115, 0.4);
-        pointer-events: none;
-        display: none;
-        z-index: 100;
-        background: #050508;
-        transform: translate(-50%, -50%);
-        overflow: hidden;
-    }
-
-    .stage-controls {
-        padding: 0.6rem 0.85rem;
-        background: rgba(10, 10, 14, 0.85);
-        border-top: 1px solid var(--glass-border);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-
-    .stage-btn {
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid var(--glass-border);
-        color: var(--text-main);
-        padding: 0.35rem 0.65rem;
-        border-radius: 6px;
-        font-size: 0.775rem;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        transition: all 0.2s ease;
-        font-weight: 500;
-    }
-    .stage-btn:hover {
-        background: rgba(197, 160, 89, 0.15);
-        border-color: var(--primary);
-    }
-
-    /* ========================================================= */
-    /* 3. ACTION & PIPELINE HUB (RIGHT COLLAPSIBLE)               */
-    /* ========================================================= */
-    .hub-pane {
-        transition: width 0.25s ease;
-        position: relative;
-    }
-
-    .hub-collapsed-rail {
-        display: none;
-        height: 100%;
-        flex-direction: column;
-        align-items: center;
-        padding: 1rem 0.25rem;
-        cursor: pointer;
-        background: rgba(10, 10, 14, 0.8);
-        border-left: 1px solid var(--glass-border);
-        transition: background 0.2s ease;
-    }
-    .hub-collapsed-rail:hover {
-        background: rgba(197, 160, 89, 0.12);
-    }
-
-    .boardroom-container.hub-collapsed .hub-expanded-content {
-        display: none !important;
-    }
-    .boardroom-container.hub-collapsed .hub-collapsed-rail {
-        display: flex !important;
-    }
-
-    .hub-vertical-title {
-        writing-mode: vertical-rl;
-        color: var(--primary-light);
-        font-size: 0.725rem;
-        font-weight: 700;
-        letter-spacing: 0.15em;
-        text-transform: uppercase;
-        margin-top: 1.2rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .action-scroll {
-        flex: 1;
-        overflow-y: auto;
-        padding: 0.85rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.85rem;
-    }
-
-    .action-card {
-        background: rgba(0, 0, 0, 0.25);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 8px;
-        padding: 0.75rem;
-    }
-
-    .card-heading {
-        font-size: 0.775rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--primary-light);
-        margin-bottom: 0.5rem;
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-    }
-
-    .param-row {
-        margin-bottom: 0.5rem;
-    }
-    .param-label {
-        display: block;
-        font-size: 0.7rem;
-        color: var(--text-dim);
-        margin-bottom: 0.2rem;
-    }
-    .param-row select, .param-row input[type="range"] {
-        width: 100%;
-    }
-    .param-row select {
-        background: rgba(0, 0, 0, 0.4);
-        border: 1px solid var(--glass-border);
-        color: #fff;
-        padding: 0.3rem 0.5rem;
-        border-radius: 5px;
-        font-size: 0.75rem;
-    }
-
-    /* Floating Pin Tooltip on Text Selection */
-    .floating-pin-btn {
-        position: fixed;
-        z-index: 9999;
-        background: linear-gradient(135deg, #272115, #14141c);
-        border: 1px solid #dfba73;
-        color: #dfba73;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.8), 0 0 12px rgba(223, 186, 115, 0.35);
-        border-radius: 6px;
-        padding: 0.35rem 0.7rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        pointer-events: auto;
-        transform: translate(-50%, -100%);
-        margin-top: -8px;
-    }
-    .floating-pin-btn:hover {
-        background: #dfba73;
-        color: #09090b;
-    }
-</style>
-{% endblock %}
-
-{% block content %}
-<div class="boardroom-container" id="boardroom-main-container">
-
-    <!-- ========================================================= -->
-    <!-- 1. LEFT UNIFIED PANE: COUNCIL CHAT + DIRECTOR TABLET      -->
-    <!-- ========================================================= -->
-    <div class="board-pane left-pane-unified mode-tab-chat" id="left-unified-pane">
-        <!-- Tabs & Split Switcher -->
-        <div class="left-tabs-nav">
-            <button class="left-tab-btn active" id="tab-btn-chat" onclick="setLeftPaneMode('tab-chat')">
-                <span>💬</span> Совет Квартета
-            </button>
-            <button class="left-tab-btn" id="tab-btn-tablet" onclick="setLeftPaneMode('tab-tablet')">
-                <span>📜</span> Планшет
-                <span id="tablet-pill-badge" style="display: none; width: 6px; height: 6px; border-radius: 50%; background: #dfba73;"></span>
-            </button>
-            <button class="split-toggle-btn" id="btn-toggle-split" onclick="toggleSplitMode()" title="Режим сплита (Планшет сверху, Чат снизу)">
-                ◫
-            </button>
-        </div>
-
-        <!-- SECTION A: TABLET WRAPPER -->
-        <div class="pane-tablet-wrapper">
-            <div class="tablet-section">
-                <div class="tablet-subtoolbar">
-                    <div style="display: flex; align-items: center; gap: 0.4rem;">
-                        <span style="color: var(--text-dim);">Режим:</span>
-                        <label style="cursor: pointer; display: flex; align-items: center; gap: 0.2rem; color: #e2e8f0; font-size: 0.7rem;">
-                            <input type="radio" name="tablet-mode" id="mode-replace" value="replace"> Заменять
-                        </label>
-                        <label style="cursor: pointer; display: flex; align-items: center; gap: 0.2rem; color: #dfba73; font-size: 0.7rem;">
-                            <input type="radio" name="tablet-mode" id="mode-append" value="append" checked> + Добавлять
-                        </label>
-                    </div>
-                    <div style="display: flex; gap: 0.3rem;">
-                        <button class="stage-btn" style="padding: 0.15rem 0.45rem; font-size: 0.675rem; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" onclick="copyTabletContent()" title="Скопировать всё в буфер">
-                            📋 Копировать
-                        </button>
-                        <button class="stage-btn" style="padding: 0.15rem 0.45rem; font-size: 0.675rem; border-color: rgba(239, 68, 68, 0.4); color: #f87171;" onclick="clearTabletContent()" title="Очистить планшет">
-                            🗑 Сброс
-                        </button>
-                    </div>
-                </div>
-
-                <textarea id="tablet-textarea" class="tablet-editor" oninput="handleTabletInput()" placeholder="Здесь закрепляется режиссерский сценарий, раскадровка и промпты...&#10;&#10;• Нажмите «📌 В планшет» на сообщении в чате&#10;• Или выделите любой фрагмент текста мышкой&#10;• Сохраняется автоматически и не пропадет"></textarea>
-
-                <div class="tablet-statusbar">
-                    <div>
-                        Символов: <span id="tablet-char-count" style="color: #fff; font-weight: 600;">0</span>
-                        <span style="margin: 0 0.25rem; opacity: 0.4;">|</span>
-                        Строк: <span id="tablet-line-count" style="color: #fff; font-weight: 600;">0</span>
-                    </div>
-                    <span style="color: #10b981; display: flex; align-items: center; gap: 0.25rem;">
-                        <span style="font-size: 0.55rem;">●</span> Память активна
-                    </span>
-                </div>
-            </div>
-        </div>
-
-        <!-- SECTION B: CHAT WRAPPER -->
-        <div class="pane-chat-wrapper">
-            <div class="chat-messages" id="chat-messages">
-                {% for msg in session.messages %}
-                <div class="msg-card {{ msg.sender }}">
-                    <div class="msg-header">
-                        <span class="msg-author" style="color: {{ msg.color }};">
-                            {{ msg.avatar }} {{ msg.name }}
-                        </span>
-                        <div style="display: flex; align-items: center; gap: 0.45rem;">
-                            <button class="pin-msg-btn" onclick="pinMessageFromCard(this)" title="Закрепить в Режиссерский Планшет">
-                                📌 В планшет
-                            </button>
-                            <span class="msg-time">{{ msg.time }}</span>
-                        </div>
-                    </div>
-                    <div class="msg-role">{{ msg.role }}</div>
-                    <div class="msg-body" style="margin-top: 0.35rem;">{{ msg.text }}</div>
-                </div>
-                {% endfor %}
-            </div>
-
-            <div class="thinking-banner" id="thinking-banner">
-                <span>⚡</span> <span id="thinking-text">Совет совещается...</span>
-            </div>
-
-            <div class="chat-input-area">
-                <!-- RECIPIENT SELECTOR BAR (ZERO TEMPLATES) -->
-                <div class="recipient-bar">
-                    <button class="rcpt-btn active" id="btn-rcpt-all" onclick="selectRecipient('council')" title="Обратиться ко всему Совету (Элина ➔ Адриан ➔ Кай)">
-                        🏛 Весь Совет
-                    </button>
-                    <button class="rcpt-btn" id="btn-rcpt-elina" onclick="selectRecipient('@Элина')" title="Лично к Элине (Режиссура & Визуальный Арбитраж)">
-                        👑 @Элина
-                    </button>
-                    <button class="rcpt-btn" id="btn-rcpt-adrian" onclick="selectRecipient('@Адриан')" title="Лично к Адриану (AI-Архитектура & Пайплайн)">
-                        ⚡ @Адриан
-                    </button>
-                    <button class="rcpt-btn" id="btn-rcpt-kai" onclick="selectRecipient('@Кай')" title="Лично к Каю (Канон & Летопись)">
-                        🛡️ @Кай
-                    </button>
-                    <button class="rcpt-btn reset-btn" onclick="resetCouncilSession()" title="Начать чистый диалог">
-                        🔄 Сброс
-                    </button>
-                </div>
-
-                <div class="input-row">
-                    <textarea id="council-input" class="chat-textarea" placeholder="Сообщение или задача Совету... (Enter — отправить, Shift+Enter — перенос строки)"></textarea>
-                    <button class="btn-send" onclick="sendCouncilMessage()" title="Отправить (Enter)">
-                        <span>➤</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ========================================================= -->
-    <!-- 2. LOOKDEV & CINEMA STAGE 4K (CENTER HERO)                 -->
-    <!-- ========================================================= -->
-    <div class="board-pane stage-container">
-        <div class="stage-toolbar">
-            <span class="pane-title"><span>🎬</span> LookDev & Cinema Stage 4K</span>
-            <div style="display: flex; gap: 0.5rem; align-items: center; flex: 1; justify-content: flex-end;">
-                <select id="media-selector" class="media-select" onchange="loadSelectedMedia()">
-                    <option value="">-- Выберите медиа-актив для инспекции --</option>
-                    {% for item in media_items %}
-                    <option value="{{ item.path }}" data-type="{{ item.type }}">
-                        {{ item.name }} ({{ item.size_mb }} MB)
-                    </option>
-                    {% endfor %}
-                </select>
-                <input type="file" id="media-file-input" style="display: none;" onchange="handleFileInputChange(this)" accept="video/*,image/*" multiple>
-                <button class="stage-btn" style="border-color: rgba(197, 160, 89, 0.4); color: var(--primary-light); background: rgba(197, 160, 89, 0.1);" onclick="document.getElementById('media-file-input').click()" title="Загрузить шот до 2GB+">
-                    ⚡ Загрузить
-                </button>
-            </div>
-        </div>
-
-        <div class="stage-viewport" id="viewport-stage" onmousemove="handleLoupeMove(event)" onmouseleave="hideLoupe()">
-            <!-- Upload Overlay HUD -->
-            <div id="upload-overlay" style="display: none; position: absolute; inset: 0; background: rgba(5, 5, 8, 0.92); z-index: 50; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem;">
-                <div style="font-size: 2rem;">⚡</div>
-                <div id="upload-title" style="color: var(--primary-light); font-size: 0.9rem; font-weight: 600;">Загрузка файла в LookDev...</div>
-                <div style="width: 300px; height: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 4px; overflow: hidden; border: 1px solid rgba(197, 160, 89, 0.3);">
-                    <div id="upload-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #c5a059, #10b981); transition: width 0.1s ease;"></div>
-                </div>
-                <div id="upload-status" style="color: var(--text-dim); font-size: 0.775rem;">0% (0 MB / 0 MB)</div>
-            </div>
-
-            <video id="stage-video" loop controls style="display: none;"></video>
-            <img id="stage-image" style="display: none;" />
-            <div id="stage-placeholder" style="color: var(--text-dim); font-size: 0.85rem; text-align: center; padding: 1rem;">
-                ✦ Перетащите сюда шот (до 2GB+) или выберите в селекторе выше ✦
-            </div>
-
-            <!-- Horological Loupe Lens -->
-            <div id="loupe-lens" class="loupe-lens">
-                <canvas id="loupe-canvas" width="180" height="180" style="width: 100%; height: 100%; border-radius: 50%; display: block;"></canvas>
-            </div>
-        </div>
-
-        <!-- Winner Banner HUD -->
-        <div id="winner-banner" style="display: none; margin: 0.4rem 0.85rem; background: linear-gradient(90deg, rgba(197, 160, 89, 0.18), rgba(16, 185, 129, 0.18)); border: 1px solid rgba(197, 160, 89, 0.5); border-radius: 8px; padding: 0.5rem 0.85rem; align-items: center; justify-content: space-between; gap: 0.6rem;">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <span style="font-size: 1.3rem;">🏆</span>
-                <div>
-                    <div style="font-size: 0.725rem; color: #dfba73; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Кадр-Победитель выбран Элиной (Start Frame 2K)</div>
-                    <div id="winner-banner-name" style="font-size: 0.8rem; color: #ffffff; font-family: monospace; font-weight: 600;">-</div>
-                </div>
-            </div>
-            <div style="display: flex; gap: 0.4rem; align-items: center;">
-                <button class="stage-btn" style="border-color: #38bdf8; color: #38bdf8; background: rgba(56,189,248,0.12); padding: 0.35rem 0.65rem; font-weight: 600;" onclick="downloadWinnerDirect()">
-                    📥 Скачать кадр
-                </button>
-                <button class="stage-btn" style="border-color: #10b981; color: #34d399; background: rgba(16,185,129,0.15); padding: 0.35rem 0.65rem; font-weight: 600;" onclick="saveWinnerToFolder()">
-                    📁 В папку «выбрано/3»
-                </button>
-            </div>
-        </div>
-
-        <div class="stage-controls">
-            <div style="display: flex; gap: 0.35rem; align-items: center;">
-                <button class="stage-btn" onclick="stepFrame(-1)">◀ -1 Frame</button>
-                <button class="stage-btn" onclick="togglePlay()">⏯ Play / Pause</button>
-                <button class="stage-btn" onclick="stepFrame(1)">+1 Frame ▶</button>
-            </div>
-            <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
-                <button id="loupe-btn" class="stage-btn" onclick="toggleLoupe()">
-                    🔍 Horological Loupe x4.0
-                </button>
-                <button class="stage-btn" style="border-color: #10b981; color: #34d399; background: rgba(16,185,129,0.1);" onclick="runVisualQA()">
-                    🔎 Аудит ОТК (Gemini 4 Argon)
-                </button>
-                <button class="stage-btn" style="border-color: #f59e0b; color: #fbbf24; background: rgba(245,158,11,0.1);" onclick="openVariantShootoutModal()">
-                    ⚔️ Отбор 1 из 4
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ========================================================= -->
-    <!-- 3. ACTION & PIPELINE HUB (RIGHT COLLAPSIBLE)               -->
-    <!-- ========================================================= -->
-    <div class="board-pane hub-pane" id="right-hub-pane">
-        <!-- Collapsed Rail -->
-        <div class="hub-collapsed-rail" onclick="toggleHubCollapse()" title="Развернуть Пайплайн & Shield">
-            <span style="font-size: 1.1rem; color: var(--primary);">⚙️</span>
-            <div class="hub-vertical-title">Студийный Пайплайн & Shield</div>
-            <span style="font-size: 0.85rem; margin-top: auto; color: var(--primary-light);">◀</span>
-        </div>
-
-        <!-- Expanded Content -->
-        <div class="hub-expanded-content" style="display: flex; flex-direction: column; height: 100%;">
-            <div class="pane-header">
-                <span class="pane-title"><span>⚙️</span> Пайплайн</span>
-                <button class="stage-btn" style="padding: 0.2rem 0.45rem; font-size: 0.725rem;" onclick="toggleHubCollapse()" title="Свернуть панель для максимизации экрана">
-                    ▶
-                </button>
-            </div>
-
-            <div class="action-scroll">
-                <!-- Atelier Identity Shield -->
-                <div class="action-card" id="card-identity-shield">
-                    <div class="card-heading">
-                        <span>🛡️</span> Atelier Identity Shield™
-                    </div>
-                    <div class="param-row">
-                        <span class="param-label">Источник айдентики:</span>
-                        <select id="shield-source-mode" onchange="toggleShieldSourceMode()">
-                            <option value="extracted">✨ Извлеченная этикетка (PNG / Альфа)</option>
-                            <option value="text">✍ Векторный рендер шрифта (Fallback)</option>
-                        </select>
-                    </div>
-
-                    <div id="shield-extracted-block" style="margin: 0.4rem 0;">
-                        <div id="active-label-badge" style="font-size:0.72rem; color:#38bdf8; background:rgba(56,189,248,0.1); padding:5px 8px; border-radius:5px; border:1px solid rgba(56,189,248,0.3); line-height: 1.3;">
-                            <span id="active-label-text">⚠️ Этикетка не выбрана. Извлеките её из фото флакона в карточке ниже.</span>
-                        </div>
-                    </div>
-
-                    <div class="param-row">
-                        <span class="param-label">Высота на флаконе (Y-Offset):</span>
-                        <input type="range" id="shield-y" min="20" max="80" value="48" oninput="document.getElementById('lbl-y').innerText = this.value + '%'">
-                        <span id="lbl-y" style="font-size: 0.7rem; color: var(--text-dim); float: right;">48%</span>
-                    </div>
-
-                    <div class="param-row">
-                        <span class="param-label">Масштаб этикетки (Scale):</span>
-                        <input type="range" id="shield-scale" min="50" max="150" value="100" oninput="document.getElementById('lbl-scale').innerText = (this.value/100).toFixed(2) + 'x'">
-                        <span id="lbl-scale" style="font-size: 0.7rem; color: var(--text-dim); float: right;">1.00x</span>
-                    </div>
-
-                    <div class="param-row">
-                        <span class="param-label">Specular Highlight Pass:</span>
-                        <select id="shield-blend">
-                            <option value="0.75">75% (Оптимальный блик)</option>
-                            <option value="0.90">90% (Глянцевый срез)</option>
-                            <option value="0.50">50% (Матовое стекло)</option>
-                            <option value="1.0">100% (Максимальный свет)</option>
-                        </select>
-                    </div>
-
-                    <button class="stage-btn" style="width: 100%; justify-content: center; border-color: rgba(197, 160, 89, 0.4); background: rgba(197, 160, 89, 0.12); color: var(--primary-light); font-weight: 600; margin-top: 0.4rem;" onclick="runShieldAction()">
-                        🛡️ Наложить Identity Shield™
-                    </button>
-                </div>
-
-                <!-- Extract Label -->
-                <div class="action-card">
-                    <div class="card-heading">
-                        <span>✂️</span> Извлечение Альфа-Этикетки
-                    </div>
-                    <p style="font-size: 0.725rem; color: var(--text-dim); margin-bottom: 0.5rem; line-height: 1.4;">
-                        Загрузите фото оригинального флакона в LookDev и нажмите кнопку для чистой вырезки монограммы и логотипа.
-                    </p>
-                    <button class="stage-btn" style="width: 100%; justify-content: center; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.08); color: #38bdf8;" onclick="extractLabelFromCurrentStage()">
-                        ✂️ Извлечь альфу из текущего шота
-                    </button>
-                </div>
-
-                <!-- Export Memo -->
-                <div class="action-card">
-                    <div class="card-heading">
-                        <span>🏛</span> Режиссерский Протокол
-                    </div>
-                    <p style="font-size: 0.725rem; color: var(--text-dim); margin-bottom: 0.5rem; line-height: 1.4;">
-                        Фиксация решений Совета Квартета в официальный Session Memo (Markdown).
-                    </p>
-                    <button class="stage-btn" style="width: 100%; justify-content: center;" onclick="exportCouncilMemo()">
-                        📄 Сформировать Memo
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal: Shootout 1 of 4 -->
-<div id="shootout-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center;">
-    <div style="background: #0f0f14; border: 1px solid #dfba73; border-radius: 12px; width: 90%; max-width: 820px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.9);">
-        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid rgba(197, 160, 89, 0.25); display: flex; justify-content: space-between; align-items: center; background: rgba(197, 160, 89, 0.06);">
-            <div style="display: flex; align-items: center; gap: 0.6rem;">
-                <span style="font-size: 1.3rem;">⚔️</span>
-                <span style="font-size: 0.95rem; font-weight: 700; color: #dfba73; text-transform: uppercase; letter-spacing: 0.05em;">Сравнительный отбор 1 из 4 (Start Frame 2K)</span>
-            </div>
-            <button onclick="closeVariantShootoutModal()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;">✕</button>
-        </div>
-        <div style="padding: 1rem 1.25rem; font-size: 0.8rem; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.06);">
-            Выберите от 2 до 4 вариантов первого кадра. Элина через мультимодальный интеллект Gemini 4 Argon проведет сравнительный аудит и выберет безоговорочный кадр-победитель.
-        </div>
-        <div id="shootout-items-list" style="padding: 1rem 1.25rem; flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem;">
-            <!-- Generated dynamically -->
-        </div>
-        <div style="padding: 0.85rem 1.25rem; border-top: 1px solid rgba(197, 160, 89, 0.25); display: flex; justify-content: space-between; align-items: center; background: rgba(10,10,14,0.9);">
-            <div style="font-size: 0.8rem; color: #94a3b8;">
-                Выбрано вариантов: <span id="shootout-selected-count" style="color: #dfba73; font-weight: 700;">0</span> / 4
-            </div>
-            <div style="display: flex; gap: 0.5rem;">
-                <button class="stage-btn" onclick="closeVariantShootoutModal()">Отмена</button>
-                <button class="btn-send" style="padding: 0.4rem 1rem; font-size: 0.8rem; width: auto; height: auto;" onclick="runVariantShootout()">
-                    ⚔️ Начать аудит Элины
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Floating Pin Tooltip for selected text -->
-<div id="floating-pin-btn" class="floating-pin-btn" style="display: none;" onmousedown="pinSelectedTextTooltip(event)">
-    <span>📌</span> В планшет
-</div>
-{% endblock %}
-
-{% block head_scripts %}
-<script>
-    // =========================================================
-    // STATE & LAYOUT MANAGEMENT
-    // =========================================================
-    const TABLET_STORAGE_KEY = 'veo_boardroom_teleprompter_content';
-    const HUB_COLLAPSED_KEY = 'veo_boardroom_hub_collapsed';
-    let lastSelectedText = '';
-
-    function initLayout() {
-        const textarea = document.getElementById('tablet-textarea');
-        if (textarea) {
-            const saved = localStorage.getItem(TABLET_STORAGE_KEY);
-            if (saved) {
-                textarea.value = saved;
-                updateTabletStats();
-            }
-        }
-
-        // Restore hub collapsed state
-        const isHubCollapsed = localStorage.getItem(HUB_COLLAPSED_KEY) === 'true';
-        if (isHubCollapsed) {
-            document.getElementById('boardroom-main-container')?.classList.add('hub-collapsed');
-        }
-
-        // Setup selection listener on chat
-        const chat = document.getElementById('chat-messages');
-        if (chat) {
-            chat.addEventListener('mouseup', handleChatSelection);
-        }
-        document.addEventListener('mousedown', function(e) {
-            const floatBtn = document.getElementById('floating-pin-btn');
-            if (floatBtn && !floatBtn.contains(e.target)) {
-                floatBtn.style.display = 'none';
-            }
-        });
-
-        // Enter key in input sends message
-        const input = document.getElementById('council-input');
-        if (input) {
-            input.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendCouncilMessage();
-                }
-            });
-        }
-    }
-
-    function setLeftPaneMode(mode) {
-        const pane = document.getElementById('left-unified-pane');
-        const btnChat = document.getElementById('tab-btn-chat');
-        const btnTab = document.getElementById('tab-btn-tablet');
-        const btnSplit = document.getElementById('btn-toggle-split');
-        if (!pane) return;
-
-        pane.classList.remove('mode-split', 'mode-tab-chat', 'mode-tab-tablet');
-        btnChat?.classList.remove('active');
-        btnTab?.classList.remove('active');
-        btnSplit?.classList.remove('active');
-
-        if (mode === 'tab-chat') {
-            pane.classList.add('mode-tab-chat');
-            btnChat?.classList.add('active');
-        } else if (mode === 'tab-tablet') {
-            pane.classList.add('mode-tab-tablet');
-            btnTab?.classList.add('active');
-            const dot = document.getElementById('tablet-pill-badge');
-            if (dot) dot.style.display = 'none';
-        } else if (mode === 'split') {
-            pane.classList.add('mode-split');
-            btnSplit?.classList.add('active');
-            btnChat?.classList.add('active');
-            btnTab?.classList.add('active');
-        }
-    }
-
-    function toggleSplitMode() {
-        const pane = document.getElementById('left-unified-pane');
-        if (!pane) return;
-        if (pane.classList.contains('mode-split')) {
-            setLeftPaneMode('tab-chat');
-        } else {
-            setLeftPaneMode('split');
-        }
-    }
-
-    function toggleHubCollapse() {
-        const container = document.getElementById('boardroom-main-container');
-        if (!container) return;
-        const collapsed = container.classList.toggle('hub-collapsed');
-        localStorage.setItem(HUB_COLLAPSED_KEY, collapsed ? 'true' : 'false');
-    }
-
-    function toggleCinemaMode() {
-        const container = document.getElementById('boardroom-main-container');
-        const btn = document.getElementById('btn-cinema-mode');
-        if (!container) return;
-        const active = container.classList.toggle('cinema-mode');
-        if (active) {
-            container.classList.add('hub-collapsed');
-            if (btn) btn.style.background = 'rgba(56, 189, 248, 0.25)';
-        } else {
-            container.classList.remove('hub-collapsed');
-            if (btn) btn.style.background = 'rgba(56, 189, 248, 0.08)';
-        }
-    }
-
-    // =========================================================
-    // RECIPIENT SELECTOR (ZERO TEMPLATES)
-    // =========================================================
-    function selectRecipient(target) {
-        const input = document.getElementById('council-input');
-        if (!input) return;
-        let val = input.value;
-        // Strip any existing leading @mention
-        val = val.replace(/^@(elina|элина|adrian|адриан|kai|кай)\s*/i, '');
-
-        document.querySelectorAll('.recipient-bar .rcpt-btn').forEach(b => b.classList.remove('active'));
-
-        if (target === 'council') {
-            input.value = val;
-            document.getElementById('btn-rcpt-all')?.classList.add('active');
-        } else {
-            input.value = target + ' ' + val;
-            if (target.includes('Элина')) document.getElementById('btn-rcpt-elina')?.classList.add('active');
-            else if (target.includes('Адриан')) document.getElementById('btn-rcpt-adrian')?.classList.add('active');
-            else if (target.includes('Кай')) document.getElementById('btn-rcpt-kai')?.classList.add('active');
-        }
-        input.focus();
-    }
-
-    // =========================================================
-    // TABLET & PIN LOGIC
-    // =========================================================
-    function handleTabletInput() {
-        const textarea = document.getElementById('tablet-textarea');
-        if (!textarea) return;
-        localStorage.setItem(TABLET_STORAGE_KEY, textarea.value);
-        updateTabletStats();
-    }
-
-    function updateTabletStats() {
-        const textarea = document.getElementById('tablet-textarea');
-        const charSpan = document.getElementById('tablet-char-count');
-        const lineSpan = document.getElementById('tablet-line-count');
-        if (!textarea || !charSpan || !lineSpan) return;
-
-        const val = textarea.value;
-        charSpan.textContent = val.length.toLocaleString();
-        lineSpan.textContent = val.length === 0 ? '0' : val.split('\n').length.toLocaleString();
-    }
-
-    function appendOrSetTabletText(newText, forceReplace = false) {
-        if (!newText || !newText.trim()) return;
-        const textarea = document.getElementById('tablet-textarea');
-        if (!textarea) return;
-
-        const isAppend = !forceReplace && document.getElementById('mode-append')?.checked;
-        const current = textarea.value.trim();
-
-        if (isAppend && current.length > 0) {
-            textarea.value = current + '\n\n---\n\n' + newText.trim();
-        } else {
-            textarea.value = newText.trim();
-        }
-
-        localStorage.setItem(TABLET_STORAGE_KEY, textarea.value);
-        updateTabletStats();
-
-        // Flash dot badge on tab if currently in chat tab
-        const pane = document.getElementById('left-unified-pane');
-        if (pane && pane.classList.contains('mode-tab-chat')) {
-            const dot = document.getElementById('tablet-pill-badge');
-            if (dot) dot.style.display = 'inline-block';
-        }
-
-        // Visual flash feedback
-        textarea.style.transition = 'box-shadow 0.2s ease';
-        textarea.style.boxShadow = '0 0 15px rgba(223, 186, 115, 0.4)';
-        setTimeout(() => { textarea.style.boxShadow = 'none'; }, 400);
-
-        textarea.scrollTop = isAppend ? textarea.scrollHeight : 0;
-    }
-
-    function copyTabletContent() {
-        const textarea = document.getElementById('tablet-textarea');
-        if (!textarea || !textarea.value.trim()) {
-            alert('Планшет пуст');
-            return;
-        }
-        navigator.clipboard.writeText(textarea.value).then(() => {
-            alert('📋 Текст сценария скопирован в буфер обмена!');
-        }).catch(() => {
-            textarea.select();
-            document.execCommand('copy');
-            alert('📋 Текст сценария скопирован!');
-        });
-    }
-
-    function clearTabletContent() {
-        const textarea = document.getElementById('tablet-textarea');
-        if (!textarea || !textarea.value.trim()) return;
-        if (confirm('Очистить текст режиссерского планшета?')) {
-            textarea.value = '';
-            localStorage.setItem(TABLET_STORAGE_KEY, '');
-            updateTabletStats();
-        }
-    }
-
-    function pinMessageFromCard(btn) {
-        const card = btn.closest('.msg-card');
-        if (!card) return;
-        const body = card.querySelector('.msg-body');
-        if (!body) return;
-        appendOrSetTabletText(body.innerText || body.textContent);
-    }
-
-    function handleChatSelection(e) {
-        const sel = window.getSelection();
-        const selectedText = sel ? sel.toString().trim() : '';
-        const floatBtn = document.getElementById('floating-pin-btn');
-        if (!floatBtn) return;
-
-        if (selectedText.length >= 3) {
-            lastSelectedText = selectedText;
-            floatBtn.style.left = e.clientX + 'px';
-            floatBtn.style.top = (e.clientY - 12) + 'px';
-            floatBtn.style.display = 'flex';
-        } else {
-            floatBtn.style.display = 'none';
-        }
-    }
-
-    function pinSelectedTextTooltip(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const floatBtn = document.getElementById('floating-pin-btn');
-        if (floatBtn) floatBtn.style.display = 'none';
-
-        if (lastSelectedText) {
-            appendOrSetTabletText(lastSelectedText);
-            const sel = window.getSelection();
-            if (sel) sel.removeAllRanges();
-            lastSelectedText = '';
-        }
-    }
-
-    // =========================================================
-    // COUNCIL MESSAGING
-    // =========================================================
-    async function sendCouncilMessage() {
-        const input = document.getElementById('council-input');
-        const text = input.value.trim();
-        if (!text) return;
-
-        input.value = '';
-        appendMessage('vladimir', 'Владимир Семенов', 'Founder & Executive Producer', '🏛️', '#c5a059', text);
-
-        const banner = document.getElementById('thinking-banner');
-        const thinkingText = document.getElementById('thinking-text');
-        
-        if (text.startsWith('@elina') || text.startsWith('@Элина')) {
-            thinkingText.textContent = 'Элина (Режиссура & Gemini 4 Argon) формулирует решение...';
-        } else if (text.startsWith('@adrian') || text.startsWith('@Адриан')) {
-            thinkingText.textContent = 'Адриан (AI-Архитектура & Пайплайн) рассчитывает конфигурацию...';
-        } else if (text.startsWith('@kai') || text.startsWith('@Кай')) {
-            thinkingText.textContent = 'Кай сверяет замысел со стандартами Дома VEO...';
-        } else {
-            thinkingText.textContent = 'Совет Квартета в полном составе проводит заседание...';
-        }
-        banner.style.display = 'flex';
-
-        try {
-            const resp = await fetch('/api/boardroom/send', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: text })
-            });
-            const data = await resp.json();
-            banner.style.display = 'none';
-
-            if (data.status === 'success') {
-                data.messages.forEach(m => {
-                    appendMessage(m.sender, m.name, m.role, m.avatar, m.color, m.text);
-                });
-            } else {
-                alert('Ошибка сессии: ' + data.detail);
-            }
-        } catch (e) {
-            banner.style.display = 'none';
-            alert('Сбой связи с Советом: ' + e);
-        }
-    }
-
-    function appendMessage(sender, name, role, avatar, color, text) {
-        const chat = document.getElementById('chat-messages');
-        const card = document.createElement('div');
-        card.className = `msg-card ${sender}`;
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-        card.innerHTML = `
-            <div class="msg-header">
-                <span class="msg-author" style="color: ${color};">
-                    ${avatar} ${name}
-                </span>
-                <div style="display: flex; align-items: center; gap: 0.45rem;">
-                    <button class="pin-msg-btn" onclick="pinMessageFromCard(this)" title="Закрепить в Режиссерский Планшет">
-                        📌 В планшет
-                    </button>
-                    <span class="msg-time">${timeStr}</span>
-                </div>
-            </div>
-            <div class="msg-role">${role}</div>
-            <div class="msg-body" style="margin-top: 0.35rem;">${escapeHtml(text)}</div>
-        `;
-        chat.appendChild(card);
-        chat.scrollTop = chat.scrollHeight;
-    }
-
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.innerText = text;
-        return div.innerHTML.replace(/\n/g, '<br>');
-    }
-
-    async function resetCouncilSession() {
-        if (!confirm('Очистить историю диалога Совета и начать новую сессию?')) return;
-        try {
-            const resp = await fetch('/api/boardroom/reset', { method: 'POST' });
-            const data = await resp.json();
-            if (data.status === 'success') {
-                const chat = document.getElementById('chat-messages');
-                chat.innerHTML = '';
-                data.session.messages.forEach(m => {
-                    appendMessage(m.sender, m.name, m.role, m.avatar, m.color, m.text);
-                });
-            }
-        } catch (e) {
-            alert('Ошибка сброса: ' + e);
-        }
-    }
-
-    // =========================================================
-    // LOOKDEV MEDIA & STAGE
-    // =========================================================
-    let currentWinnerPath = null;
-    let currentWinnerName = null;
-
-    function loadSelectedMedia() {
-        const sel = document.getElementById('media-selector');
-        const stageVideo = document.getElementById('stage-video');
-        const stageImage = document.getElementById('stage-image');
-        const stagePlaceholder = document.getElementById('stage-placeholder');
-
-        const opt = sel.options[sel.selectedIndex];
-        if (!opt || !opt.value) {
-            stageVideo.style.display = 'none';
-            stageVideo.pause();
-            stageImage.style.display = 'none';
-            stagePlaceholder.style.display = 'block';
-            return;
-        }
-
-        const path = opt.value;
-        const type = opt.getAttribute('data-type');
-        const streamUrl = '/media_stream?path=' + encodeURIComponent(path);
-
-        stagePlaceholder.style.display = 'none';
-
-        if (type === 'video') {
-            stageImage.style.display = 'none';
-            stageVideo.style.display = 'block';
-            stageVideo.src = streamUrl;
-            stageVideo.load();
-            stageVideo.play().catch(() => {});
-        } else {
-            stageVideo.style.display = 'none';
-            stageVideo.pause();
-            stageImage.style.display = 'block';
-            stageImage.src = streamUrl;
-        }
-    }
-
-    function togglePlay() {
-        const v = document.getElementById('stage-video');
-        if (v && v.style.display !== 'none') {
-            if (v.paused) v.play(); else v.pause();
-        }
-    }
-
-    function stepFrame(delta) {
-        const v = document.getElementById('stage-video');
-        if (v && v.style.display !== 'none') {
-            v.pause();
-            v.currentTime = Math.max(0, v.currentTime + (delta / 25.0));
-        }
-    }
-
-    // Horological Loupe x4.0 Canvas Engine
-    let isLoupeActive = false;
-    let loupeRAF = null;
-
-    function toggleLoupe() {
-        isLoupeActive = !isLoupeActive;
-        const btn = document.getElementById('loupe-btn');
-        const lens = document.getElementById('loupe-lens');
-        if (isLoupeActive) {
-            btn.style.borderColor = '#dfba73';
-            btn.style.background = 'rgba(197, 160, 89, 0.2)';
-            startLoupeLoop();
-        } else {
-            btn.style.borderColor = '';
-            btn.style.background = '';
-            lens.style.display = 'none';
-            if (loupeRAF) cancelAnimationFrame(loupeRAF);
-        }
-    }
-
-    function startLoupeLoop() {
-        if (!isLoupeActive) return;
-        renderLoupeFrame();
-        loupeRAF = requestAnimationFrame(startLoupeLoop);
-    }
-
-    function hideLoupe() {
-        if (!isLoupeActive) return;
-        document.getElementById('loupe-lens').style.display = 'none';
-    }
-
-    let lastMouseEvt = null;
-    function handleLoupeMove(e) {
-        lastMouseEvt = e;
-        if (!isLoupeActive) return;
-        const lens = document.getElementById('loupe-lens');
-        lens.style.display = 'block';
-        lens.style.left = e.clientX + 'px';
-        lens.style.top = e.clientY + 'px';
-    }
-
-    function renderLoupeFrame() {
-        if (!isLoupeActive || !lastMouseEvt) return;
-        const stageVideo = document.getElementById('stage-video');
-        const stageImage = document.getElementById('stage-image');
-        const activeMedia = (stageVideo.style.display !== 'none' && stageVideo.videoWidth > 0) ? stageVideo :
-                            (stageImage.style.display !== 'none' && stageImage.naturalWidth > 0) ? stageImage : null;
-        if (!activeMedia) return;
-
-        const canvas = document.getElementById('loupe-canvas');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        const rect = activeMedia.getBoundingClientRect();
-
-        const mouseX = lastMouseEvt.clientX;
-        const mouseY = lastMouseEvt.clientY;
-
-        if (mouseX < rect.left || mouseX > rect.right || mouseY < rect.top || mouseY > rect.bottom) {
-            hideLoupe();
-            return;
-        }
-
-        const normX = (mouseX - rect.left) / rect.width;
-        const normY = (mouseY - rect.top) / rect.height;
-
-        const mediaWidth = activeMedia.videoWidth || activeMedia.naturalWidth;
-        const mediaHeight = activeMedia.videoHeight || activeMedia.naturalHeight;
-
-        const mediaX = normX * mediaWidth;
-        const mediaY = normY * mediaHeight;
-
-        const zoomFactor = 4.0;
-        const sampleSize = 180 / zoomFactor;
-
-        ctx.clearRect(0, 0, 180, 180);
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-
-        ctx.drawImage(
-            activeMedia,
-            mediaX - sampleSize / 2, mediaY - sampleSize / 2, sampleSize, sampleSize,
-            0, 0, 180, 180
-        );
-
-        drawLoupeReticle(ctx);
-    }
-
-    function drawLoupeReticle(ctx) {
-        ctx.save();
-        ctx.strokeStyle = 'rgba(223, 186, 115, 0.55)';
-        ctx.lineWidth = 1;
-
-        ctx.beginPath();
-        ctx.moveTo(90, 75); ctx.lineTo(90, 85);
-        ctx.moveTo(90, 95); ctx.lineTo(90, 105);
-        ctx.moveTo(75, 90); ctx.lineTo(85, 90);
-        ctx.moveTo(95, 90); ctx.lineTo(105, 90);
-        ctx.stroke();
-
-        ctx.font = '9px monospace';
-        ctx.fillStyle = '#dfba73';
-        ctx.fillText('4.0x H-LOUPE', 60, 170);
-        ctx.restore();
-    }
-
-    // =========================================================
-    // WINNER STAGE, DOWNLOAD & SAVE
-    // =========================================================
-    function downloadWinnerDirect() {
-        if (!currentWinnerPath) { alert('Кадр-победитель не выбран'); return; }
-        window.open('/api/boardroom/download_media?path=' + encodeURIComponent(currentWinnerPath), '_blank');
-    }
-
-    async function saveWinnerToFolder() {
-        if (!currentWinnerPath) { alert('Кадр-победитель не выбран'); return; }
-        try {
-            const resp = await fetch('/api/boardroom/save_winner', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    winner_path: currentWinnerPath,
-                    target_folder: 'D:/campaigns/заказ/выбрано/3'
-                })
-            });
-            const data = await resp.json();
-            if (data.status === 'success') {
-                alert('✅ ' + data.message);
-                await refreshMediaList(data.saved_path);
-            } else {
-                alert('Ошибка сохранения: ' + data.detail);
-            }
-        } catch (e) {
-            alert('Ошибка сети: ' + e);
-        }
-    }
-
-    // =========================================================
-    // VARIANT SHOOTOUT (1 of 4)
-    // =========================================================
-    async function openVariantShootoutModal() {
-        const resp = await fetch('/api/boardroom/media');
-        const data = await resp.json();
-        const listDiv = document.getElementById('shootout-items-list');
-        listDiv.innerHTML = '';
-
-        const images = (data.media || []).filter(m => m.type === 'image');
-        if (images.length === 0) {
-            listDiv.innerHTML = '<div style="color: #94a3b8; grid-column: 1/-1;">В медиатеке нет изображений. Загрузите варианты через кнопку «⚡ Загрузить».</div>';
-        } else {
-            images.forEach(img => {
-                const item = document.createElement('label');
-                item.style.cssText = 'display: flex; gap: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 0.5rem; cursor: pointer; align-items: center;';
-                item.innerHTML = `
-                    <input type="checkbox" value="${img.path}" class="shootout-chk" onchange="updateShootoutCount()">
-                    <img src="/media_stream?path=${encodeURIComponent(img.path)}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(197, 160, 89, 0.3);">
-                    <div style="overflow: hidden;">
-                        <div style="font-size: 0.775rem; color: #fff; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;" title="${img.name}">${img.name}</div>
-                        <div style="font-size: 0.675rem; color: var(--text-dim);">${img.size_mb} MB</div>
-                    </div>
-                `;
-                listDiv.appendChild(item);
-            });
-        }
-
-        updateShootoutCount();
-        document.getElementById('shootout-modal').style.display = 'flex';
-    }
-
-    function closeVariantShootoutModal() {
-        document.getElementById('shootout-modal').style.display = 'none';
-    }
-
-    function updateShootoutCount() {
-        const chks = document.querySelectorAll('.shootout-chk:checked');
-        const countSpan = document.getElementById('shootout-selected-count');
-        if (countSpan) {
-            countSpan.textContent = chks.length;
-            countSpan.style.color = chks.length > 4 ? '#ef4444' : '#dfba73';
-        }
-    }
-
-    async function runVariantShootout() {
-        const chks = document.querySelectorAll('.shootout-chk:checked');
-        if (chks.length < 2) {
-            alert('Пожалуйста, выберите минимум 2 варианта (до 4) для сравнительного отбора!');
-            return;
-        }
-        if (chks.length > 4) {
-            alert('Пожалуйста, выберите не более 4 вариантов одновременно!');
-            return;
-        }
-
-        const selectedPaths = Array.from(chks).map(c => c.value);
-        closeVariantShootoutModal();
-
-        const banner = document.getElementById('thinking-banner');
-        const thinkingText = document.getElementById('thinking-text');
-        thinkingText.textContent = `Элина (Gemini 4 Argon) проводит сравнительный аудит ${selectedPaths.length} вариантов первого кадра...`;
-        banner.style.display = 'flex';
-
-        try {
-            const resp = await fetch('/api/boardroom/compare_variants', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ media_paths: selectedPaths })
-            });
-            const res = await resp.json();
-            banner.style.display = 'none';
-
-            if (res.status === 'success') {
-                const m = res.message;
-                appendMessage(m.sender, m.name, m.role, m.avatar, m.color, m.text);
-
-                // ✦ АВТОМАТИЧЕСКИЙ ВЫВОД В LOOKDEV STAGE
-                if (res.winner_path) {
-                    currentWinnerPath = res.winner_path;
-                    currentWinnerName = res.winner_name;
-
-                    const stagePlaceholder = document.getElementById('stage-placeholder');
-                    const stageVideo = document.getElementById('stage-video');
-                    const stageImage = document.getElementById('stage-image');
-
-                    stagePlaceholder.style.display = 'none';
-                    stageVideo.style.display = 'none';
-                    stageVideo.pause();
-                    stageImage.style.display = 'block';
-                    stageImage.src = '/media_stream?path=' + encodeURIComponent(res.winner_path);
-
-                    await refreshMediaList(res.winner_path);
-
-                    const winBanner = document.getElementById('winner-banner');
-                    const winName = document.getElementById('winner-banner-name');
-                    if (winBanner && winName) {
-                        winName.textContent = res.winner_name;
-                        winBanner.style.display = 'flex';
-                    }
-                }
-            } else {
-                alert('Ошибка отбора: ' + res.detail);
-            }
-        } catch (e) {
-            banner.style.display = 'none';
-            alert('Сбой: ' + e);
-        }
-    }
-
-    // =========================================================
-    // QA, SHIELD & MEMO
-    // =========================================================
-    async function runVisualQA() {
-        const sel = document.getElementById('media-selector');
-        const mediaPath = sel.value;
-        if (!mediaPath) {
-            alert('Сначала выберите медиа-файл в верхнем селекторе LookDev Stage!');
-            return;
-        }
-
-        const banner = document.getElementById('thinking-banner');
-        const thinkingText = document.getElementById('thinking-text');
-        thinkingText.textContent = 'Элина (Gemini 4 Argon) инспектирует шот в 4K разрешении...';
-        banner.style.display = 'flex';
-
-        try {
-            const resp = await fetch('/api/boardroom/visual_qa', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ media_path: mediaPath })
-            });
-            const res = await resp.json();
-            banner.style.display = 'none';
-
-            if (res.status === 'success') {
-                const m = res.message;
-                appendMessage(m.sender, m.name, m.role, m.avatar, m.color, m.text);
-            } else {
-                alert('Ошибка инспекции: ' + res.detail);
-            }
-        } catch (e) {
-            banner.style.display = 'none';
-            alert('Сбой связи: ' + e);
-        }
-    }
-
-    async function runShieldAction() {
-        const sel = document.getElementById('media-selector');
-        const mediaPath = sel.value;
-        if (!mediaPath) {
-            alert('Выберите медиа-файл в LookDev Stage для наложения щита!');
-            return;
-        }
-
-        const yOffset = parseFloat(document.getElementById('shield-y').value) / 100.0;
-        const scale = parseFloat(document.getElementById('shield-scale').value) / 100.0;
-        const spec = parseFloat(document.getElementById('shield-blend').value);
-        const sourceMode = document.getElementById('shield-source-mode').value;
-
-        const banner = document.getElementById('thinking-banner');
-        const thinkingText = document.getElementById('thinking-text');
-        thinkingText.textContent = 'Адриан накладывает векторный Identity Shield™ через оптический трекинг...';
-        banner.style.display = 'flex';
-
-        try {
-            const resp = await fetch('/api/boardroom/run_shield', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    input_path: mediaPath,
-                    source_mode: sourceMode,
-                    y_offset_ratio: yOffset,
-                    scale_ratio: scale,
-                    specular_weight: spec
-                })
-            });
-            const res = await resp.json();
-            banner.style.display = 'none';
-
-            if (res.status === 'success') {
-                alert('✅ ' + res.message);
-                await refreshMediaList(res.output_path);
-            } else {
-                alert('Ошибка наложения: ' + res.detail);
-            }
-        } catch (e) {
-            banner.style.display = 'none';
-            alert('Сбой: ' + e);
-        }
-    }
-
-    async function extractLabelFromCurrentStage() {
-        const sel = document.getElementById('media-selector');
-        const mediaPath = sel.value;
-        if (!mediaPath) {
-            alert('Выберите фото флакона в селекторе LookDev Stage!');
-            return;
-        }
-
-        const banner = document.getElementById('thinking-banner');
-        const thinkingText = document.getElementById('thinking-text');
-        thinkingText.textContent = 'Извлечение чистой альфа-этикетки через высокоточную сегментацию...';
-        banner.style.display = 'flex';
-
-        try {
-            const resp = await fetch('/api/boardroom/extract_label', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ input_path: mediaPath })
-            });
-            const res = await resp.json();
-            banner.style.display = 'none';
-
-            if (res.status === 'success') {
-                alert('✅ Этикетка успешно извлечена: ' + res.reference_packshot_name);
-                document.getElementById('active-label-text').textContent = '✅ Активна: ' + res.reference_packshot_name;
-            } else {
-                alert('Ошибка извлечения: ' + res.detail);
-            }
-        } catch (e) {
-            banner.style.display = 'none';
-            alert('Сбой: ' + e);
-        }
-    }
-
-    function toggleShieldSourceMode() {
-        const mode = document.getElementById('shield-source-mode').value;
-        const blk = document.getElementById('shield-extracted-block');
-        if (blk) blk.style.display = mode === 'extracted' ? 'block' : 'none';
-    }
-
-    async function exportCouncilMemo() {
-        try {
-            const resp = await fetch('/api/boardroom/export_memo', { method: 'POST' });
-            const data = await resp.json();
-            if (data.status === 'success') {
-                alert('✅ Протокол заседания Совета успешно сформирован:
-' + data.filename);
-            } else {
-                alert('Ошибка формирования протокола: ' + data.detail);
-            }
-        } catch (e) {
-            alert('Сбой: ' + e);
-        }
-    }
-
-    // Media upload logic
-    function handleFileInputChange(input) {
-        if (!input.files || input.files.length === 0) return;
-        uploadFilesQueue(Array.from(input.files));
-    }
-
-    async function uploadFilesQueue(files) {
-        const overlay = document.getElementById('upload-overlay');
-        const bar = document.getElementById('upload-progress-bar');
-        const status = document.getElementById('upload-status');
-        const title = document.getElementById('upload-title');
-
-        overlay.style.display = 'flex';
-        let lastUploadedPath = null;
-
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            title.textContent = `Загрузка в LookDev [${i + 1}/${files.length}]: ${file.name}`;
-            try {
-                const res = await uploadMediaFileAsync(file, (pct, loaded, total) => {
-                    bar.style.width = pct + '%';
-                    status.textContent = `${pct}% (${(loaded / 1024 / 1024).toFixed(1)} MB / ${(total / 1024 / 1024).toFixed(1)} MB)`;
-                });
-                if (res && res.path) lastUploadedPath = res.path;
-            } catch (e) {
-                alert(`Ошибка загрузки ${file.name}: ${e}`);
-            }
-        }
-
-        overlay.style.display = 'none';
-        if (lastUploadedPath) {
-            await refreshMediaList(lastUploadedPath);
-        }
-    }
-
-    function uploadMediaFileAsync(file, progressCb) {
-        return new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/api/boardroom/upload');
-            xhr.upload.onprogress = function(e) {
-                if (e.lengthComputable && progressCb) {
-                    const pct = Math.round((e.loaded / e.total) * 100);
-                    progressCb(pct, e.loaded, e.total);
-                }
-            };
-            xhr.onload = function() {
-                if (xhr.status === 200) {
-                    try { resolve(JSON.parse(xhr.responseText)); } catch(e) { reject(e); }
-                } else {
-                    reject('HTTP ' + xhr.status);
-                }
-            };
-            xhr.onerror = function() { reject('Сбой сети при загрузке'); };
-            const fd = new FormData();
-            fd.append('file', file);
-            fd.append('campaign', 'заказ/выбрано/3');
-            xhr.send(fd);
-        });
-    }
-
-    async function refreshMediaList(selectedPathToSet) {
-        try {
-            const resp = await fetch('/api/boardroom/media');
-            const data = await resp.json();
-            const sel = document.getElementById('media-selector');
-            const prevVal = sel.value;
-
-            sel.innerHTML = '<option value="">-- Выберите медиа-актив для инспекции --</option>';
-            data.media.forEach(m => {
-                const opt = document.createElement('option');
-                opt.value = m.path;
-                opt.setAttribute('data-type', m.type);
-                opt.textContent = `${m.name} (${m.size_mb} MB)`;
-                sel.appendChild(opt);
-            });
-
-            if (selectedPathToSet) {
-                sel.value = selectedPathToSet;
-                loadSelectedMedia();
-            } else if (prevVal) {
-                sel.value = prevVal;
-            }
-        } catch (e) {
-            console.error('Ошибка обновления медиа:', e);
-        }
-    }
-
-    // Initialize layout on ready
-    document.addEventListener('DOMContentLoaded', initLayout);
-</script>
-{% endblock %}
+{% extends "base.html" %}
+
+
+
+{% block title %}Atelier VEO | Executive Boardroom{% endblock %}
+
+{% block page_title %}
+
+<div style="display: flex; align-items: center; gap: 1rem; width: 100%; justify-content: space-between;">
+
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+
+        <span style="color: var(--primary); font-size: 1.35rem;">🏛</span>
+
+        <div>
+
+            <div style="font-weight: 700; font-size: 1.15rem; letter-spacing: 0.04em; background: linear-gradient(135deg, #ffffff 40%, var(--primary-light) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+
+                ATELIER VEO | VEO BOARDROOM
+
+            </div>
+
+            <div style="font-size: 0.7rem; color: #94a3b8; letter-spacing: 0.05em; text-transform: uppercase;">
+
+                Executive Council & Cinema LookDev 4K
+
+            </div>
+
+        </div>
+
+        <span style="margin-left: 0.5rem; font-size: 0.725rem; color: #10b981; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 4px; padding: 0.2rem 0.55rem; font-weight: 600;">
+
+            ● Live Session
+
+        </span>
+
+    </div>
+
+
+
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+
+        <button class="stage-btn" onclick="toggleCinemaMode()" id="btn-cinema-mode" style="border-color: rgba(56, 189, 248, 0.4); color: #38bdf8; background: rgba(56, 189, 248, 0.08); padding: 0.35rem 0.75rem; font-size: 0.8rem; font-weight: 600;">
+
+            🎬 Cinema Focus (Макс. экран)
+
+        </button>
+
+        <a href="/" style="display: flex; align-items: center; gap: 0.45rem; background: rgba(197, 160, 89, 0.08); border: 1px solid rgba(197, 160, 89, 0.35); color: var(--primary-light); padding: 0.35rem 0.75rem; border-radius: 6px; text-decoration: none; font-size: 0.8rem; font-weight: 600; transition: all 0.2s ease;">
+
+            <span>⚙️</span> Панель управления (Админка)
+
+        </a>
+
+    </div>
+
+</div>
+
+{% endblock %}
+
+
+
+{% block head %}
+
+<style>
+
+    /* Fullscreen Boardroom layout - Hide admin sidebar */
+
+    .sidebar {
+
+        display: none !important;
+
+    }
+
+    .content {
+
+        margin-left: 0 !important;
+
+        padding: 0.6rem 1rem 1rem 1rem !important;
+
+        width: 100vw !important;
+
+        max-width: 100vw !important;
+
+        box-sizing: border-box !important;
+
+    }
+
+    .top-header {
+
+        margin-bottom: 0.6rem !important;
+
+        padding-bottom: 0.4rem !important;
+
+        border-bottom: 1px solid rgba(197, 160, 89, 0.2) !important;
+
+    }
+
+    .top-header h1 {
+
+        width: 100%;
+
+    }
+
+
+
+    /* 3-Column Cinema-First Grid (Center LookDev is HERO) */
+
+    .boardroom-container {
+
+        display: grid;
+
+        grid-template-columns: 390px 1fr 280px;
+
+        gap: 0.85rem;
+
+        height: calc(100vh - 82px);
+
+        min-height: 680px;
+
+        transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+    }
+
+
+
+    /* When right panel is collapsed */
+
+    .boardroom-container.hub-collapsed {
+
+        grid-template-columns: 390px 1fr 38px;
+
+    }
+
+
+
+    /* Full Cinema Focus (Left slim 320px, Right collapsed 38px -> LookDev gets ~75% screen!) */
+
+    .boardroom-container.cinema-mode {
+
+        grid-template-columns: 320px 1fr 38px;
+
+    }
+
+
+
+    /* Base Card / Pane */
+
+    .board-pane {
+
+        background: var(--card-bg);
+
+        border: 1px solid var(--glass-border);
+
+        border-radius: 10px;
+
+        backdrop-filter: blur(16px);
+
+        display: flex;
+
+        flex-direction: column;
+
+        overflow: hidden;
+
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+
+        position: relative;
+
+    }
+
+
+
+    .pane-header {
+
+        padding: 0.75rem 1rem;
+
+        border-bottom: 1px solid var(--glass-border);
+
+        background: rgba(10, 10, 14, 0.8);
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: space-between;
+
+    }
+
+
+
+    .pane-title {
+
+        font-size: 0.825rem;
+
+        font-weight: 700;
+
+        text-transform: uppercase;
+
+        letter-spacing: 0.08em;
+
+        color: var(--primary-light);
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 0.45rem;
+
+    }
+
+
+
+    /* Left Pane: Tabs Navigation */
+
+    .left-tabs-nav {
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 0.25rem;
+
+        padding: 0.4rem 0.6rem;
+
+        background: rgba(8, 8, 12, 0.95);
+
+        border-bottom: 1px solid rgba(197, 160, 89, 0.15);
+
+    }
+
+
+
+    .left-tab-btn {
+
+        flex: 1;
+
+        padding: 0.35rem 0.6rem;
+
+        font-size: 0.75rem;
+
+        font-weight: 600;
+
+        color: var(--text-dim);
+
+        background: transparent;
+
+        border: 1px solid transparent;
+
+        border-radius: 6px;
+
+        cursor: pointer;
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: center;
+
+        gap: 0.35rem;
+
+        transition: all 0.2s ease;
+
+    }
+
+
+
+    .left-tab-btn:hover {
+
+        color: #ffffff;
+
+        background: rgba(255, 255, 255, 0.04);
+
+    }
+
+
+
+    .left-tab-btn.active {
+
+        color: #dfba73;
+
+        background: rgba(197, 160, 89, 0.12);
+
+        border-color: rgba(197, 160, 89, 0.35);
+
+        box-shadow: 0 0 10px rgba(197, 160, 89, 0.1);
+
+    }
+
+
+
+    .split-toggle-btn {
+
+        padding: 0.35rem 0.5rem;
+
+        font-size: 0.75rem;
+
+        color: var(--text-dim);
+
+        background: transparent;
+
+        border: 1px solid rgba(255, 255, 255, 0.1);
+
+        border-radius: 6px;
+
+        cursor: pointer;
+
+        transition: all 0.2s ease;
+
+    }
+
+    .split-toggle-btn.active {
+
+        color: #38bdf8;
+
+        border-color: rgba(56, 189, 248, 0.4);
+
+        background: rgba(56, 189, 248, 0.1);
+
+    }
+
+
+
+    /* Chat Section */
+
+    .chat-messages {
+
+        flex: 1;
+
+        overflow-y: auto;
+
+        padding: 0.85rem;
+
+        display: flex;
+
+        flex-direction: column;
+
+        gap: 0.75rem;
+
+    }
+
+
+
+    .msg-card {
+
+        padding: 0.75rem 0.85rem;
+
+        border-radius: 8px;
+
+        background: rgba(0, 0, 0, 0.35);
+
+        border-left: 3px solid #666;
+
+        font-size: 0.825rem;
+
+        line-height: 1.5;
+
+        position: relative;
+
+    }
+
+
+
+    .msg-card.vladimir {
+
+        border-left-color: #c5a059;
+
+        background: rgba(197, 160, 89, 0.06);
+
+    }
+
+    .msg-card.elina {
+
+        border-left-color: #dfba73;
+
+        background: rgba(223, 186, 115, 0.05);
+
+    }
+
+    .msg-card.adrian {
+
+        border-left-color: #38bdf8;
+
+        background: rgba(56, 189, 248, 0.05);
+
+    }
+
+    .msg-card.kai {
+
+        border-left-color: #10b981;
+
+        background: rgba(16, 185, 129, 0.05);
+
+    }
+
+
+
+    .msg-header {
+
+        display: flex;
+
+        justify-content: space-between;
+
+        align-items: center;
+
+        margin-bottom: 0.35rem;
+
+        font-size: 0.725rem;
+
+    }
+
+
+
+    .msg-author {
+
+        font-weight: 600;
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 0.4rem;
+
+    }
+
+
+
+    .msg-role {
+
+        font-size: 0.65rem;
+
+        color: var(--text-dim);
+
+        text-transform: uppercase;
+
+        letter-spacing: 0.05em;
+
+        margin-bottom: 0.25rem;
+
+    }
+
+
+
+    .msg-body {
+
+        color: #e2e8f0;
+
+        word-break: break-word;
+
+    }
+
+
+
+    .pin-msg-btn {
+
+        background: rgba(197, 160, 89, 0.1);
+
+        border: 1px solid rgba(197, 160, 89, 0.3);
+
+        color: var(--primary-light);
+
+        padding: 0.15rem 0.45rem;
+
+        border-radius: 4px;
+
+        font-size: 0.675rem;
+
+        font-weight: 600;
+
+        cursor: pointer;
+
+        transition: all 0.2s ease;
+
+        display: inline-flex;
+
+        align-items: center;
+
+        gap: 0.2rem;
+
+    }
+
+    .pin-msg-btn:hover {
+
+        background: rgba(197, 160, 89, 0.25);
+
+        color: #ffffff;
+
+    }
+
+
+
+    /* Recipient Bar (NO TEMPLATES) */
+
+    .recipient-bar {
+
+        display: flex;
+
+        gap: 0.35rem;
+
+        align-items: center;
+
+        margin-bottom: 0.45rem;
+
+        flex-wrap: wrap;
+
+    }
+
+
+
+    .rcpt-btn {
+
+        background: rgba(255, 255, 255, 0.03);
+
+        border: 1px solid rgba(255, 255, 255, 0.1);
+
+        color: var(--text-dim);
+
+        padding: 0.25rem 0.55rem;
+
+        border-radius: 5px;
+
+        font-size: 0.725rem;
+
+        font-weight: 600;
+
+        cursor: pointer;
+
+        transition: all 0.15s ease;
+
+    }
+
+    .rcpt-btn:hover {
+
+        background: rgba(255, 255, 255, 0.08);
+
+        color: #fff;
+
+    }
+
+    .rcpt-btn.active {
+
+        background: rgba(197, 160, 89, 0.18);
+
+        border-color: #dfba73;
+
+        color: #dfba73;
+
+        box-shadow: 0 0 8px rgba(197, 160, 89, 0.2);
+
+    }
+
+    .rcpt-btn.reset-btn {
+
+        border-color: rgba(239, 68, 68, 0.35);
+
+        color: #f87171;
+
+        background: rgba(239, 68, 68, 0.06);
+
+        margin-left: auto;
+
+    }
+
+    .rcpt-btn.reset-btn:hover {
+
+        background: rgba(239, 68, 68, 0.15);
+
+    }
+
+
+
+    /* Chat Input Area */
+
+    .chat-input-area {
+
+        padding: 0.75rem;
+
+        background: rgba(10, 10, 14, 0.85);
+
+        border-top: 1px solid var(--glass-border);
+
+    }
+
+
+
+    .input-row {
+
+        display: flex;
+
+        gap: 0.5rem;
+
+        align-items: flex-end;
+
+    }
+
+
+
+    .chat-textarea {
+
+        flex: 1;
+
+        background: rgba(0, 0, 0, 0.4);
+
+        border: 1px solid rgba(197, 160, 89, 0.25);
+
+        border-radius: 6px;
+
+        padding: 0.65rem 0.8rem;
+
+        color: #fff;
+
+        font-family: inherit;
+
+        font-size: 0.85rem;
+
+        resize: vertical;
+
+        min-height: 70px;
+
+        max-height: 200px;
+
+        outline: none;
+
+    }
+
+    .chat-textarea:focus {
+
+        border-color: var(--primary);
+
+        box-shadow: 0 0 10px rgba(197, 160, 89, 0.2);
+
+    }
+
+
+
+    .btn-send {
+
+        background: linear-gradient(135deg, var(--primary), #a88438);
+
+        border: none;
+
+        border-radius: 6px;
+
+        width: 44px;
+
+        height: 70px;
+
+        color: #09090b;
+
+        font-weight: 700;
+
+        cursor: pointer;
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: center;
+
+        transition: all 0.2s ease;
+
+        font-size: 1.15rem;
+
+        flex-shrink: 0;
+
+    }
+
+    .btn-send:hover {
+
+        transform: translateY(-1px);
+
+        filter: brightness(1.1);
+
+        box-shadow: var(--gold-glow);
+
+    }
+
+
+
+    /* Thinking State */
+
+    .thinking-banner {
+
+        display: none;
+
+        padding: 0.45rem 0.75rem;
+
+        background: rgba(197, 160, 89, 0.1);
+
+        border: 1px dashed var(--primary);
+
+        border-radius: 6px;
+
+        font-size: 0.725rem;
+
+        color: var(--primary-light);
+
+        align-items: center;
+
+        gap: 0.4rem;
+
+        animation: pulse 1.5s infinite;
+
+        margin: 0.5rem 0.85rem;
+
+    }
+
+    @keyframes pulse {
+
+        0%, 100% { opacity: 0.6; }
+
+        50% { opacity: 1; }
+
+    }
+
+
+
+    /* Tablet Pane Styling */
+
+    .tablet-section {
+
+        display: flex;
+
+        flex-direction: column;
+
+        flex: 1;
+
+        height: 100%;
+
+        overflow: hidden;
+
+    }
+
+
+
+    .tablet-subtoolbar {
+
+        padding: 0.35rem 0.65rem;
+
+        background: rgba(15, 15, 22, 0.8);
+
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: space-between;
+
+        gap: 0.4rem;
+
+        font-size: 0.725rem;
+
+    }
+
+
+
+    .tablet-editor {
+
+        flex: 1;
+
+        width: 100%;
+
+        background: rgba(0, 0, 0, 0.5);
+
+        border: none;
+
+        color: #f1f5f9;
+
+        font-family: 'JetBrains Mono', 'Consolas', monospace;
+
+        font-size: 0.8rem;
+
+        line-height: 1.55;
+
+        padding: 0.75rem;
+
+        resize: none;
+
+        outline: none;
+
+        overflow-y: auto;
+
+        white-space: pre-wrap;
+
+        word-break: break-word;
+
+    }
+
+
+
+    .tablet-statusbar {
+
+        padding: 0.35rem 0.65rem;
+
+        background: rgba(8, 8, 12, 0.9);
+
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: space-between;
+
+        font-size: 0.675rem;
+
+        color: var(--text-dim);
+
+    }
+
+
+
+    /* Split Mode Specific Layout inside Left Pane */
+
+    .left-pane-unified.mode-split .pane-chat-wrapper {
+
+        flex: 1;
+
+        height: 60%;
+
+        display: flex;
+
+        flex-direction: column;
+
+        border-top: 1px solid var(--glass-border);
+
+    }
+
+    .left-pane-unified.mode-split .pane-tablet-wrapper {
+
+        height: 40%;
+
+        display: flex;
+
+        flex-direction: column;
+
+    }
+
+
+
+    /* Tab Mode Specific Layout */
+
+    .left-pane-unified.mode-tab-chat .pane-tablet-wrapper {
+
+        display: none !important;
+
+    }
+
+    .left-pane-unified.mode-tab-chat .pane-chat-wrapper {
+
+        display: flex !important;
+
+        flex: 1;
+
+        height: 100%;
+
+        flex-direction: column;
+
+    }
+
+
+
+    .left-pane-unified.mode-tab-tablet .pane-chat-wrapper {
+
+        display: none !important;
+
+    }
+
+    .left-pane-unified.mode-tab-tablet .pane-tablet-wrapper {
+
+        display: flex !important;
+
+        flex: 1;
+
+        height: 100%;
+
+        flex-direction: column;
+
+    }
+
+
+
+    /* ========================================================= */
+
+    /* 2. LOOKDEV & CINEMA STAGE 4K (CENTER HERO)                 */
+
+    /* ========================================================= */
+
+    .stage-container {
+
+        flex: 1;
+
+        display: flex;
+
+        flex-direction: column;
+
+        background: #030305;
+
+        position: relative;
+
+        overflow: hidden;
+
+    }
+
+
+
+    .stage-toolbar {
+
+        padding: 0.6rem 0.85rem;
+
+        background: rgba(10, 10, 14, 0.8);
+
+        border-bottom: 1px solid var(--glass-border);
+
+        display: flex;
+
+        justify-content: space-between;
+
+        align-items: center;
+
+        gap: 0.75rem;
+
+    }
+
+
+
+    .media-select {
+
+        background: rgba(0, 0, 0, 0.45);
+
+        border: 1px solid var(--glass-border);
+
+        color: var(--text-main);
+
+        padding: 0.35rem 0.65rem;
+
+        border-radius: 6px;
+
+        font-size: 0.8rem;
+
+        outline: none;
+
+        flex: 1;
+
+        max-width: 480px;
+
+    }
+
+
+
+    .stage-viewport {
+
+        flex: 1;
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: center;
+
+        position: relative;
+
+        overflow: hidden;
+
+        background: radial-gradient(circle at center, #111118, #050508);
+
+        cursor: crosshair;
+
+        min-height: 440px;
+
+    }
+
+
+
+    #stage-video, #stage-image {
+
+        max-width: 100%;
+
+        max-height: 100%;
+
+        object-fit: contain;
+
+        box-shadow: 0 0 35px rgba(0, 0, 0, 0.85);
+
+    }
+
+
+
+    /* Horological Loupe */
+
+    .loupe-lens {
+
+        position: absolute;
+
+        width: 180px;
+
+        height: 180px;
+
+        border: 2px solid #dfba73;
+
+        border-radius: 50%;
+
+        box-shadow: 0 0 25px rgba(0,0,0,0.9), 0 0 15px rgba(223, 186, 115, 0.4);
+
+        pointer-events: none;
+
+        display: none;
+
+        z-index: 100;
+
+        background: #050508;
+
+        transform: translate(-50%, -50%);
+
+        overflow: hidden;
+
+    }
+
+
+
+    .stage-controls {
+
+        padding: 0.6rem 0.85rem;
+
+        background: rgba(10, 10, 14, 0.85);
+
+        border-top: 1px solid var(--glass-border);
+
+        display: flex;
+
+        justify-content: space-between;
+
+        align-items: center;
+
+        gap: 0.5rem;
+
+        flex-wrap: wrap;
+
+    }
+
+
+
+    .stage-btn {
+
+        background: rgba(255, 255, 255, 0.04);
+
+        border: 1px solid var(--glass-border);
+
+        color: var(--text-main);
+
+        padding: 0.35rem 0.65rem;
+
+        border-radius: 6px;
+
+        font-size: 0.775rem;
+
+        cursor: pointer;
+
+        display: inline-flex;
+
+        align-items: center;
+
+        gap: 0.35rem;
+
+        transition: all 0.2s ease;
+
+        font-weight: 500;
+
+    }
+
+    .stage-btn:hover {
+
+        background: rgba(197, 160, 89, 0.15);
+
+        border-color: var(--primary);
+
+    }
+
+
+
+    /* ========================================================= */
+
+    /* 3. ACTION & PIPELINE HUB (RIGHT COLLAPSIBLE)               */
+
+    /* ========================================================= */
+
+    .hub-pane {
+
+        transition: width 0.25s ease;
+
+        position: relative;
+
+    }
+
+
+
+    .hub-collapsed-rail {
+
+        display: none;
+
+        height: 100%;
+
+        flex-direction: column;
+
+        align-items: center;
+
+        padding: 1rem 0.25rem;
+
+        cursor: pointer;
+
+        background: rgba(10, 10, 14, 0.8);
+
+        border-left: 1px solid var(--glass-border);
+
+        transition: background 0.2s ease;
+
+    }
+
+    .hub-collapsed-rail:hover {
+
+        background: rgba(197, 160, 89, 0.12);
+
+    }
+
+
+
+    .boardroom-container.hub-collapsed .hub-expanded-content {
+
+        display: none !important;
+
+    }
+
+    .boardroom-container.hub-collapsed .hub-collapsed-rail {
+
+        display: flex !important;
+
+    }
+
+
+
+    .hub-vertical-title {
+
+        writing-mode: vertical-rl;
+
+        color: var(--primary-light);
+
+        font-size: 0.725rem;
+
+        font-weight: 700;
+
+        letter-spacing: 0.15em;
+
+        text-transform: uppercase;
+
+        margin-top: 1.2rem;
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 0.5rem;
+
+    }
+
+
+
+    .action-scroll {
+
+        flex: 1;
+
+        overflow-y: auto;
+
+        padding: 0.85rem;
+
+        display: flex;
+
+        flex-direction: column;
+
+        gap: 0.85rem;
+
+    }
+
+
+
+    .action-card {
+
+        background: rgba(0, 0, 0, 0.25);
+
+        border: 1px solid rgba(255, 255, 255, 0.05);
+
+        border-radius: 8px;
+
+        padding: 0.75rem;
+
+    }
+
+
+
+    .card-heading {
+
+        font-size: 0.775rem;
+
+        font-weight: 700;
+
+        text-transform: uppercase;
+
+        letter-spacing: 0.05em;
+
+        color: var(--primary-light);
+
+        margin-bottom: 0.5rem;
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 0.4rem;
+
+    }
+
+
+
+    .param-row {
+
+        margin-bottom: 0.5rem;
+
+    }
+
+    .param-label {
+
+        display: block;
+
+        font-size: 0.7rem;
+
+        color: var(--text-dim);
+
+        margin-bottom: 0.2rem;
+
+    }
+
+    .param-row select, .param-row input[type="range"] {
+
+        width: 100%;
+
+    }
+
+    .param-row select {
+
+        background: rgba(0, 0, 0, 0.4);
+
+        border: 1px solid var(--glass-border);
+
+        color: #fff;
+
+        padding: 0.3rem 0.5rem;
+
+        border-radius: 5px;
+
+        font-size: 0.75rem;
+
+    }
+
+
+
+    /* Floating Pin Tooltip on Text Selection */
+
+    .floating-pin-btn {
+
+        position: fixed;
+
+        z-index: 9999;
+
+        background: linear-gradient(135deg, #272115, #14141c);
+
+        border: 1px solid #dfba73;
+
+        color: #dfba73;
+
+        box-shadow: 0 6px 20px rgba(0,0,0,0.8), 0 0 12px rgba(223, 186, 115, 0.35);
+
+        border-radius: 6px;
+
+        padding: 0.35rem 0.7rem;
+
+        font-size: 0.75rem;
+
+        font-weight: 600;
+
+        cursor: pointer;
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 0.4rem;
+
+        pointer-events: auto;
+
+        transform: translate(-50%, -100%);
+
+        margin-top: -8px;
+
+    }
+
+    .floating-pin-btn:hover {
+
+        background: #dfba73;
+
+        color: #09090b;
+
+    }
+
+</style>
+
+{% endblock %}
+
+
+
+{% block content %}
+
+<div class="boardroom-container" id="boardroom-main-container">
+
+
+
+    <!-- ========================================================= -->
+
+    <!-- 1. LEFT UNIFIED PANE: COUNCIL CHAT + DIRECTOR TABLET      -->
+
+    <!-- ========================================================= -->
+
+    <div class="board-pane left-pane-unified mode-tab-chat" id="left-unified-pane">
+
+        <!-- Tabs & Split Switcher -->
+
+        <div class="left-tabs-nav">
+
+            <button class="left-tab-btn active" id="tab-btn-chat" onclick="setLeftPaneMode('tab-chat')">
+
+                <span>💬</span> Совет Квартета
+
+            </button>
+
+            <button class="left-tab-btn" id="tab-btn-tablet" onclick="setLeftPaneMode('tab-tablet')">
+
+                <span>📜</span> Планшет
+
+                <span id="tablet-pill-badge" style="display: none; width: 6px; height: 6px; border-radius: 50%; background: #dfba73;"></span>
+
+            </button>
+
+            <button class="split-toggle-btn" id="btn-toggle-split" onclick="toggleSplitMode()" title="Режим сплита (Планшет сверху, Чат снизу)">
+
+                ◫
+
+            </button>
+
+        </div>
+
+
+
+        <!-- SECTION A: TABLET WRAPPER -->
+
+        <div class="pane-tablet-wrapper">
+
+            <div class="tablet-section">
+
+                <div class="tablet-subtoolbar">
+
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+
+                        <span style="color: var(--text-dim);">Режим:</span>
+
+                        <label style="cursor: pointer; display: flex; align-items: center; gap: 0.2rem; color: #e2e8f0; font-size: 0.7rem;">
+
+                            <input type="radio" name="tablet-mode" id="mode-replace" value="replace"> Заменять
+
+                        </label>
+
+                        <label style="cursor: pointer; display: flex; align-items: center; gap: 0.2rem; color: #dfba73; font-size: 0.7rem;">
+
+                            <input type="radio" name="tablet-mode" id="mode-append" value="append" checked> + Добавлять
+
+                        </label>
+
+                    </div>
+
+                    <div style="display: flex; gap: 0.3rem;">
+
+                        <button class="stage-btn" style="padding: 0.15rem 0.45rem; font-size: 0.675rem; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" onclick="copyTabletContent()" title="Скопировать всё в буфер">
+
+                            📋 Копировать
+
+                        </button>
+
+                        <button class="stage-btn" style="padding: 0.15rem 0.45rem; font-size: 0.675rem; border-color: rgba(239, 68, 68, 0.4); color: #f87171;" onclick="clearTabletContent()" title="Очистить планшет">
+
+                            🗑 Сброс
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+
+                <textarea id="tablet-textarea" class="tablet-editor" oninput="handleTabletInput()" placeholder="Здесь закрепляется режиссерский сценарий, раскадровка и промпты...&#10;&#10;• Нажмите «📌 В планшет» на сообщении в чате&#10;• Или выделите любой фрагмент текста мышкой&#10;• Сохраняется автоматически и не пропадет"></textarea>
+
+
+
+                <div class="tablet-statusbar">
+
+                    <div>
+
+                        Символов: <span id="tablet-char-count" style="color: #fff; font-weight: 600;">0</span>
+
+                        <span style="margin: 0 0.25rem; opacity: 0.4;">|</span>
+
+                        Строк: <span id="tablet-line-count" style="color: #fff; font-weight: 600;">0</span>
+
+                    </div>
+
+                    <span style="color: #10b981; display: flex; align-items: center; gap: 0.25rem;">
+
+                        <span style="font-size: 0.55rem;">●</span> Память активна
+
+                    </span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- SECTION B: CHAT WRAPPER -->
+
+        <div class="pane-chat-wrapper">
+
+            <div class="chat-messages" id="chat-messages">
+
+                {% for msg in session.messages %}
+
+                <div class="msg-card {{ msg.sender }}">
+
+                    <div class="msg-header">
+
+                        <span class="msg-author" style="color: {{ msg.color }};">
+
+                            {{ msg.avatar }} {{ msg.name }}
+
+                        </span>
+
+                        <div style="display: flex; align-items: center; gap: 0.45rem;">
+
+                            <button class="pin-msg-btn" onclick="pinMessageFromCard(this)" title="Закрепить в Режиссерский Планшет">
+
+                                📌 В планшет
+
+                            </button>
+
+                            <span class="msg-time">{{ msg.time }}</span>
+
+                        </div>
+
+                    </div>
+
+                    <div class="msg-role">{{ msg.role }}</div>
+
+                    <div class="msg-body" style="margin-top: 0.35rem;">{{ msg.text }}</div>
+
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+
+
+            <div class="thinking-banner" id="thinking-banner">
+
+                <span>⚡</span> <span id="thinking-text">Совет совещается...</span>
+
+            </div>
+
+
+
+            <div class="chat-input-area">
+
+                <!-- RECIPIENT SELECTOR BAR (ZERO TEMPLATES) -->
+
+                <div class="recipient-bar">
+
+                    <button class="rcpt-btn active" id="btn-rcpt-all" onclick="selectRecipient('council')" title="Обратиться ко всему Совету (Элина ➔ Адриан ➔ Кай)">
+
+                        🏛 Весь Совет
+
+                    </button>
+
+                    <button class="rcpt-btn" id="btn-rcpt-elina" onclick="selectRecipient('@Элина')" title="Лично к Элине (Режиссура & Визуальный Арбитраж)">
+
+                        👑 @Элина
+
+                    </button>
+
+                    <button class="rcpt-btn" id="btn-rcpt-adrian" onclick="selectRecipient('@Адриан')" title="Лично к Адриану (AI-Архитектура & Пайплайн)">
+
+                        ⚡ @Адриан
+
+                    </button>
+
+                    <button class="rcpt-btn" id="btn-rcpt-kai" onclick="selectRecipient('@Кай')" title="Лично к Каю (Канон & Летопись)">
+
+                        🛡️ @Кай
+
+                    </button>
+
+                    <button class="rcpt-btn reset-btn" onclick="resetCouncilSession()" title="Начать чистый диалог">
+
+                        🔄 Сброс
+
+                    </button>
+
+                </div>
+
+
+
+                <div class="input-row">
+
+                    <textarea id="council-input" class="chat-textarea" placeholder="Сообщение или задача Совету... (Enter — отправить, Shift+Enter — перенос строки)"></textarea>
+
+                    <button class="btn-send" onclick="sendCouncilMessage()" title="Отправить (Enter)">
+
+                        <span>➤</span>
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ========================================================= -->
+
+    <!-- 2. LOOKDEV & CINEMA STAGE 4K (CENTER HERO)                 -->
+
+    <!-- ========================================================= -->
+
+    <div class="board-pane stage-container">
+
+        <div class="stage-toolbar">
+
+            <span class="pane-title"><span>🎬</span> LookDev & Cinema Stage 4K</span>
+
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex: 1; justify-content: flex-end;">
+
+                <select id="media-selector" class="media-select" onchange="loadSelectedMedia()">
+
+                    <option value="">-- Выберите медиа-актив для инспекции --</option>
+
+                    {% for item in media_items %}
+
+                    <option value="{{ item.path }}" data-type="{{ item.type }}">
+
+                        {{ item.name }} ({{ item.size_mb }} MB)
+
+                    </option>
+
+                    {% endfor %}
+
+                </select>
+
+                <input type="file" id="media-file-input" style="display: none;" onchange="handleFileInputChange(this)" accept="video/*,image/*" multiple>
+
+                <button class="stage-btn" style="border-color: rgba(197, 160, 89, 0.4); color: var(--primary-light); background: rgba(197, 160, 89, 0.1);" onclick="document.getElementById('media-file-input').click()" title="Загрузить шот до 2GB+">
+
+                    ⚡ Загрузить
+
+                </button>
+
+            </div>
+
+        </div>
+
+
+
+        <div class="stage-viewport" id="viewport-stage" onmousemove="handleLoupeMove(event)" onmouseleave="hideLoupe()">
+
+            <!-- Upload Overlay HUD -->
+
+            <div id="upload-overlay" style="display: none; position: absolute; inset: 0; background: rgba(5, 5, 8, 0.92); z-index: 50; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem;">
+
+                <div style="font-size: 2rem;">⚡</div>
+
+                <div id="upload-title" style="color: var(--primary-light); font-size: 0.9rem; font-weight: 600;">Загрузка файла в LookDev...</div>
+
+                <div style="width: 300px; height: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 4px; overflow: hidden; border: 1px solid rgba(197, 160, 89, 0.3);">
+
+                    <div id="upload-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #c5a059, #10b981); transition: width 0.1s ease;"></div>
+
+                </div>
+
+                <div id="upload-status" style="color: var(--text-dim); font-size: 0.775rem;">0% (0 MB / 0 MB)</div>
+
+            </div>
+
+
+
+            <video id="stage-video" loop controls style="display: none;"></video>
+
+            <img id="stage-image" style="display: none;" />
+
+            <div id="stage-placeholder" style="color: var(--text-dim); font-size: 0.85rem; text-align: center; padding: 1rem;">
+
+                ✦ Перетащите сюда шот (до 2GB+) или выберите в селекторе выше ✦
+
+            </div>
+
+
+
+            <!-- Horological Loupe Lens -->
+
+            <div id="loupe-lens" class="loupe-lens">
+
+                <canvas id="loupe-canvas" width="180" height="180" style="width: 100%; height: 100%; border-radius: 50%; display: block;"></canvas>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- Winner Banner HUD -->
+
+        <div id="winner-banner" style="display: none; margin: 0.4rem 0.85rem; background: linear-gradient(90deg, rgba(197, 160, 89, 0.18), rgba(16, 185, 129, 0.18)); border: 1px solid rgba(197, 160, 89, 0.5); border-radius: 8px; padding: 0.5rem 0.85rem; align-items: center; justify-content: space-between; gap: 0.6rem;">
+
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+
+                <span style="font-size: 1.3rem;">🏆</span>
+
+                <div>
+
+                    <div style="font-size: 0.725rem; color: #dfba73; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Кадр-Победитель выбран Элиной (Start Frame 2K)</div>
+
+                    <div id="winner-banner-name" style="font-size: 0.8rem; color: #ffffff; font-family: monospace; font-weight: 600;">-</div>
+
+                </div>
+
+            </div>
+
+            <div style="display: flex; gap: 0.4rem; align-items: center;">
+
+                <button class="stage-btn" style="border-color: #38bdf8; color: #38bdf8; background: rgba(56,189,248,0.12); padding: 0.35rem 0.65rem; font-weight: 600;" onclick="downloadWinnerDirect()">
+
+                    📥 Скачать кадр
+
+                </button>
+
+                <button class="stage-btn" style="border-color: #10b981; color: #34d399; background: rgba(16,185,129,0.15); padding: 0.35rem 0.65rem; font-weight: 600;" onclick="saveWinnerToFolder()">
+
+                    📁 В папку «выбрано/3»
+
+                </button>
+
+            </div>
+
+        </div>
+
+
+
+        <div class="stage-controls">
+
+            <div style="display: flex; gap: 0.35rem; align-items: center;">
+
+                <button class="stage-btn" onclick="stepFrame(-1)">◀ -1 Frame</button>
+
+                <button class="stage-btn" onclick="togglePlay()">⏯ Play / Pause</button>
+
+                <button class="stage-btn" onclick="stepFrame(1)">+1 Frame ▶</button>
+
+            </div>
+
+            <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+
+                <button id="loupe-btn" class="stage-btn" onclick="toggleLoupe()">
+
+                    🔍 Horological Loupe x4.0
+
+                </button>
+
+                <button class="stage-btn" style="border-color: #10b981; color: #34d399; background: rgba(16,185,129,0.1);" onclick="runVisualQA()">
+
+                    🔎 Аудит ОТК (Gemini 4 Argon)
+
+                </button>
+
+                <button class="stage-btn" style="border-color: #f59e0b; color: #fbbf24; background: rgba(245,158,11,0.1);" onclick="openVariantShootoutModal()">
+
+                    ⚔️ Отбор 1 из 4
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ========================================================= -->
+
+    <!-- 3. ACTION & PIPELINE HUB (RIGHT COLLAPSIBLE)               -->
+
+    <!-- ========================================================= -->
+
+    <div class="board-pane hub-pane" id="right-hub-pane">
+
+        <!-- Collapsed Rail -->
+
+        <div class="hub-collapsed-rail" onclick="toggleHubCollapse()" title="Развернуть Пайплайн & Shield">
+
+            <span style="font-size: 1.1rem; color: var(--primary);">⚙️</span>
+
+            <div class="hub-vertical-title">Студийный Пайплайн & Shield</div>
+
+            <span style="font-size: 0.85rem; margin-top: auto; color: var(--primary-light);">◀</span>
+
+        </div>
+
+
+
+        <!-- Expanded Content -->
+
+        <div class="hub-expanded-content" style="display: flex; flex-direction: column; height: 100%;">
+
+            <div class="pane-header">
+
+                <span class="pane-title"><span>⚙️</span> Пайплайн</span>
+
+                <button class="stage-btn" style="padding: 0.2rem 0.45rem; font-size: 0.725rem;" onclick="toggleHubCollapse()" title="Свернуть панель для максимизации экрана">
+
+                    ▶
+
+                </button>
+
+            </div>
+
+
+
+            <div class="action-scroll">
+
+                <!-- Atelier Identity Shield -->
+
+                <div class="action-card" id="card-identity-shield">
+
+                    <div class="card-heading">
+
+                        <span>🛡️</span> Atelier Identity Shield™
+
+                    </div>
+
+                    <div class="param-row">
+
+                        <span class="param-label">Источник айдентики:</span>
+
+                        <select id="shield-source-mode" onchange="toggleShieldSourceMode()">
+
+                            <option value="extracted">✨ Извлеченная этикетка (PNG / Альфа)</option>
+
+                            <option value="text">✍ Векторный рендер шрифта (Fallback)</option>
+
+                        </select>
+
+                    </div>
+
+
+
+                    <div id="shield-extracted-block" style="margin: 0.4rem 0;">
+
+                        <div id="active-label-badge" style="font-size:0.72rem; color:#38bdf8; background:rgba(56,189,248,0.1); padding:5px 8px; border-radius:5px; border:1px solid rgba(56,189,248,0.3); line-height: 1.3;">
+
+                            <span id="active-label-text">⚠️ Этикетка не выбрана. Извлеките её из фото флакона в карточке ниже.</span>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <div class="param-row">
+
+                        <span class="param-label">Высота на флаконе (Y-Offset):</span>
+
+                        <input type="range" id="shield-y" min="20" max="80" value="48" oninput="document.getElementById('lbl-y').innerText = this.value + '%'">
+
+                        <span id="lbl-y" style="font-size: 0.7rem; color: var(--text-dim); float: right;">48%</span>
+
+                    </div>
+
+
+
+                    <div class="param-row">
+
+                        <span class="param-label">Масштаб этикетки (Scale):</span>
+
+                        <input type="range" id="shield-scale" min="50" max="150" value="100" oninput="document.getElementById('lbl-scale').innerText = (this.value/100).toFixed(2) + 'x'">
+
+                        <span id="lbl-scale" style="font-size: 0.7rem; color: var(--text-dim); float: right;">1.00x</span>
+
+                    </div>
+
+
+
+                    <div class="param-row">
+
+                        <span class="param-label">Specular Highlight Pass:</span>
+
+                        <select id="shield-blend">
+
+                            <option value="0.75">75% (Оптимальный блик)</option>
+
+                            <option value="0.90">90% (Глянцевый срез)</option>
+
+                            <option value="0.50">50% (Матовое стекло)</option>
+
+                            <option value="1.0">100% (Максимальный свет)</option>
+
+                        </select>
+
+                    </div>
+
+
+
+                    <button class="stage-btn" style="width: 100%; justify-content: center; border-color: rgba(197, 160, 89, 0.4); background: rgba(197, 160, 89, 0.12); color: var(--primary-light); font-weight: 600; margin-top: 0.4rem;" onclick="runShieldAction()">
+
+                        🛡️ Наложить Identity Shield™
+
+                    </button>
+
+                </div>
+
+
+
+                <!-- Extract Label -->
+
+                <div class="action-card">
+
+                    <div class="card-heading">
+
+                        <span>✂️</span> Извлечение Альфа-Этикетки
+
+                    </div>
+
+                    <p style="font-size: 0.725rem; color: var(--text-dim); margin-bottom: 0.5rem; line-height: 1.4;">
+
+                        Загрузите фото оригинального флакона в LookDev и нажмите кнопку для чистой вырезки монограммы и логотипа.
+
+                    </p>
+
+                    <button class="stage-btn" style="width: 100%; justify-content: center; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.08); color: #38bdf8;" onclick="extractLabelFromCurrentStage()">
+
+                        ✂️ Извлечь альфу из текущего шота
+
+                    </button>
+
+                </div>
+
+
+
+                <!-- Export Memo -->
+
+                <div class="action-card">
+
+                    <div class="card-heading">
+
+                        <span>🏛</span> Режиссерский Протокол
+
+                    </div>
+
+                    <p style="font-size: 0.725rem; color: var(--text-dim); margin-bottom: 0.5rem; line-height: 1.4;">
+
+                        Фиксация решений Совета Квартета в официальный Session Memo (Markdown).
+
+                    </p>
+
+                    <button class="stage-btn" style="width: 100%; justify-content: center;" onclick="exportCouncilMemo()">
+
+                        📄 Сформировать Memo
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- Modal: Shootout 1 of 4 -->
+
+<div id="shootout-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center;">
+
+    <div style="background: #0f0f14; border: 1px solid #dfba73; border-radius: 12px; width: 90%; max-width: 820px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.9);">
+
+        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid rgba(197, 160, 89, 0.25); display: flex; justify-content: space-between; align-items: center; background: rgba(197, 160, 89, 0.06);">
+
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+
+                <span style="font-size: 1.3rem;">⚔️</span>
+
+                <span style="font-size: 0.95rem; font-weight: 700; color: #dfba73; text-transform: uppercase; letter-spacing: 0.05em;">Сравнительный отбор 1 из 4 (Start Frame 2K)</span>
+
+            </div>
+
+            <button onclick="closeVariantShootoutModal()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;">✕</button>
+
+        </div>
+
+        <div style="padding: 1rem 1.25rem; font-size: 0.8rem; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.06);">
+
+            Выберите от 2 до 4 вариантов первого кадра. Элина через мультимодальный интеллект Gemini 4 Argon проведет сравнительный аудит и выберет безоговорочный кадр-победитель.
+
+        </div>
+
+        <div id="shootout-items-list" style="padding: 1rem 1.25rem; flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem;">
+
+            <!-- Generated dynamically -->
+
+        </div>
+
+        <div style="padding: 0.85rem 1.25rem; border-top: 1px solid rgba(197, 160, 89, 0.25); display: flex; justify-content: space-between; align-items: center; background: rgba(10,10,14,0.9);">
+
+            <div style="font-size: 0.8rem; color: #94a3b8;">
+
+                Выбрано вариантов: <span id="shootout-selected-count" style="color: #dfba73; font-weight: 700;">0</span> / 4
+
+            </div>
+
+            <div style="display: flex; gap: 0.5rem;">
+
+                <button class="stage-btn" onclick="closeVariantShootoutModal()">Отмена</button>
+
+                <button class="btn-send" style="padding: 0.4rem 1rem; font-size: 0.8rem; width: auto; height: auto;" onclick="runVariantShootout()">
+
+                    ⚔️ Начать аудит Элины
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- Floating Pin Tooltip for selected text -->
+
+<div id="floating-pin-btn" class="floating-pin-btn" style="display: none;" onmousedown="pinSelectedTextTooltip(event)">
+
+    <span>📌</span> В планшет
+
+</div>
+
+{% endblock %}
+
+
+
+{% block scripts %}
+
+<script>
+
+    // =========================================================
+
+    // STATE & LAYOUT MANAGEMENT
+
+    // =========================================================
+
+    const TABLET_STORAGE_KEY = 'veo_boardroom_teleprompter_content';
+
+    const HUB_COLLAPSED_KEY = 'veo_boardroom_hub_collapsed';
+
+    let lastSelectedText = '';
+
+
+
+    function initLayout() {
+
+        const textarea = document.getElementById('tablet-textarea');
+
+        if (textarea) {
+
+            const saved = localStorage.getItem(TABLET_STORAGE_KEY);
+
+            if (saved) {
+
+                textarea.value = saved;
+
+                updateTabletStats();
+
+            }
+
+        }
+
+
+
+        // Restore hub collapsed state
+
+        const isHubCollapsed = localStorage.getItem(HUB_COLLAPSED_KEY) === 'true';
+
+        if (isHubCollapsed) {
+
+            document.getElementById('boardroom-main-container')?.classList.add('hub-collapsed');
+
+        }
+
+
+
+        // Setup selection listener on chat
+
+        const chat = document.getElementById('chat-messages');
+
+        if (chat) {
+
+            chat.addEventListener('mouseup', handleChatSelection);
+
+        }
+
+        document.addEventListener('mousedown', function(e) {
+
+            const floatBtn = document.getElementById('floating-pin-btn');
+
+            if (floatBtn && !floatBtn.contains(e.target)) {
+
+                floatBtn.style.display = 'none';
+
+            }
+
+        });
+
+
+
+        // Enter key in input sends message
+
+        const input = document.getElementById('council-input');
+
+        if (input) {
+
+            input.addEventListener('keydown', function(e) {
+
+                if (e.key === 'Enter' && !e.shiftKey) {
+
+                    e.preventDefault();
+
+                    sendCouncilMessage();
+
+                }
+
+            });
+
+        }
+
+    }
+
+
+
+    function setLeftPaneMode(mode) {
+
+        const pane = document.getElementById('left-unified-pane');
+
+        const btnChat = document.getElementById('tab-btn-chat');
+
+        const btnTab = document.getElementById('tab-btn-tablet');
+
+        const btnSplit = document.getElementById('btn-toggle-split');
+
+        if (!pane) return;
+
+
+
+        pane.classList.remove('mode-split', 'mode-tab-chat', 'mode-tab-tablet');
+
+        btnChat?.classList.remove('active');
+
+        btnTab?.classList.remove('active');
+
+        btnSplit?.classList.remove('active');
+
+
+
+        if (mode === 'tab-chat') {
+
+            pane.classList.add('mode-tab-chat');
+
+            btnChat?.classList.add('active');
+
+        } else if (mode === 'tab-tablet') {
+
+            pane.classList.add('mode-tab-tablet');
+
+            btnTab?.classList.add('active');
+
+            const dot = document.getElementById('tablet-pill-badge');
+
+            if (dot) dot.style.display = 'none';
+
+        } else if (mode === 'split') {
+
+            pane.classList.add('mode-split');
+
+            btnSplit?.classList.add('active');
+
+            btnChat?.classList.add('active');
+
+            btnTab?.classList.add('active');
+
+        }
+
+    }
+
+
+
+    function toggleSplitMode() {
+
+        const pane = document.getElementById('left-unified-pane');
+
+        if (!pane) return;
+
+        if (pane.classList.contains('mode-split')) {
+
+            setLeftPaneMode('tab-chat');
+
+        } else {
+
+            setLeftPaneMode('split');
+
+        }
+
+    }
+
+
+
+    function toggleHubCollapse() {
+
+        const container = document.getElementById('boardroom-main-container');
+
+        if (!container) return;
+
+        const collapsed = container.classList.toggle('hub-collapsed');
+
+        localStorage.setItem(HUB_COLLAPSED_KEY, collapsed ? 'true' : 'false');
+
+    }
+
+
+
+    function toggleCinemaMode() {
+
+        const container = document.getElementById('boardroom-main-container');
+
+        const btn = document.getElementById('btn-cinema-mode');
+
+        if (!container) return;
+
+        const active = container.classList.toggle('cinema-mode');
+
+        if (active) {
+
+            container.classList.add('hub-collapsed');
+
+            if (btn) btn.style.background = 'rgba(56, 189, 248, 0.25)';
+
+        } else {
+
+            container.classList.remove('hub-collapsed');
+
+            if (btn) btn.style.background = 'rgba(56, 189, 248, 0.08)';
+
+        }
+
+    }
+
+
+
+    // =========================================================
+
+    // RECIPIENT SELECTOR (ZERO TEMPLATES)
+
+    // =========================================================
+
+    function selectRecipient(target) {
+
+        const input = document.getElementById('council-input');
+
+        if (!input) return;
+
+        let val = input.value;
+
+        // Strip any existing leading @mention
+
+        val = val.replace(/^@(elina|элина|adrian|адриан|kai|кай)\s*/i, '');
+
+
+
+        document.querySelectorAll('.recipient-bar .rcpt-btn').forEach(b => b.classList.remove('active'));
+
+
+
+        if (target === 'council') {
+
+            input.value = val;
+
+            document.getElementById('btn-rcpt-all')?.classList.add('active');
+
+        } else {
+
+            input.value = target + ' ' + val;
+
+            if (target.includes('Элина')) document.getElementById('btn-rcpt-elina')?.classList.add('active');
+
+            else if (target.includes('Адриан')) document.getElementById('btn-rcpt-adrian')?.classList.add('active');
+
+            else if (target.includes('Кай')) document.getElementById('btn-rcpt-kai')?.classList.add('active');
+
+        }
+
+        input.focus();
+
+    }
+
+
+
+    // =========================================================
+
+    // TABLET & PIN LOGIC
+
+    // =========================================================
+
+    function handleTabletInput() {
+
+        const textarea = document.getElementById('tablet-textarea');
+
+        if (!textarea) return;
+
+        localStorage.setItem(TABLET_STORAGE_KEY, textarea.value);
+
+        updateTabletStats();
+
+    }
+
+
+
+    function updateTabletStats() {
+
+        const textarea = document.getElementById('tablet-textarea');
+
+        const charSpan = document.getElementById('tablet-char-count');
+
+        const lineSpan = document.getElementById('tablet-line-count');
+
+        if (!textarea || !charSpan || !lineSpan) return;
+
+
+
+        const val = textarea.value;
+
+        charSpan.textContent = val.length.toLocaleString();
+
+        lineSpan.textContent = val.length === 0 ? '0' : val.split('\n').length.toLocaleString();
+
+    }
+
+
+
+    function appendOrSetTabletText(newText, forceReplace = false) {
+
+        if (!newText || !newText.trim()) return;
+
+        const textarea = document.getElementById('tablet-textarea');
+
+        if (!textarea) return;
+
+
+
+        const isAppend = !forceReplace && document.getElementById('mode-append')?.checked;
+
+        const current = textarea.value.trim();
+
+
+
+        if (isAppend && current.length > 0) {
+
+            textarea.value = current + '\n\n---\n\n' + newText.trim();
+
+        } else {
+
+            textarea.value = newText.trim();
+
+        }
+
+
+
+        localStorage.setItem(TABLET_STORAGE_KEY, textarea.value);
+
+        updateTabletStats();
+
+
+
+        // Flash dot badge on tab if currently in chat tab
+
+        const pane = document.getElementById('left-unified-pane');
+
+        if (pane && pane.classList.contains('mode-tab-chat')) {
+
+            const dot = document.getElementById('tablet-pill-badge');
+
+            if (dot) dot.style.display = 'inline-block';
+
+        }
+
+
+
+        // Visual flash feedback
+
+        textarea.style.transition = 'box-shadow 0.2s ease';
+
+        textarea.style.boxShadow = '0 0 15px rgba(223, 186, 115, 0.4)';
+
+        setTimeout(() => { textarea.style.boxShadow = 'none'; }, 400);
+
+
+
+        textarea.scrollTop = isAppend ? textarea.scrollHeight : 0;
+
+    }
+
+
+
+    function copyTabletContent() {
+
+        const textarea = document.getElementById('tablet-textarea');
+
+        if (!textarea || !textarea.value.trim()) {
+
+            alert('Планшет пуст');
+
+            return;
+
+        }
+
+        navigator.clipboard.writeText(textarea.value).then(() => {
+
+            alert('📋 Текст сценария скопирован в буфер обмена!');
+
+        }).catch(() => {
+
+            textarea.select();
+
+            document.execCommand('copy');
+
+            alert('📋 Текст сценария скопирован!');
+
+        });
+
+    }
+
+
+
+    function clearTabletContent() {
+
+        const textarea = document.getElementById('tablet-textarea');
+
+        if (!textarea || !textarea.value.trim()) return;
+
+        if (confirm('Очистить текст режиссерского планшета?')) {
+
+            textarea.value = '';
+
+            localStorage.setItem(TABLET_STORAGE_KEY, '');
+
+            updateTabletStats();
+
+        }
+
+    }
+
+
+
+    function pinMessageFromCard(btn) {
+
+        const card = btn.closest('.msg-card');
+
+        if (!card) return;
+
+        const body = card.querySelector('.msg-body');
+
+        if (!body) return;
+
+        appendOrSetTabletText(body.innerText || body.textContent);
+
+    }
+
+
+
+    function handleChatSelection(e) {
+
+        const sel = window.getSelection();
+
+        const selectedText = sel ? sel.toString().trim() : '';
+
+        const floatBtn = document.getElementById('floating-pin-btn');
+
+        if (!floatBtn) return;
+
+
+
+        if (selectedText.length >= 3) {
+
+            lastSelectedText = selectedText;
+
+            floatBtn.style.left = e.clientX + 'px';
+
+            floatBtn.style.top = (e.clientY - 12) + 'px';
+
+            floatBtn.style.display = 'flex';
+
+        } else {
+
+            floatBtn.style.display = 'none';
+
+        }
+
+    }
+
+
+
+    function pinSelectedTextTooltip(e) {
+
+        e.preventDefault();
+
+        e.stopPropagation();
+
+        const floatBtn = document.getElementById('floating-pin-btn');
+
+        if (floatBtn) floatBtn.style.display = 'none';
+
+
+
+        if (lastSelectedText) {
+
+            appendOrSetTabletText(lastSelectedText);
+
+            const sel = window.getSelection();
+
+            if (sel) sel.removeAllRanges();
+
+            lastSelectedText = '';
+
+        }
+
+    }
+
+
+
+    // =========================================================
+
+    // COUNCIL MESSAGING
+
+    // =========================================================
+
+    async function sendCouncilMessage() {
+
+        const input = document.getElementById('council-input');
+
+        const text = input.value.trim();
+
+        if (!text) return;
+
+
+
+        input.value = '';
+
+        appendMessage('vladimir', 'Владимир Семенов', 'Founder & Executive Producer', '🏛️', '#c5a059', text);
+
+
+
+        const banner = document.getElementById('thinking-banner');
+
+        const thinkingText = document.getElementById('thinking-text');
+
+        
+
+        if (text.startsWith('@elina') || text.startsWith('@Элина')) {
+
+            thinkingText.textContent = 'Элина (Режиссура & Gemini 4 Argon) формулирует решение...';
+
+        } else if (text.startsWith('@adrian') || text.startsWith('@Адриан')) {
+
+            thinkingText.textContent = 'Адриан (AI-Архитектура & Пайплайн) рассчитывает конфигурацию...';
+
+        } else if (text.startsWith('@kai') || text.startsWith('@Кай')) {
+
+            thinkingText.textContent = 'Кай сверяет замысел со стандартами Дома VEO...';
+
+        } else {
+
+            thinkingText.textContent = 'Совет Квартета в полном составе проводит заседание...';
+
+        }
+
+        banner.style.display = 'flex';
+
+
+
+        try {
+
+            const resp = await fetch('/api/boardroom/send', {
+
+                method: 'POST',
+
+                headers: { 'Content-Type': 'application/json' },
+
+                body: JSON.stringify({ text: text })
+
+            });
+
+            const data = await resp.json();
+
+            banner.style.display = 'none';
+
+
+
+            if (data.status === 'success') {
+
+                data.messages.forEach(m => {
+
+                    appendMessage(m.sender, m.name, m.role, m.avatar, m.color, m.text);
+
+                });
+
+            } else {
+
+                alert('Ошибка сессии: ' + data.detail);
+
+            }
+
+        } catch (e) {
+
+            banner.style.display = 'none';
+
+            alert('Сбой связи с Советом: ' + e);
+
+        }
+
+    }
+
+
+
+    function appendMessage(sender, name, role, avatar, color, text) {
+
+        const chat = document.getElementById('chat-messages');
+
+        const card = document.createElement('div');
+
+        card.className = `msg-card ${sender}`;
+
+        const now = new Date();
+
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+
+
+        card.innerHTML = `
+
+            <div class="msg-header">
+
+                <span class="msg-author" style="color: ${color};">
+
+                    ${avatar} ${name}
+
+                </span>
+
+                <div style="display: flex; align-items: center; gap: 0.45rem;">
+
+                    <button class="pin-msg-btn" onclick="pinMessageFromCard(this)" title="Закрепить в Режиссерский Планшет">
+
+                        📌 В планшет
+
+                    </button>
+
+                    <span class="msg-time">${timeStr}</span>
+
+                </div>
+
+            </div>
+
+            <div class="msg-role">${role}</div>
+
+            <div class="msg-body" style="margin-top: 0.35rem;">${escapeHtml(text)}</div>
+
+        `;
+
+        chat.appendChild(card);
+
+        chat.scrollTop = chat.scrollHeight;
+
+    }
+
+
+
+    function escapeHtml(text) {
+
+        const div = document.createElement('div');
+
+        div.innerText = text;
+
+        return div.innerHTML.replace(/\n/g, '<br>');
+
+    }
+
+
+
+    async function resetCouncilSession() {
+
+        if (!confirm('Очистить историю диалога Совета и начать новую сессию?')) return;
+
+        try {
+
+            const resp = await fetch('/api/boardroom/reset', { method: 'POST' });
+
+            const data = await resp.json();
+
+            if (data.status === 'success') {
+
+                const chat = document.getElementById('chat-messages');
+
+                chat.innerHTML = '';
+
+                data.session.messages.forEach(m => {
+
+                    appendMessage(m.sender, m.name, m.role, m.avatar, m.color, m.text);
+
+                });
+
+            }
+
+        } catch (e) {
+
+            alert('Ошибка сброса: ' + e);
+
+        }
+
+    }
+
+
+
+    // =========================================================
+
+    // LOOKDEV MEDIA & STAGE
+
+    // =========================================================
+
+    let currentWinnerPath = null;
+
+    let currentWinnerName = null;
+
+
+
+    function loadSelectedMedia() {
+
+        const sel = document.getElementById('media-selector');
+
+        const stageVideo = document.getElementById('stage-video');
+
+        const stageImage = document.getElementById('stage-image');
+
+        const stagePlaceholder = document.getElementById('stage-placeholder');
+
+
+
+        const opt = sel.options[sel.selectedIndex];
+
+        if (!opt || !opt.value) {
+
+            stageVideo.style.display = 'none';
+
+            stageVideo.pause();
+
+            stageImage.style.display = 'none';
+
+            stagePlaceholder.style.display = 'block';
+
+            return;
+
+        }
+
+
+
+        const path = opt.value;
+
+        const type = opt.getAttribute('data-type');
+
+        const streamUrl = '/media_stream?path=' + encodeURIComponent(path);
+
+
+
+        stagePlaceholder.style.display = 'none';
+
+
+
+        if (type === 'video') {
+
+            stageImage.style.display = 'none';
+
+            stageVideo.style.display = 'block';
+
+            stageVideo.src = streamUrl;
+
+            stageVideo.load();
+
+            stageVideo.play().catch(() => {});
+
+        } else {
+
+            stageVideo.style.display = 'none';
+
+            stageVideo.pause();
+
+            stageImage.style.display = 'block';
+
+            stageImage.src = streamUrl;
+
+        }
+
+    }
+
+
+
+    function togglePlay() {
+
+        const v = document.getElementById('stage-video');
+
+        if (v && v.style.display !== 'none') {
+
+            if (v.paused) v.play(); else v.pause();
+
+        }
+
+    }
+
+
+
+    function stepFrame(delta) {
+
+        const v = document.getElementById('stage-video');
+
+        if (v && v.style.display !== 'none') {
+
+            v.pause();
+
+            v.currentTime = Math.max(0, v.currentTime + (delta / 25.0));
+
+        }
+
+    }
+
+
+
+    // Horological Loupe x4.0 Canvas Engine
+
+    let isLoupeActive = false;
+
+    let loupeRAF = null;
+
+
+
+    function toggleLoupe() {
+
+        isLoupeActive = !isLoupeActive;
+
+        const btn = document.getElementById('loupe-btn');
+
+        const lens = document.getElementById('loupe-lens');
+
+        if (isLoupeActive) {
+
+            btn.style.borderColor = '#dfba73';
+
+            btn.style.background = 'rgba(197, 160, 89, 0.2)';
+
+            startLoupeLoop();
+
+        } else {
+
+            btn.style.borderColor = '';
+
+            btn.style.background = '';
+
+            lens.style.display = 'none';
+
+            if (loupeRAF) cancelAnimationFrame(loupeRAF);
+
+        }
+
+    }
+
+
+
+    function startLoupeLoop() {
+
+        if (!isLoupeActive) return;
+
+        renderLoupeFrame();
+
+        loupeRAF = requestAnimationFrame(startLoupeLoop);
+
+    }
+
+
+
+    function hideLoupe() {
+
+        if (!isLoupeActive) return;
+
+        document.getElementById('loupe-lens').style.display = 'none';
+
+    }
+
+
+
+    let lastMouseEvt = null;
+
+    function handleLoupeMove(e) {
+
+        lastMouseEvt = e;
+
+        if (!isLoupeActive) return;
+
+        const lens = document.getElementById('loupe-lens');
+
+        lens.style.display = 'block';
+
+        lens.style.left = e.clientX + 'px';
+
+        lens.style.top = e.clientY + 'px';
+
+    }
+
+
+
+    function renderLoupeFrame() {
+
+        if (!isLoupeActive || !lastMouseEvt) return;
+
+        const stageVideo = document.getElementById('stage-video');
+
+        const stageImage = document.getElementById('stage-image');
+
+        const activeMedia = (stageVideo.style.display !== 'none' && stageVideo.videoWidth > 0) ? stageVideo :
+
+                            (stageImage.style.display !== 'none' && stageImage.naturalWidth > 0) ? stageImage : null;
+
+        if (!activeMedia) return;
+
+
+
+        const canvas = document.getElementById('loupe-canvas');
+
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+
+        const rect = activeMedia.getBoundingClientRect();
+
+
+
+        const mouseX = lastMouseEvt.clientX;
+
+        const mouseY = lastMouseEvt.clientY;
+
+
+
+        if (mouseX < rect.left || mouseX > rect.right || mouseY < rect.top || mouseY > rect.bottom) {
+
+            hideLoupe();
+
+            return;
+
+        }
+
+
+
+        const normX = (mouseX - rect.left) / rect.width;
+
+        const normY = (mouseY - rect.top) / rect.height;
+
+
+
+        const mediaWidth = activeMedia.videoWidth || activeMedia.naturalWidth;
+
+        const mediaHeight = activeMedia.videoHeight || activeMedia.naturalHeight;
+
+
+
+        const mediaX = normX * mediaWidth;
+
+        const mediaY = normY * mediaHeight;
+
+
+
+        const zoomFactor = 4.0;
+
+        const sampleSize = 180 / zoomFactor;
+
+
+
+        ctx.clearRect(0, 0, 180, 180);
+
+        ctx.imageSmoothingEnabled = true;
+
+        ctx.imageSmoothingQuality = 'high';
+
+
+
+        ctx.drawImage(
+
+            activeMedia,
+
+            mediaX - sampleSize / 2, mediaY - sampleSize / 2, sampleSize, sampleSize,
+
+            0, 0, 180, 180
+
+        );
+
+
+
+        drawLoupeReticle(ctx);
+
+    }
+
+
+
+    function drawLoupeReticle(ctx) {
+
+        ctx.save();
+
+        ctx.strokeStyle = 'rgba(223, 186, 115, 0.55)';
+
+        ctx.lineWidth = 1;
+
+
+
+        ctx.beginPath();
+
+        ctx.moveTo(90, 75); ctx.lineTo(90, 85);
+
+        ctx.moveTo(90, 95); ctx.lineTo(90, 105);
+
+        ctx.moveTo(75, 90); ctx.lineTo(85, 90);
+
+        ctx.moveTo(95, 90); ctx.lineTo(105, 90);
+
+        ctx.stroke();
+
+
+
+        ctx.font = '9px monospace';
+
+        ctx.fillStyle = '#dfba73';
+
+        ctx.fillText('4.0x H-LOUPE', 60, 170);
+
+        ctx.restore();
+
+    }
+
+
+
+    // =========================================================
+
+    // WINNER STAGE, DOWNLOAD & SAVE
+
+    // =========================================================
+
+    function downloadWinnerDirect() {
+
+        if (!currentWinnerPath) { alert('Кадр-победитель не выбран'); return; }
+
+        window.open('/api/boardroom/download_media?path=' + encodeURIComponent(currentWinnerPath), '_blank');
+
+    }
+
+
+
+    async function saveWinnerToFolder() {
+
+        if (!currentWinnerPath) { alert('Кадр-победитель не выбран'); return; }
+
+        try {
+
+            const resp = await fetch('/api/boardroom/save_winner', {
+
+                method: 'POST',
+
+                headers: { 'Content-Type': 'application/json' },
+
+                body: JSON.stringify({
+
+                    winner_path: currentWinnerPath,
+
+                    target_folder: 'D:/campaigns/заказ/выбрано/3'
+
+                })
+
+            });
+
+            const data = await resp.json();
+
+            if (data.status === 'success') {
+
+                alert('✅ ' + data.message);
+
+                await refreshMediaList(data.saved_path);
+
+            } else {
+
+                alert('Ошибка сохранения: ' + data.detail);
+
+            }
+
+        } catch (e) {
+
+            alert('Ошибка сети: ' + e);
+
+        }
+
+    }
+
+
+
+    // =========================================================
+
+    // VARIANT SHOOTOUT (1 of 4)
+
+    // =========================================================
+
+    async function openVariantShootoutModal() {
+
+        const resp = await fetch('/api/boardroom/media');
+
+        const data = await resp.json();
+
+        const listDiv = document.getElementById('shootout-items-list');
+
+        listDiv.innerHTML = '';
+
+
+
+        const images = (data.media || []).filter(m => m.type === 'image');
+
+        if (images.length === 0) {
+
+            listDiv.innerHTML = '<div style="color: #94a3b8; grid-column: 1/-1;">В медиатеке нет изображений. Загрузите варианты через кнопку «⚡ Загрузить».</div>';
+
+        } else {
+
+            images.forEach(img => {
+
+                const item = document.createElement('label');
+
+                item.style.cssText = 'display: flex; gap: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 0.5rem; cursor: pointer; align-items: center;';
+
+                item.innerHTML = `
+
+                    <input type="checkbox" value="${img.path}" class="shootout-chk" onchange="updateShootoutCount()">
+
+                    <img src="/media_stream?path=${encodeURIComponent(img.path)}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(197, 160, 89, 0.3);">
+
+                    <div style="overflow: hidden;">
+
+                        <div style="font-size: 0.775rem; color: #fff; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;" title="${img.name}">${img.name}</div>
+
+                        <div style="font-size: 0.675rem; color: var(--text-dim);">${img.size_mb} MB</div>
+
+                    </div>
+
+                `;
+
+                listDiv.appendChild(item);
+
+            });
+
+        }
+
+
+
+        updateShootoutCount();
+
+        document.getElementById('shootout-modal').style.display = 'flex';
+
+    }
+
+
+
+    function closeVariantShootoutModal() {
+
+        document.getElementById('shootout-modal').style.display = 'none';
+
+    }
+
+
+
+    function updateShootoutCount() {
+
+        const chks = document.querySelectorAll('.shootout-chk:checked');
+
+        const countSpan = document.getElementById('shootout-selected-count');
+
+        if (countSpan) {
+
+            countSpan.textContent = chks.length;
+
+            countSpan.style.color = chks.length > 4 ? '#ef4444' : '#dfba73';
+
+        }
+
+    }
+
+
+
+    async function runVariantShootout() {
+
+        const chks = document.querySelectorAll('.shootout-chk:checked');
+
+        if (chks.length < 2) {
+
+            alert('Пожалуйста, выберите минимум 2 варианта (до 4) для сравнительного отбора!');
+
+            return;
+
+        }
+
+        if (chks.length > 4) {
+
+            alert('Пожалуйста, выберите не более 4 вариантов одновременно!');
+
+            return;
+
+        }
+
+
+
+        const selectedPaths = Array.from(chks).map(c => c.value);
+
+        closeVariantShootoutModal();
+
+
+
+        const banner = document.getElementById('thinking-banner');
+
+        const thinkingText = document.getElementById('thinking-text');
+
+        thinkingText.textContent = `Элина (Gemini 4 Argon) проводит сравнительный аудит ${selectedPaths.length} вариантов первого кадра...`;
+
+        banner.style.display = 'flex';
+
+
+
+        try {
+
+            const resp = await fetch('/api/boardroom/compare_variants', {
+
+                method: 'POST',
+
+                headers: { 'Content-Type': 'application/json' },
+
+                body: JSON.stringify({ media_paths: selectedPaths })
+
+            });
+
+            const res = await resp.json();
+
+            banner.style.display = 'none';
+
+
+
+            if (res.status === 'success') {
+
+                const m = res.message;
+
+                appendMessage(m.sender, m.name, m.role, m.avatar, m.color, m.text);
+
+
+
+                // ✦ АВТОМАТИЧЕСКИЙ ВЫВОД В LOOKDEV STAGE
+
+                if (res.winner_path) {
+
+                    currentWinnerPath = res.winner_path;
+
+                    currentWinnerName = res.winner_name;
+
+
+
+                    const stagePlaceholder = document.getElementById('stage-placeholder');
+
+                    const stageVideo = document.getElementById('stage-video');
+
+                    const stageImage = document.getElementById('stage-image');
+
+
+
+                    stagePlaceholder.style.display = 'none';
+
+                    stageVideo.style.display = 'none';
+
+                    stageVideo.pause();
+
+                    stageImage.style.display = 'block';
+
+                    stageImage.src = '/media_stream?path=' + encodeURIComponent(res.winner_path);
+
+
+
+                    await refreshMediaList(res.winner_path);
+
+
+
+                    const winBanner = document.getElementById('winner-banner');
+
+                    const winName = document.getElementById('winner-banner-name');
+
+                    if (winBanner && winName) {
+
+                        winName.textContent = res.winner_name;
+
+                        winBanner.style.display = 'flex';
+
+                    }
+
+                }
+
+            } else {
+
+                alert('Ошибка отбора: ' + res.detail);
+
+            }
+
+        } catch (e) {
+
+            banner.style.display = 'none';
+
+            alert('Сбой: ' + e);
+
+        }
+
+    }
+
+
+
+    // =========================================================
+
+    // QA, SHIELD & MEMO
+
+    // =========================================================
+
+    async function runVisualQA() {
+
+        const sel = document.getElementById('media-selector');
+
+        const mediaPath = sel.value;
+
+        if (!mediaPath) {
+
+            alert('Сначала выберите медиа-файл в верхнем селекторе LookDev Stage!');
+
+            return;
+
+        }
+
+
+
+        const banner = document.getElementById('thinking-banner');
+
+        const thinkingText = document.getElementById('thinking-text');
+
+        thinkingText.textContent = 'Элина (Gemini 4 Argon) инспектирует шот в 4K разрешении...';
+
+        banner.style.display = 'flex';
+
+
+
+        try {
+
+            const resp = await fetch('/api/boardroom/visual_qa', {
+
+                method: 'POST',
+
+                headers: { 'Content-Type': 'application/json' },
+
+                body: JSON.stringify({ media_path: mediaPath })
+
+            });
+
+            const res = await resp.json();
+
+            banner.style.display = 'none';
+
+
+
+            if (res.status === 'success') {
+
+                const m = res.message;
+
+                appendMessage(m.sender, m.name, m.role, m.avatar, m.color, m.text);
+
+            } else {
+
+                alert('Ошибка инспекции: ' + res.detail);
+
+            }
+
+        } catch (e) {
+
+            banner.style.display = 'none';
+
+            alert('Сбой связи: ' + e);
+
+        }
+
+    }
+
+
+
+    async function runShieldAction() {
+
+        const sel = document.getElementById('media-selector');
+
+        const mediaPath = sel.value;
+
+        if (!mediaPath) {
+
+            alert('Выберите медиа-файл в LookDev Stage для наложения щита!');
+
+            return;
+
+        }
+
+
+
+        const yOffset = parseFloat(document.getElementById('shield-y').value) / 100.0;
+
+        const scale = parseFloat(document.getElementById('shield-scale').value) / 100.0;
+
+        const spec = parseFloat(document.getElementById('shield-blend').value);
+
+        const sourceMode = document.getElementById('shield-source-mode').value;
+
+
+
+        const banner = document.getElementById('thinking-banner');
+
+        const thinkingText = document.getElementById('thinking-text');
+
+        thinkingText.textContent = 'Адриан накладывает векторный Identity Shield™ через оптический трекинг...';
+
+        banner.style.display = 'flex';
+
+
+
+        try {
+
+            const resp = await fetch('/api/boardroom/run_shield', {
+
+                method: 'POST',
+
+                headers: { 'Content-Type': 'application/json' },
+
+                body: JSON.stringify({
+
+                    input_path: mediaPath,
+
+                    source_mode: sourceMode,
+
+                    y_offset_ratio: yOffset,
+
+                    scale_ratio: scale,
+
+                    specular_weight: spec
+
+                })
+
+            });
+
+            const res = await resp.json();
+
+            banner.style.display = 'none';
+
+
+
+            if (res.status === 'success') {
+
+                alert('✅ ' + res.message);
+
+                await refreshMediaList(res.output_path);
+
+            } else {
+
+                alert('Ошибка наложения: ' + res.detail);
+
+            }
+
+        } catch (e) {
+
+            banner.style.display = 'none';
+
+            alert('Сбой: ' + e);
+
+        }
+
+    }
+
+
+
+    async function extractLabelFromCurrentStage() {
+
+        const sel = document.getElementById('media-selector');
+
+        const mediaPath = sel.value;
+
+        if (!mediaPath) {
+
+            alert('Выберите фото флакона в селекторе LookDev Stage!');
+
+            return;
+
+        }
+
+
+
+        const banner = document.getElementById('thinking-banner');
+
+        const thinkingText = document.getElementById('thinking-text');
+
+        thinkingText.textContent = 'Извлечение чистой альфа-этикетки через высокоточную сегментацию...';
+
+        banner.style.display = 'flex';
+
+
+
+        try {
+
+            const resp = await fetch('/api/boardroom/extract_label', {
+
+                method: 'POST',
+
+                headers: { 'Content-Type': 'application/json' },
+
+                body: JSON.stringify({ input_path: mediaPath })
+
+            });
+
+            const res = await resp.json();
+
+            banner.style.display = 'none';
+
+
+
+            if (res.status === 'success') {
+
+                alert('✅ Этикетка успешно извлечена: ' + res.reference_packshot_name);
+
+                document.getElementById('active-label-text').textContent = '✅ Активна: ' + res.reference_packshot_name;
+
+            } else {
+
+                alert('Ошибка извлечения: ' + res.detail);
+
+            }
+
+        } catch (e) {
+
+            banner.style.display = 'none';
+
+            alert('Сбой: ' + e);
+
+        }
+
+    }
+
+
+
+    function toggleShieldSourceMode() {
+
+        const mode = document.getElementById('shield-source-mode').value;
+
+        const blk = document.getElementById('shield-extracted-block');
+
+        if (blk) blk.style.display = mode === 'extracted' ? 'block' : 'none';
+
+    }
+
+
+
+    async function exportCouncilMemo() {
+
+        try {
+
+            const resp = await fetch('/api/boardroom/export_memo', { method: 'POST' });
+
+            const data = await resp.json();
+
+            if (data.status === 'success') {
+
+                alert('✅ Протокол заседания Совета успешно сформирован:
+
+' + data.filename);
+
+            } else {
+
+                alert('Ошибка формирования протокола: ' + data.detail);
+
+            }
+
+        } catch (e) {
+
+            alert('Сбой: ' + e);
+
+        }
+
+    }
+
+
+
+    // Media upload logic
+
+    function handleFileInputChange(input) {
+
+        if (!input.files || input.files.length === 0) return;
+
+        uploadFilesQueue(Array.from(input.files));
+
+    }
+
+
+
+    async function uploadFilesQueue(files) {
+
+        const overlay = document.getElementById('upload-overlay');
+
+        const bar = document.getElementById('upload-progress-bar');
+
+        const status = document.getElementById('upload-status');
+
+        const title = document.getElementById('upload-title');
+
+
+
+        overlay.style.display = 'flex';
+
+        let lastUploadedPath = null;
+
+
+
+        for (let i = 0; i < files.length; i++) {
+
+            const file = files[i];
+
+            title.textContent = `Загрузка в LookDev [${i + 1}/${files.length}]: ${file.name}`;
+
+            try {
+
+                const res = await uploadMediaFileAsync(file, (pct, loaded, total) => {
+
+                    bar.style.width = pct + '%';
+
+                    status.textContent = `${pct}% (${(loaded / 1024 / 1024).toFixed(1)} MB / ${(total / 1024 / 1024).toFixed(1)} MB)`;
+
+                });
+
+                if (res && res.path) lastUploadedPath = res.path;
+
+            } catch (e) {
+
+                alert(`Ошибка загрузки ${file.name}: ${e}`);
+
+            }
+
+        }
+
+
+
+        overlay.style.display = 'none';
+
+        if (lastUploadedPath) {
+
+            await refreshMediaList(lastUploadedPath);
+
+        }
+
+    }
+
+
+
+    function uploadMediaFileAsync(file, progressCb) {
+
+        return new Promise((resolve, reject) => {
+
+            const xhr = new XMLHttpRequest();
+
+            xhr.open('POST', '/api/boardroom/upload');
+
+            xhr.upload.onprogress = function(e) {
+
+                if (e.lengthComputable && progressCb) {
+
+                    const pct = Math.round((e.loaded / e.total) * 100);
+
+                    progressCb(pct, e.loaded, e.total);
+
+                }
+
+            };
+
+            xhr.onload = function() {
+
+                if (xhr.status === 200) {
+
+                    try { resolve(JSON.parse(xhr.responseText)); } catch(e) { reject(e); }
+
+                } else {
+
+                    reject('HTTP ' + xhr.status);
+
+                }
+
+            };
+
+            xhr.onerror = function() { reject('Сбой сети при загрузке'); };
+
+            const fd = new FormData();
+
+            fd.append('file', file);
+
+            fd.append('campaign', 'заказ/выбрано/3');
+
+            xhr.send(fd);
+
+        });
+
+    }
+
+
+
+    async function refreshMediaList(selectedPathToSet) {
+
+        try {
+
+            const resp = await fetch('/api/boardroom/media');
+
+            const data = await resp.json();
+
+            const sel = document.getElementById('media-selector');
+
+            const prevVal = sel.value;
+
+
+
+            sel.innerHTML = '<option value="">-- Выберите медиа-актив для инспекции --</option>';
+
+            data.media.forEach(m => {
+
+                const opt = document.createElement('option');
+
+                opt.value = m.path;
+
+                opt.setAttribute('data-type', m.type);
+
+                opt.textContent = `${m.name} (${m.size_mb} MB)`;
+
+                sel.appendChild(opt);
+
+            });
+
+
+
+            if (selectedPathToSet) {
+
+                sel.value = selectedPathToSet;
+
+                loadSelectedMedia();
+
+            } else if (prevVal) {
+
+                sel.value = prevVal;
+
+            }
+
+        } catch (e) {
+
+            console.error('Ошибка обновления медиа:', e);
+
+        }
+
+    }
+
+
+
+    // Initialize layout on ready
+
+    document.addEventListener('DOMContentLoaded', initLayout);
+
+</script>
+
+{% endblock %}
+
