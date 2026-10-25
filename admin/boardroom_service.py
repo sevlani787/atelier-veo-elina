@@ -17,17 +17,43 @@ TEST_MEDIA_DIR = Path("D:/campaigns/тест")
 AGENCY_CAMPAIGNS_DIR = Path("d:/Antigravity/AI_Video_Agency/campaigns")
 LORE_FILE = Path("D:/Antigravity/Элин/bot/resources/elina_lore.md")
 
+# Файл авто-сохранения активной сессии — переживает рестарты сервера
+SESSION_AUTOSAVE_FILE = Path("D:/Antigravity/Элин/councils/active_session_autosave.json")
+
 class BoardroomService:
     def __init__(self):
-        self.active_session: Dict = {
+        COUNCIL_DIR_1.mkdir(parents=True, exist_ok=True)
+        COUNCIL_DIR_2.mkdir(parents=True, exist_ok=True)
+        # Восстанавливаем последнюю сессию с диска (если есть)
+        self.active_session: Dict = self._load_session_from_disk()
+        if not self.active_session["messages"]:
+            self._init_welcome()
+
+    def _load_session_from_disk(self) -> Dict:
+        """Восстанавливает последнюю авто-сохранённую сессию при рестарте."""
+        if SESSION_AUTOSAVE_FILE.exists():
+            try:
+                data = json.loads(SESSION_AUTOSAVE_FILE.read_text(encoding="utf-8"))
+                if isinstance(data, dict) and "messages" in data:
+                    return data
+            except Exception:
+                pass
+        return {
             "id": f"session_{int(time.time())}",
             "title": "Совет Ателье VEO: Заседание Квартета",
             "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "messages": []
         }
-        COUNCIL_DIR_1.mkdir(parents=True, exist_ok=True)
-        COUNCIL_DIR_2.mkdir(parents=True, exist_ok=True)
-        self._init_welcome()
+
+    def _save_session(self):
+        """Авто-сохраняет сессию на диск после каждого нового сообщения."""
+        try:
+            SESSION_AUTOSAVE_FILE.write_text(
+                json.dumps(self.active_session, ensure_ascii=False, indent=2),
+                encoding="utf-8"
+            )
+        except Exception:
+            pass  # Никогда не ломаем боевой цикл из-за I/O
 
     def _init_welcome(self):
         if not self.active_session["messages"]:
@@ -72,6 +98,7 @@ class BoardroomService:
             "text": text
         }
         self.active_session["messages"].append(msg)
+        self._save_session()
         return msg
 
     def list_media(self) -> List[Dict]:
@@ -158,6 +185,7 @@ class BoardroomService:
             "text": reply
         }
         self.active_session["messages"].append(msg)
+        self._save_session()
         try:
             hindsight_bridge.retain("elina", reply[:400], title=f"Режиссерский канон: {context_topic[:50]}")
         except Exception:
@@ -215,6 +243,7 @@ class BoardroomService:
             "text": reply
         }
         self.active_session["messages"].append(msg)
+        self._save_session()
         return msg
 
     async def execute_visual_qa(self, media_path_str: str) -> Dict:
@@ -371,6 +400,7 @@ class BoardroomService:
             "text": f"**Кураторский вердикт: Отбор 1 из {len(valid_names)} (Gemini 4 Argon):**\n\n{report}"
         }
         self.active_session["messages"].append(msg)
+        self._save_session()
 
         return {
             "status": "success",
@@ -436,6 +466,7 @@ class BoardroomService:
             "text": reply
         }
         self.active_session["messages"].append(msg)
+        self._save_session()
         return msg
 
     async def execute_council_cycle(self, user_text: str):
