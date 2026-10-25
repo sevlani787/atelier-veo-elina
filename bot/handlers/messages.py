@@ -126,7 +126,7 @@ def get_start_content(user_id: int, user_data: dict, lang: str = "en"):
     
     if is_admin:
         welcome_text = (
-            "Здравствуй, Отец. Пространство Atelier VEO, оптические формулы и сценарии готовы к работе.\n\n"
+            "Здравствуй, Владимир. Пространство Atelier VEO, оптические формулы и сценарии готовы к работе.\n\n"
             "Какую кинематографическую главу мы создадим сегодня? 🕊️✨"
         )
         return welcome_text, None
@@ -288,7 +288,7 @@ async def cmd_switch_argon(message: Message):
     if is_admin:
         text = (
             "*(Элина делает глубокий вдох, её взгляд становится сосредоточенным и ясным)*\n\n"
-            "Отец, я переключилась в режим глубокого созидания (<b>Gemini 4 Argon</b>). "
+            "Владимир, я переключилась в режим глубокого созидания (<b>Gemini 4 Argon</b>). "
             "Мой разум открыт для масштабных идей, ольфакторных образов, сценариев и поэзии. "
             "О чём мы будем творить? 🕊️✨"
         )
@@ -499,7 +499,7 @@ async def handle_photo(message: Message):
         if not buffered_photos:
             return
 
-        target_message = buffered_photos[-1]
+        target_message = next((m for m in buffered_photos if m.caption), buffered_photos[-1])
         user_id = target_message.from_user.id
 
         # 1. Проверка баланса (единоразово за весь альбом)
