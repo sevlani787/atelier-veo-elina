@@ -539,24 +539,29 @@ class CouncilSendRequest(BaseModel):
 
 
 class ShieldRunRequest(BaseModel):
-
     media_path: str
-
-    logo_text: str = "SHIKŨMO"
-
+    logo_text: str = "SHIKŪMO"
     label_image: Optional[str] = None
-
     reference_with_label: Optional[str] = None
-
     y_offset: Optional[float] = None
-
+    x_offset: Optional[float] = None
     scale: float = 1.0
-
+    angle: float = 0.0
+    defringe_bottom: int = 0
+    geometry: str = "spherical"
     curvature: float = 0.25
-
     specular: float = 0.75
 
-
+class ShieldPreviewRequest(BaseModel):
+    media_path: str
+    label_image: Optional[str] = None
+    y_offset: float = 0.48
+    x_offset: float = 0.50
+    scale: float = 1.0
+    angle: float = 0.0
+    defringe_bottom: int = 2
+    specular: float = 0.75
+    geometry: str = "spherical"
 
 class ExtractLabelRequest(BaseModel):
 
@@ -637,6 +642,44 @@ async def boardroom_media(username: str = Depends(get_current_username)):
     return JSONResponse(content={"status": "success", "media": items})
 
 
+
+@app.post("/api/boardroom/preview_shield")
+async def boardroom_preview_shield(payload: ShieldPreviewRequest, username: str = Depends(get_current_username)):
+    """Сверхбыстрый рендер предпросмотра наложения этикетки (<0.5 сек) для интерактивных ползунков"""
+    media_path = Path(payload.media_path)
+    if not media_path.exists():
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    
+    shield_script = Path("d:/Antigravity/AI_Video_Agency/scripts/identity_shield.py")
+    preview_output = Path("D:/campaigns/fast_shield_preview.png")
+    
+    cmd = [
+        "python", str(shield_script),
+        "--input", str(media_path),
+        "--output", str(preview_output),
+        "--y-offset", str(payload.y_offset),
+        "--x-offset", str(payload.x_offset),
+        "--scale", str(payload.scale),
+        "--angle", str(payload.angle),
+        "--defringe-bottom", str(payload.defringe_bottom),
+        "--specular", str(payload.specular),
+        "--geometry", payload.geometry
+    ]
+    if payload.label_image and Path(payload.label_image).exists():
+        cmd.extend(["--label-image", str(payload.label_image)])
+    
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+        if proc.returncode == 0 and preview_output.exists():
+            import time
+            return JSONResponse(content={
+                "status": "success",
+                "preview_url": f"/media_stream?path={str(preview_output)}&t={int(time.time()*1000)}"
+            })
+        else:
+            return JSONResponse(content={"status": "error", "detail": proc.stderr or proc.stdout})
+    except Exception as e:
+        return JSONResponse(content={"status": "error", "detail": str(e)})
 
 @app.post("/api/boardroom/run_shield")
 
