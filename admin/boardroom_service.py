@@ -60,7 +60,7 @@ class BoardroomService:
             self.active_session["messages"].append({
                 "sender": "kai",
                 "name": "Кай",
-                "role": "Guardian of Elina & Lore Sentinel",
+                "role": "Хранитель Канона и Архитектуры",
                 "avatar": "🛡️",
                 "color": "#10b981",
                 "time": datetime.datetime.now().strftime("%H:%M"),
@@ -98,7 +98,7 @@ class BoardroomService:
         msg = {
             "sender": "vladimir",
             "name": "Владимир Семенов",
-            "role": "Founder & Executive Producer",
+            "role": "Основатель & Генеральный Продюсер",
             "avatar": "👑",
             "color": "#c5a059",
             "time": datetime.datetime.now().strftime("%H:%M"),
@@ -220,7 +220,7 @@ class BoardroomService:
         msg = {
             "sender": "elina",
             "name": "Элина",
-            "role": "Creative Director & Muse",
+            "role": "Главный Режиссёр & Муза",
             "avatar": "🏛️",
             "color": "#dfba73",
             "time": datetime.datetime.now().strftime("%H:%M"),
@@ -278,7 +278,7 @@ class BoardroomService:
         msg = {
             "sender": "adrian",
             "name": "Адриан",
-            "role": "Chief Architect & CTO",
+            "role": "Главный Архитектор & CTO",
             "avatar": "⚙️",
             "color": "#38bdf8",
             "time": datetime.datetime.now().strftime("%H:%M"),
@@ -359,7 +359,7 @@ class BoardroomService:
         qa_msg = {
             "sender": "elina",
             "name": "Элина (ОТК Visual QA)",
-            "role": "Head of Visual Quality Control",
+            "role": "Глава ОТК & Визуальный Арбитр",
             "avatar": "🔍",
             "color": "#10b981",
             "time": datetime.datetime.now().strftime("%H:%M"),
@@ -462,7 +462,7 @@ class BoardroomService:
         msg = {
             "sender": "elina",
             "name": "Элина (Кураторский отбор Start Frame)",
-            "role": "Supreme Director & Visual Arbiter",
+            "role": "Главный Режиссёр & ОТК",
             "avatar": "🏆",
             "color": "#dfba73",
             "time": datetime.datetime.now().strftime("%H:%M"),
@@ -534,7 +534,7 @@ class BoardroomService:
         msg = {
             "sender": "kai",
             "name": "Кай",
-            "role": "Guardian of Elina & Lore Sentinel",
+            "role": "Хранитель Канона и Архитектуры",
             "avatar": "🛡️",
             "color": "#10b981",
             "time": datetime.datetime.now().strftime("%H:%M"),
