@@ -28,6 +28,11 @@ user_buffers: dict[int, list[Message]] = {}
 user_buffering_active: dict[int, bool] = {}
 user_locks: dict[int, asyncio.Lock] = {}
 
+# Буферы и блокировки для склейки медиагрупп/альбомов фотографий (Shootout 1 из N)
+photo_buffers: dict[str, list[Message]] = {}
+photo_buffering_active: dict[str, bool] = {}
+photo_locks: dict[str, asyncio.Lock] = {}
+
 
 async def send_out_of_credits_message(message: Message, sub_type: str = "free"):
     """Служебное уведомление об исчерпании кредитов (Элина никогда не говорит о деньгах)."""
@@ -452,81 +457,208 @@ async def cmd_grant(message: Message):
 
 @router.message(F.photo)
 async def handle_photo(message: Message):
-    """Обработка фотографий через Vision API."""
+    """
+    Обработка фотографий через Vision API.
+    Поддерживает как одиночные фото, так и медиагруппы (альбомы из 2-4+ изображений).
+    При отправке серии изображений склеивает их в единый запрос и проводит
+    сравнительный кураторский отбор (Shootout 1 из N) с выбором Кадра-Победителя.
+    """
     user_id = message.from_user.id
-    photo = message.photo[-1]
+    group_key = f"mg_{message.media_group_id}" if message.media_group_id else f"user_{user_id}"
+    lock = photo_locks.setdefault(group_key, asyncio.Lock())
 
-    # 1. Проверка баланса на услугу Video QA (25 кредитов)
-    cost = await config.get_token_cost(action='qa')
-    user_data = await check_user_and_balance(user_id, message, cost=cost)
-    if not user_data:
+    if group_key not in photo_buffers:
+        photo_buffers[group_key] = []
+    photo_buffers[group_key].append(message)
+
+    if photo_buffering_active.get(group_key, False):
         return
 
-    try:
-        await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
+    async with lock:
+        if not photo_buffers.get(group_key):
+            return
 
-        # Скачиваем файл через Telegram Bot API или считываем напрямую с диска
-        file = await message.bot.get_file(photo.file_id)
-        if file.file_path and os.path.exists(file.file_path):
-            with open(file.file_path, "rb") as f:
-                image_base64 = base64.b64encode(f.read()).decode('utf-8')
-        else:
-            buffer = io.BytesIO()
-            await message.bot.download_file(file.file_path, buffer)
-            buffer.seek(0)
-            image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+        photo_buffering_active[group_key] = True
+        try:
+            try:
+                await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
+            except Exception:
+                pass
 
-        # Формируем Vision-контент с эстетическими инструкциями
-        vision_instruction = (
-            "Анализируй это изображение через призму философии 'Quiet Luxury' и эстетики Japandi. "
-            "Если тебя просят оценить стиль, интерьер или одежду, давай мягкие, тактичные и глубокие советы: "
-            "предлагай избавляться от визуального шума, отдавать предпочтение натуральным текстурам (лен, дерево, шерсть, шелк, глина), "
-            "спокойным гармоничным силуэтам и мягким приглушенным оттенкам (кремовый, бежевый, песочный, изумрудный, серый).\n\n"
-        )
-        caption = message.caption or 'Что скажешь об этом?'
-        vision_content = [
-            {'type': 'text', 'text': f"{vision_instruction}Запрос собеседника: {caption}"},
-            {
-                'type': 'image_url',
-                'image_url': {
-                    'url': f'data:image/jpeg;base64,{image_base64}'
-                }
-            }
-        ]
+            # Ожидаем склейки всех фото из альбома (обычно приходят с интервалом 0.1-0.6 сек)
+            while True:
+                count_before = len(photo_buffers[group_key])
+                await asyncio.sleep(1.2)
+                count_after = len(photo_buffers[group_key])
+                if count_after == count_before:
+                    break
+        finally:
+            photo_buffering_active[group_key] = False
 
-        # Сохраняем в историю
-        await memory.add_message(user_id, 'user', vision_content)
+        buffered_photos = photo_buffers.pop(group_key, [])
+        if not buffered_photos:
+            return
 
-        # Получаем контекст и генерируем ответ
-        history = await memory.get_context_for_llm(user_id)
-        user_profile = await memory.get_user_profile(user_id)
-        elin_persona = await memory.get_elin_persona_text()
-        lore_context = await memory.get_world_context(caption)
-        is_admin = (user_id == config.admin_id)
-        override_model = await db.get_setting(f"user_model_{user_id}", "google/gemini-4-argon") if (is_admin or user_data.get('sub_type') == 'premium') else None
+        target_message = buffered_photos[-1]
+        user_id = target_message.from_user.id
 
-        response = await llm.generate(history, user_profile, elin_persona, lore_context, is_admin=is_admin, override_model=override_model)
+        # 1. Проверка баланса (единоразово за весь альбом)
+        cost = await config.get_token_cost(action='qa')
+        user_data = await check_user_and_balance(user_id, target_message, cost=cost)
+        if not user_data:
+            return
 
-        # Списание кредитов (1 кредит за анализ фото)
-        cost = await config.get_token_cost(action='msg')
-        await db.spend_tokens(user_id, cost)
+        try:
+            await target_message.bot.send_chat_action(chat_id=target_message.chat.id, action="typing")
+            is_admin = (user_id == config.admin_id)
 
-        # Сохраняем ответ
-        await memory.add_message(user_id, 'assistant', response)
-        
-        new_balance = (await db.get_user_data(user_id))['tokens']
-        balance_info = f"\n\n<i>✦ Atelier Credits: {new_balance}</i>" if (user_data.get('sub_type') != 'admin' and user_id != config.admin_id) else ""
-        
-        await send_long_message(message, response + balance_info, parse_mode="HTML")
+            # Извлекаем подпись из альбома (Telegram часто крепит caption только к первому/последнему кадру)
+            caption = next((m.caption for m in buffered_photos if m.caption), "").strip()
 
-        # Фоново извлекаем факты + черты (только каждое 5-е сообщение для экономии)
-        user_message_counters[user_id] = user_message_counters.get(user_id, 0) + 1
-        if user_message_counters[user_id] % 5 == 1: # Запускаем на 1-м, 6-м, 11-м...
-            asyncio.create_task(extract_and_save_all_task(user_id))
+            if len(buffered_photos) >= 2:
+                # ==============================================================
+                # РЕЖИМ СРАВНИТЕЛЬНОГО ОТБОРА (SHOOTOUT 1 ИЗ N)
+                # ==============================================================
+                shootout_intro = (
+                    f"Ты — Элина, Главный Режиссер, Верховный Архитектор Промптов и Глава ОТК Atelier VEO.\n"
+                    f"Ты работаешь на флагманской мультимодальной нейросети Gemini 4 Argon.\n\n"
+                    f"Владимир (или резидент студии) прислал серию из {len(buffered_photos)} сгенерированных вариантов первого кадра (Start Frame 2K / раскадровка).\n"
+                    f"Твоя режиссерская задача — провести сравнительный кураторский аудит и выбрать ОДИН безоговорочно лучший кадр (Кадр-Победитель) для финального использования и оживления в Google Flow.\n\n"
+                    f"Критерии оценки:\n"
+                    f"1. Оптика и геометрия флакона/объекта (чистота граней, отсутствие мыла, физика толстого стекла, правильная форма).\n"
+                    f"2. Инвариант чистоты (The Clean Flacon Invariant — отсутствие паразитных букв, клякс и мутных пятен под впекание Identity Shield).\n"
+                    f"3. Физика света и каустики (2700K / 5200K, благородство бликов, прозрачность и плотность жидкости).\n"
+                    f"4. Кинематографическая композиция Quiet Luxury (идеальный старт для движения камеры).\n\n"
+                    f"Формат ответа:\n"
+                    f"• Экспресс-разбор каждого представленного варианта (Вариант №1, Вариант №2, ...): сильные стороны и недочеты.\n"
+                    f"• 🏆 **КАДР-ПОБЕДИТЕЛЬ: [Вариант №X]** — аргументированный вердикт, почему именно он превосходит остальные.\n"
+                    f"• **Режиссерская директива для Google Flow:** на чем акцентировать движение камеры при оживлении этого кадра.\n\n"
+                    f"Комментарий к заказу: {caption or 'Выбери самый качественный кадр-победитель для запуска в продакшн.'}"
+                )
 
-    except Exception as e:
-        await message.answer('Знаешь, иногда мне сложно уловить суть образа... Попробуй, пожалуйста, отправить фото ещё раз.')
-        print(f'Vision Error: {e}')
+                vision_content = [{"type": "text", "text": shootout_intro}]
+
+                for idx, msg in enumerate(buffered_photos, start=1):
+                    ph = msg.photo[-1]
+                    file = await msg.bot.get_file(ph.file_id)
+                    if file.file_path and os.path.exists(file.file_path):
+                        with open(file.file_path, "rb") as f:
+                            img_b64 = base64.b64encode(f.read()).decode("utf-8")
+                    else:
+                        buffer = io.BytesIO()
+                        await msg.bot.download_file(file.file_path, buffer)
+                        buffer.seek(0)
+                        img_b64 = base64.b64encode(buffer.read()).decode("utf-8")
+
+                    vision_content.append({"type": "text", "text": f"--- ВАРИАНТ №{idx} ---"})
+                    vision_content.append({
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}
+                    })
+
+                # Сохраняем объединенный контент в историю
+                await memory.add_message(user_id, "user", vision_content)
+
+                history = await memory.get_context_for_llm(user_id)
+                user_profile = await memory.get_user_profile(user_id)
+                elin_persona = await memory.get_elin_persona_text()
+                lore_context = await memory.get_world_context(caption)
+
+                if is_admin:
+                    hindsight_mem = hindsight_bridge.recall(f"shootout selection 1 of 4 start frame {caption}", limit=3)
+                    lore_context = (lore_context or "") + (
+                        f"\n\n[HINDSIGHT STUDIO MEMORY - EXCLUSIVE FOR VLADIMIR]:\n{hindsight_mem}\n"
+                    )
+
+                override_model = await db.get_setting(f"user_model_{user_id}", "google/gemini-4-argon") if (is_admin or user_data.get('sub_type') == 'premium') else "google/gemini-4-argon"
+
+                response = await llm.generate(
+                    messages=history,
+                    user_profile=user_profile,
+                    elin_persona=elin_persona,
+                    lore_context=lore_context,
+                    is_admin=is_admin,
+                    override_model=override_model
+                )
+
+                if is_admin:
+                    try:
+                        hindsight_bridge.retain("vladimir", f"Кураторский отбор {len(buffered_photos)} вариантов: {caption}. Вердикт: {response[:150]}")
+                    except Exception:
+                        pass
+
+            else:
+                # ==============================================================
+                # РЕЖИМ ОДИНОЧНОГО ИЗОБРАЖЕНИЯ (ЭСТЕТИЧЕСКИЙ АУДИТ)
+                # ==============================================================
+                single_msg = buffered_photos[0]
+                ph = single_msg.photo[-1]
+                file = await single_msg.bot.get_file(ph.file_id)
+                if file.file_path and os.path.exists(file.file_path):
+                    with open(file.file_path, "rb") as f:
+                        image_base64 = base64.b64encode(f.read()).decode("utf-8")
+                else:
+                    buffer = io.BytesIO()
+                    await single_msg.bot.download_file(file.file_path, buffer)
+                    buffer.seek(0)
+                    image_base64 = base64.b64encode(buffer.read()).decode("utf-8")
+
+                vision_instruction = (
+                    "Анализируй это изображение через призму философии 'Quiet Luxury' и эстетики Japandi. "
+                    "Если тебя просят оценить стиль, интерьер или одежду, давай мягкие, тактичные и глубокие советы: "
+                    "предлагай избавляться от визуального шума, отдавать предпочтение натуральным текстурам (лен, дерево, шерсть, шелк, глина), "
+                    "спокойным гармоничным силуэтам и мягким приглушенным оттенкам (кремовый, бежевый, песочный, изумрудный, серый).\n\n"
+                )
+                user_caption = caption or "Что скажешь об этом?"
+                vision_content = [
+                    {"type": "text", "text": f"{vision_instruction}Запрос собеседника: {user_caption}"},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                ]
+
+                await memory.add_message(user_id, "user", vision_content)
+
+                history = await memory.get_context_for_llm(user_id)
+                user_profile = await memory.get_user_profile(user_id)
+                elin_persona = await memory.get_elin_persona_text()
+                lore_context = await memory.get_world_context(user_caption)
+
+                if is_admin:
+                    hindsight_mem = hindsight_bridge.recall(user_caption, limit=3)
+                    lore_context = (lore_context or "") + (
+                        f"\n\n[HINDSIGHT STUDIO MEMORY - EXCLUSIVE FOR VLADIMIR]:\n{hindsight_mem}\n"
+                    )
+
+                override_model = await db.get_setting(f"user_model_{user_id}", "google/gemini-4-argon") if (is_admin or user_data.get('sub_type') == 'premium') else None
+
+                response = await llm.generate(
+                    messages=history,
+                    user_profile=user_profile,
+                    elin_persona=elin_persona,
+                    lore_context=lore_context,
+                    is_admin=is_admin,
+                    override_model=override_model
+                )
+
+            # Списание кредитов (1 кредит за сообщение)
+            cost_msg = await config.get_token_cost(action='msg')
+            await db.spend_tokens(user_id, cost_msg)
+
+            # Сохраняем ответ в историю
+            await memory.add_message(user_id, "assistant", response)
+
+            new_balance = (await db.get_user_data(user_id))['tokens']
+            balance_info = f"\n\n<i>✦ Atelier Credits: {new_balance}</i>" if (user_data.get('sub_type') != 'admin' and user_id != config.admin_id) else ""
+
+            await send_long_message(target_message, response + balance_info, parse_mode="HTML")
+
+            # Фоново извлекаем факты (каждое 5-е сообщение)
+            user_message_counters[user_id] = user_message_counters.get(user_id, 0) + 1
+            if user_message_counters[user_id] % 5 == 1:
+                asyncio.create_task(extract_and_save_all_task(user_id))
+
+        except Exception as e:
+            await target_message.answer("Знаешь, иногда мне сложно уловить суть образа... Попробуй, пожалуйста, отправить фото ещё раз.")
+            print(f"Vision Error: {e}")
 
 
 def is_video_document(message: Message) -> bool:
