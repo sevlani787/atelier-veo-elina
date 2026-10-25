@@ -467,7 +467,7 @@
                     </option>
                     {% endfor %}
                 </select>
-                <input type="file" id="media-file-input" style="display: none;" onchange="handleFileInputChange(this)" accept="video/*,image/*">
+                <input type="file" id="media-file-input" style="display: none;" onchange="handleFileInputChange(this)" accept="video/*,image/*" multiple>
                 <button class="stage-btn" style="border-color: rgba(197, 160, 89, 0.4); color: var(--primary-light); background: rgba(197, 160, 89, 0.1);" onclick="document.getElementById('media-file-input').click()" title="Загрузить видео или изображение до 2GB+">
                     📁 Загрузить (до 2GB+)
                 </button>
@@ -795,65 +795,99 @@
         }
     }
 
-    // Direct & Drag-and-Drop Media Upload (Supports 2GB+ Videos)
+    // Direct & Drag-and-Drop Media Upload (Supports 2GB+ Videos & Multi-Image LookDev)
     function handleFileInputChange(input) {
-        if (input.files && input.files[0]) {
-            uploadMediaFile(input.files[0]);
+        if (input.files && input.files.length > 0) {
+            const files = Array.from(input.files);
             input.value = '';
+            uploadFilesQueue(files);
         }
     }
 
-    function uploadMediaFile(file) {
-        const overlay = document.getElementById('upload-overlay');
-        const bar = document.getElementById('upload-progress-bar');
-        const status = document.getElementById('upload-status');
-        const title = document.getElementById('upload-title');
+    // Sequential upload queue — uploads files one-by-one, then opens Shootout if multiple images
+    async function uploadFilesQueue(files) {
+        let lastPath = null;
+        const imageFiles = files.filter(f => f.type.startsWith('image/'));
+        const isMultiImageLookDev = imageFiles.length > 1;
 
-        overlay.style.display = 'flex';
-        title.textContent = `Загрузка в LookDev: ${file.name}`;
-        bar.style.width = '0%';
-        status.textContent = 'Инициализация...';
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const label = files.length > 1 ? `[${i + 1}/${files.length}] ` : '';
+            lastPath = await uploadMediaFileAsync(file, label);
+        }
 
-        const formData = new FormData();
-        formData.append('file', file);
+        // After all uploads: refresh list, then auto-open Shootout if multiple images
+        if (isMultiImageLookDev) {
+            await refreshMediaList(null);
+            openVariantShootoutModal();
+        } else if (lastPath) {
+            await refreshMediaList(lastPath);
+        }
+    }
 
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/api/boardroom/upload');
+    // Promise-based upload — returns saved path on success or null on failure
+    function uploadMediaFileAsync(file, progressLabel = '') {
+        return new Promise((resolve) => {
+            const overlay = document.getElementById('upload-overlay');
+            const bar = document.getElementById('upload-progress-bar');
+            const status = document.getElementById('upload-status');
+            const title = document.getElementById('upload-title');
 
-        xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-                const percent = Math.round((e.loaded / e.total) * 100);
-                bar.style.width = percent + '%';
-                const loadedMB = (e.loaded / (1024 * 1024)).toFixed(1);
-                const totalMB = (e.total / (1024 * 1024)).toFixed(1);
-                status.textContent = `${percent}% (${loadedMB} MB / ${totalMB} MB)`;
-            }
-        };
+            overlay.style.display = 'flex';
+            title.textContent = `${progressLabel}Загрузка в LookDev: ${file.name}`;
+            bar.style.width = '0%';
+            status.textContent = 'Инициализация...';
 
-        xhr.onload = async () => {
-            overlay.style.display = 'none';
-            if (xhr.status === 200) {
-                try {
-                    const res = JSON.parse(xhr.responseText);
-                    if (res.status === 'success') {
-                        await refreshMediaList(res.path);
-                    } else {
-                        alert('Ошибка загрузки: ' + (res.detail || 'Неизвестная ошибка'));
-                    }
-                } catch (err) {
-                    alert('Сбой обработки ответа сервера: ' + err);
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/boardroom/upload');
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    bar.style.width = percent + '%';
+                    const loadedMB = (e.loaded / (1024 * 1024)).toFixed(1);
+                    const totalMB = (e.total / (1024 * 1024)).toFixed(1);
+                    status.textContent = `${percent}% (${loadedMB} MB / ${totalMB} MB)`;
                 }
-            } else {
-                alert('Сбой загрузки на сервер: HTTP ' + xhr.status);
-            }
-        };
+            };
 
-        xhr.onerror = () => {
-            overlay.style.display = 'none';
-            alert('Сетевая ошибка при загрузке медиафайла');
-        };
+            xhr.onload = () => {
+                overlay.style.display = 'none';
+                if (xhr.status === 200) {
+                    try {
+                        const res = JSON.parse(xhr.responseText);
+                        if (res.status === 'success') {
+                            resolve(res.path);
+                        } else {
+                            alert('Ошибка загрузки: ' + (res.detail || 'Неизвестная ошибка'));
+                            resolve(null);
+                        }
+                    } catch (err) {
+                        alert('Сбой обработки ответа сервера: ' + err);
+                        resolve(null);
+                    }
+                } else {
+                    alert('Сбой загрузки на сервер: HTTP ' + xhr.status);
+                    resolve(null);
+                }
+            };
 
-        xhr.send(formData);
+            xhr.onerror = () => {
+                overlay.style.display = 'none';
+                alert('Сетевая ошибка при загрузке медиафайла');
+                resolve(null);
+            };
+
+            xhr.send(formData);
+        });
+    }
+
+    // Legacy single-file entry point (kept for backward compatibility)
+    function uploadMediaFile(file) {
+        uploadFilesQueue([file]);
     }
 
     async function refreshMediaList(selectPath) {
@@ -1179,7 +1213,7 @@ MASTER PROMPT STRUCTURE:
             e.preventDefault();
             viewportStage.style.boxShadow = 'none';
             if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                uploadMediaFile(e.dataTransfer.files[0]);
+                uploadFilesQueue(Array.from(e.dataTransfer.files));
             }
         });
     }
