@@ -593,27 +593,21 @@ async def boardroom_page(request: Request, username: str = Depends(get_current_u
 
     media_items = boardroom_service.list_media()
 
-    return templates.TemplateResponse(
-
+    response = templates.TemplateResponse(
         request=request,
-
         name="boardroom.html",
-
         context={
-
             "request": request,
-
             "username": username,
-
             "session": session,
-
             "media_items": media_items,
             "tablet_content": boardroom_service.get_tablet_content(),
-
-
         }
-
     )
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 

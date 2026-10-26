@@ -1077,31 +1077,18 @@
     /* Horological Loupe */
 
     .loupe-lens {
-
-        position: fixed;
-
+        position: fixed !important;
         width: 180px;
-
         height: 180px;
-
         border: 2px solid #dfba73;
-
         border-radius: 50%;
-
-        box-shadow: 0 0 25px rgba(0,0,0,0.9), 0 0 15px rgba(223, 186, 115, 0.4);
-
-        pointer-events: none;
-
+        box-shadow: 0 0 25px rgba(0,0,0,0.95), 0 0 15px rgba(223, 186, 115, 0.5);
+        pointer-events: none !important;
         display: none;
-
-        z-index: 9999;
-
+        z-index: 999999 !important;
         background: #050508;
-
-        transform: translate(-50%, -50%);
-
+        transform: translate(-50%, -50%) !important;
         overflow: hidden;
-
     }
 
 
@@ -3787,113 +3774,85 @@
 
 
     // Horological Loupe x4.0 Canvas Engine
-
     let isLoupeActive = false;
-
     let loupeRAF = null;
+    let lastMouseEvt = null;
 
-
+    function ensureLoupeInBody() {
+        const lens = document.getElementById('loupe-lens');
+        if (lens && lens.parentElement !== document.body) {
+            document.body.appendChild(lens);
+        }
+    }
 
     function toggleLoupe() {
-
+        ensureLoupeInBody();
         isLoupeActive = !isLoupeActive;
-
         const btn = document.getElementById('loupe-btn');
-
         const lens = document.getElementById('loupe-lens');
-
         if (isLoupeActive) {
-
-            btn.style.borderColor = '#dfba73';
-
-            btn.style.background = 'rgba(197, 160, 89, 0.2)';
-
+            if (btn) {
+                btn.style.borderColor = '#dfba73';
+                btn.style.background = 'rgba(197, 160, 89, 0.2)';
+            }
             startLoupeLoop();
-
         } else {
-
-            btn.style.borderColor = '';
-
-            btn.style.background = '';
-
-            lens.style.display = 'none';
-
+            if (btn) {
+                btn.style.borderColor = '';
+                btn.style.background = '';
+            }
+            if (lens) lens.style.display = 'none';
             if (loupeRAF) cancelAnimationFrame(loupeRAF);
-
         }
-
     }
-
-
 
     function startLoupeLoop() {
-
         if (!isLoupeActive) return;
-
         renderLoupeFrame();
-
         loupeRAF = requestAnimationFrame(startLoupeLoop);
-
     }
 
-
-
-        function hideLoupe() {
-        if (!isLoupeActive) return;
+    function hideLoupe() {
         const lens = document.getElementById('loupe-lens');
         if (lens) lens.style.display = 'none';
     }
 
-    let lastMouseEvt = null;
     function handleLoupeMove(e) {
         lastMouseEvt = e;
-        if (!isLoupeActive) return;
-        const lens = document.getElementById('loupe-lens');
-        if (lens) {
-            lens.style.left = e.clientX + 'px';
-            lens.style.top = e.clientY + 'px';
-        }
     }
 
-    // Global cursor tracking across video and controls
-    document.addEventListener('mousemove', (e) => {
+    // Global listener to track mouse seamlessly across video and controls
+    window.addEventListener('mousemove', (e) => {
         if (isLoupeActive) {
             handleLoupeMove(e);
         }
+    }, { passive: true });
+
+    // Also run ensureLoupeInBody on load
+    window.addEventListener('DOMContentLoaded', () => {
+        ensureLoupeInBody();
     });
 
     function renderLoupeFrame() {
-
         if (!isLoupeActive || !lastMouseEvt) return;
-
         const stageVideo = document.getElementById('stage-video');
-
         const stageImage = document.getElementById('stage-image');
-
-        const activeMedia = (stageVideo.style.display !== 'none' && stageVideo.videoWidth > 0) ? stageVideo :
-
-                            (stageImage.style.display !== 'none' && stageImage.naturalWidth > 0) ? stageImage : null;
-
-        if (!activeMedia) return;
-
-
+        const activeMedia = (stageVideo && stageVideo.style.display !== 'none' && stageVideo.videoWidth > 0) ? stageVideo :
+                            (stageImage && stageImage.style.display !== 'none' && stageImage.naturalWidth > 0) ? stageImage : null;
+        if (!activeMedia) {
+            hideLoupe();
+            return;
+        }
 
         const canvas = document.getElementById('loupe-canvas');
-
         if (!canvas) return;
-
         const ctx = canvas.getContext('2d');
-
         const rect = activeMedia.getBoundingClientRect();
 
-
-
         const mouseX = lastMouseEvt.clientX;
-
         const mouseY = lastMouseEvt.clientY;
 
-
-
+        // Check if cursor is strictly within active media bounds
         if (mouseX < rect.left || mouseX > rect.right || mouseY < rect.top || mouseY > rect.bottom) {
             hideLoupe();
             return;
@@ -3907,57 +3866,30 @@
             lens.style.top = mouseY + 'px';
         }
 
-
-
-        const normX = (mouseX - rect.left) / rect.width;
-
-        const normY = (mouseY - rect.top) / rect.height;
-
-
+        const normX = Math.max(0, Math.min(1, (mouseX - rect.left) / rect.width));
+        const normY = Math.max(0, Math.min(1, (mouseY - rect.top) / rect.height));
 
         const mediaWidth = activeMedia.videoWidth || activeMedia.naturalWidth;
-
         const mediaHeight = activeMedia.videoHeight || activeMedia.naturalHeight;
 
-
-
         const mediaX = normX * mediaWidth;
-
         const mediaY = normY * mediaHeight;
 
-
-
         const zoomFactor = 4.0;
-
         const sampleSize = 180 / zoomFactor;
 
-
-
         ctx.clearRect(0, 0, 180, 180);
-
         ctx.imageSmoothingEnabled = true;
-
         ctx.imageSmoothingQuality = 'high';
 
-
-
         ctx.drawImage(
-
             activeMedia,
-
             mediaX - sampleSize / 2, mediaY - sampleSize / 2, sampleSize, sampleSize,
-
             0, 0, 180, 180
-
         );
 
-
-
         drawLoupeReticle(ctx);
-
     }
-
-
 
     function drawLoupeReticle(ctx) {
 
