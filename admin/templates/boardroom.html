@@ -1078,7 +1078,7 @@
 
     .loupe-lens {
 
-        position: absolute;
+        position: fixed;
 
         width: 180px;
 
@@ -1094,7 +1094,7 @@
 
         display: none;
 
-        z-index: 100;
+        z-index: 9999;
 
         background: #050508;
 
@@ -3838,35 +3838,29 @@
 
 
 
-    function hideLoupe() {
-
+        function hideLoupe() {
         if (!isLoupeActive) return;
-
-        document.getElementById('loupe-lens').style.display = 'none';
-
+        const lens = document.getElementById('loupe-lens');
+        if (lens) lens.style.display = 'none';
     }
-
-
 
     let lastMouseEvt = null;
-
     function handleLoupeMove(e) {
-
         lastMouseEvt = e;
-
         if (!isLoupeActive) return;
-
         const lens = document.getElementById('loupe-lens');
-
-        lens.style.display = 'block';
-
-        lens.style.left = e.clientX + 'px';
-
-        lens.style.top = e.clientY + 'px';
-
+        if (lens) {
+            lens.style.left = e.clientX + 'px';
+            lens.style.top = e.clientY + 'px';
+        }
     }
 
-
+    // Global cursor tracking across video and controls
+    document.addEventListener('mousemove', (e) => {
+        if (isLoupeActive) {
+            handleLoupeMove(e);
+        }
+    });
 
     function renderLoupeFrame() {
 
@@ -3901,11 +3895,16 @@
 
 
         if (mouseX < rect.left || mouseX > rect.right || mouseY < rect.top || mouseY > rect.bottom) {
-
             hideLoupe();
-
             return;
+        }
 
+        // Inside media bounds: reveal lens directly under cursor
+        const lens = document.getElementById('loupe-lens');
+        if (lens) {
+            lens.style.display = 'block';
+            lens.style.left = mouseX + 'px';
+            lens.style.top = mouseY + 'px';
         }
 
 
