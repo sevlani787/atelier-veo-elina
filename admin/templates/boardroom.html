@@ -1028,6 +1028,34 @@
 
 
 
+    .stage-viewport:fullscreen {
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        background: #000 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 !important;
+    }
+
+    .stage-viewport:fullscreen #stage-video,
+    .stage-viewport:fullscreen #stage-image {
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        width: auto !important;
+        height: auto !important;
+        object-fit: contain;
+    }
+
+    .stage-viewport:fullscreen .viewport-overlay-bar {
+        top: 1rem;
+        left: 1rem;
+        right: 1rem;
+        z-index: 100;
+    }
+
     #stage-video, #stage-image {
 
         max-width: 100%;
@@ -1844,6 +1872,12 @@
                     <button class="stage-btn" id="btn-ab-compare" onmousedown="showOriginalPlate()" onmouseup="showShieldedPlate()" onclick="toggleABCompare()" title="Удерживайте для просмотра чистого исходника без этикетки">
 
                         ⇄ Сравнить До / После (A/B)
+
+                    </button>
+
+                    <button class="stage-btn" id="btn-stage-fullscreen" onclick="toggleStageFullscreen()" title="Развернуть видео/изображение во весь экран монитора (двойной клик)">
+
+                        ⛶ Во весь экран
 
                     </button>
 
@@ -3773,15 +3807,26 @@
 
 
 
-    // Horological Loupe x4.0 Canvas Engine
+    // Horological Loupe Engine (Dynamic Zoom 1.5x - 12.0x via Mouse Wheel)
     let isLoupeActive = false;
     let loupeRAF = null;
     let lastMouseEvt = null;
+    let currentLoupeZoom = 4.0;
 
     function ensureLoupeInBody() {
         const lens = document.getElementById('loupe-lens');
-        if (lens && lens.parentElement !== document.body) {
-            document.body.appendChild(lens);
+        if (!lens) return;
+        const targetParent = document.fullscreenElement || document.body;
+        if (lens.parentElement !== targetParent) {
+            targetParent.appendChild(lens);
+        }
+    }
+
+    function updateLoupeUI() {
+        const btn = document.getElementById('loupe-btn');
+        if (btn) {
+            btn.innerHTML = `🔍 Часовая лупа x${currentLoupeZoom.toFixed(1)}`;
+            btn.title = `Колесико мыши: зум от 1.5x до 12.0x (текущий: x${currentLoupeZoom.toFixed(1)})`;
         }
     }
 
@@ -3795,12 +3840,14 @@
                 btn.style.borderColor = '#dfba73';
                 btn.style.background = 'rgba(197, 160, 89, 0.2)';
             }
+            updateLoupeUI();
             startLoupeLoop();
         } else {
             if (btn) {
                 btn.style.borderColor = '';
                 btn.style.background = '';
             }
+            updateLoupeUI();
             if (lens) lens.style.display = 'none';
             if (loupeRAF) cancelAnimationFrame(loupeRAF);
         }
@@ -3821,16 +3868,78 @@
         lastMouseEvt = e;
     }
 
-    // Global listener to track mouse seamlessly across video and controls
+    // Global listener to track mouse seamlessly across video, controls and fullscreen
     window.addEventListener('mousemove', (e) => {
         if (isLoupeActive) {
             handleLoupeMove(e);
         }
     }, { passive: true });
 
-    // Also run ensureLoupeInBody on load
+    // Dynamic Zoom on Mouse Wheel (1.5x - 12.0x)
+    window.addEventListener('wheel', (e) => {
+        if (!isLoupeActive) return;
+        const stageVideo = document.getElementById('stage-video');
+        const stageImage = document.getElementById('stage-image');
+        const activeMedia = (stageVideo && stageVideo.style.display !== 'none' && stageVideo.videoWidth > 0) ? stageVideo :
+                            (stageImage && stageImage.style.display !== 'none' && stageImage.naturalWidth > 0) ? stageImage : null;
+        if (!activeMedia) return;
+
+        const rect = activeMedia.getBoundingClientRect();
+        const mouseX = e.clientX;
+        const mouseY = e.clientY;
+
+        // Check if cursor is over active media area
+        if (mouseX >= rect.left && mouseX <= rect.right && mouseY >= rect.top && mouseY <= rect.bottom) {
+            e.preventDefault();
+            if (e.deltaY < 0) {
+                // Scroll UP -> zoom in (+0.5x, max 12.0x)
+                currentLoupeZoom = Math.min(12.0, Math.round((currentLoupeZoom + 0.5) * 10) / 10);
+            } else {
+                // Scroll DOWN -> zoom out (-0.5x, min 1.5x)
+                currentLoupeZoom = Math.max(1.5, Math.round((currentLoupeZoom - 0.5) * 10) / 10);
+            }
+            updateLoupeUI();
+        }
+    }, { passive: false });
+
+    // Fullscreen Toggle for Video / Image Stage
+    function toggleStageFullscreen() {
+        const stage = document.getElementById('viewport-stage');
+        if (!stage) return;
+        if (!document.fullscreenElement) {
+            if (stage.requestFullscreen) {
+                stage.requestFullscreen();
+            } else if (stage.webkitRequestFullscreen) {
+                stage.webkitRequestFullscreen();
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    }
+
+    // Fullscreen change listener to keep loupe lens properly attached
+    document.addEventListener('fullscreenchange', () => {
+        const btn = document.getElementById('btn-stage-fullscreen');
+        if (document.fullscreenElement) {
+            if (btn) btn.innerHTML = '⛶ Обычный экран';
+        } else {
+            if (btn) btn.innerHTML = '⛶ Во весь экран';
+        }
+        ensureLoupeInBody();
+    });
+
+    // Also run ensureLoupeInBody on load & handle double-click
     window.addEventListener('DOMContentLoaded', () => {
         ensureLoupeInBody();
+        const stage = document.getElementById('viewport-stage');
+        if (stage) {
+            stage.addEventListener('dblclick', (e) => {
+                if (e.target.closest('button') || e.target.closest('input')) return;
+                toggleStageFullscreen();
+            });
+        }
     });
 
     function renderLoupeFrame() {
@@ -3875,7 +3984,7 @@
         const mediaX = normX * mediaWidth;
         const mediaY = normY * mediaHeight;
 
-        const zoomFactor = 4.0;
+        const zoomFactor = currentLoupeZoom;
         const sampleSize = 180 / zoomFactor;
 
         ctx.clearRect(0, 0, 180, 180);
@@ -3892,37 +4001,32 @@
     }
 
     function drawLoupeReticle(ctx) {
-
         ctx.save();
-
         ctx.strokeStyle = 'rgba(223, 186, 115, 0.55)';
-
         ctx.lineWidth = 1;
 
-
-
+        // Crosshair with center aperture
         ctx.beginPath();
-
         ctx.moveTo(90, 75); ctx.lineTo(90, 85);
-
         ctx.moveTo(90, 95); ctx.lineTo(90, 105);
-
         ctx.moveTo(75, 90); ctx.lineTo(85, 90);
-
         ctx.moveTo(95, 90); ctx.lineTo(105, 90);
-
         ctx.stroke();
 
+        // Measurement ring
+        ctx.beginPath();
+        ctx.arc(90, 90, 86, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(223, 186, 115, 0.35)';
+        ctx.setLineDash([2, 4]);
+        ctx.stroke();
 
-
-        ctx.font = '9px monospace';
-
+        // Dynamic Zoom HUD text
+        ctx.font = 'bold 9px monospace';
         ctx.fillStyle = '#dfba73';
-
-        ctx.fillText('4.0x ЛУПА', 65, 170);
+        ctx.textAlign = 'center';
+        ctx.fillText(currentLoupeZoom.toFixed(1) + 'x ЛУПА', 90, 168);
 
         ctx.restore();
-
     }
 
 
