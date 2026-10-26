@@ -603,13 +603,36 @@ async def boardroom_page(request: Request, username: str = Depends(get_current_u
 
             "session": session,
 
-            "media_items": media_items
+            "media_items": media_items,
+            "tablet_content": boardroom_service.get_tablet_content(),
+
 
         }
 
     )
 
 
+
+
+class TabletSaveRequest(BaseModel):
+    text: str
+
+@app.get("/api/boardroom/tablet")
+async def boardroom_get_tablet(username: str = Depends(get_current_username)):
+    """Возвращает сохраненный текст режиссерского планшета."""
+    return JSONResponse(content={"text": boardroom_service.get_tablet_content()})
+
+@app.post("/api/boardroom/tablet")
+async def boardroom_save_tablet(payload: TabletSaveRequest, username: str = Depends(get_current_username)):
+    """Надежно сохраняет текст режиссерского планшета на диске сервера."""
+    boardroom_service.save_tablet_content(payload.text)
+    return JSONResponse(content={"status": "success"})
+
+@app.post("/api/boardroom/tablet/clear")
+async def boardroom_clear_tablet(username: str = Depends(get_current_username)):
+    """Очищает режиссерский планшет по кнопке продюсера."""
+    boardroom_service.clear_tablet_content()
+    return JSONResponse(content={"status": "cleared"})
 
 @app.post("/api/boardroom/send")
 

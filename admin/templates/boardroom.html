@@ -1634,7 +1634,11 @@
 
 
 
-                <textarea id="tablet-textarea" class="tablet-editor" oninput="handleTabletInput()" placeholder="Здесь закрепляется режиссерский сценарий, раскадровка и промпты...&#10;&#10;• Нажмите «📌 В планшет» на сообщении в чате&#10;• Или выделите любой фрагмент текста мышкой&#10;• Сохраняется автоматически и не пропадет при перезагрузке"></textarea>
+                <textarea id="tablet-textarea" class="tablet-editor" oninput="handleTabletInput()" placeholder="Здесь закрепляется режиссерский сценарий, раскадровка и промпты...
+
+• Нажмите «📌 В планшет» на сообщении в чате
+• Или выделите любой фрагмент текста мышкой
+• Сохраняется автоматически и не пропадет при перезагрузке">{{ tablet_content or '' }}</textarea>
 
 
 
@@ -2786,6 +2790,7 @@
         if (!textarea) return;
 
         localStorage.setItem(TABLET_STORAGE_KEY, textarea.value);
+        if (typeof saveTabletToServer === 'function') saveTabletToServer(textarea.value);
 
         updateTabletStats();
 
@@ -2844,6 +2849,7 @@
 
 
         localStorage.setItem(TABLET_STORAGE_KEY, textarea.value);
+        if (typeof saveTabletToServer === 'function') saveTabletToServer(textarea.value);
 
         updateTabletStats();
 

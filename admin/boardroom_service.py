@@ -18,6 +18,7 @@ AGENCY_CAMPAIGNS_DIR = Path("d:/Antigravity/AI_Video_Agency/campaigns")
 LORE_FILE = Path("D:/Antigravity/Элин/bot/resources/elina_lore.md")
 
 # Файл авто-сохранения активной сессии — переживает рестарты сервера
+TABLET_FILE = Path("D:/Antigravity/Элин/councils/executive_pad.txt")
 SESSION_AUTOSAVE_FILE = Path("D:/Antigravity/Элин/councils/active_session_autosave.json")
 
 class BoardroomService:
@@ -54,6 +55,29 @@ class BoardroomService:
             )
         except Exception:
             pass  # Никогда не ломаем боевой цикл из-за I/O
+
+    def get_tablet_content(self) -> str:
+        """Возвращает сохраненный текст режиссерского планшета с диска или сессии."""
+        if TABLET_FILE.exists():
+            try:
+                return TABLET_FILE.read_text(encoding="utf-8")
+            except Exception:
+                pass
+        return self.active_session.get("tablet_content", "")
+
+    def save_tablet_content(self, text: str):
+        """Надежно сохраняет текст режиссерского планшета на диск и в сессию."""
+        self.active_session["tablet_content"] = text
+        self._save_session()
+        try:
+            TABLET_FILE.parent.mkdir(parents=True, exist_ok=True)
+            TABLET_FILE.write_text(text, encoding="utf-8")
+        except Exception as e:
+            print("Error saving tablet file:", e)
+
+    def clear_tablet_content(self):
+        """Очищает планшет на диске и в сессии только по явному запросу продюсера."""
+        self.save_tablet_content("")
 
     def _init_welcome(self):
         if not self.active_session["messages"]:
