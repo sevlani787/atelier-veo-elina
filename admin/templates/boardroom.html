@@ -2078,6 +2078,25 @@
 
 
 
+                    
+                    <!-- Активная папка сохранения кампании -->
+                    <div style="background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(197, 160, 89, 0.25); border-radius: 6px; padding: 0.5rem 0.65rem; margin: 0.4rem 0 0.75rem 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                            <span style="font-size: 0.68rem; color: #dfba73; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; display: flex; align-items: center; gap: 0.3rem;">
+                                <span>📁</span> Папка сохранения мастера:
+                            </span>
+                            <button class="stage-btn" style="font-size: 0.62rem; padding: 2px 7px; color: #dfba73; border-color: rgba(197, 160, 89, 0.4); background: rgba(197, 160, 89, 0.1);" onclick="openFolderPickerModal()">
+                                Выбрать папку
+                            </button>
+                        </div>
+                        <div id="target-folder-display" style="font-size: 0.68rem; color: #6ee7b7; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="D:/campaigns/заказ/выбрано/3">
+                            D:/campaigns/заказ/выбрано/3
+                        </div>
+                        <div style="font-size: 0.6rem; color: var(--text-dim); margin-top: 0.2rem;">
+                            Файлы сохраняются с суффиксом <code>_shielded_master</code> и записью в протокол Совета.
+                        </div>
+                    </div>
+
                     <!-- Выбор источника этикетки -->
 
                     <div class="param-row">
@@ -4637,6 +4656,7 @@
                     media_path: mediaPath,
                     label_image: currentExtractedLabelPath || '',
                     reference_packshot: '', // Backend automatically discovers vanille_irresistible packshot
+                    target_folder: currentTargetCampaignFolder,
                     y_offset: yOffset,
                     x_offset: xOffset,
                     scale: scale,
@@ -4768,6 +4788,125 @@
         btn.style.background = 'rgba(16, 185, 129, 0.16)';
         btn.style.color = '#6ee7b7';
     }
+
+
+    // =========================================================================
+    // TARGET CAMPAIGN FOLDER CONTROLLER
+    // =========================================================================
+    let currentTargetCampaignFolder = localStorage.getItem('veo_target_campaign_folder') || 'D:/campaigns/заказ/выбрано/3';
+
+    function initTargetFolderDisplay() {
+        const display = document.getElementById('target-folder-display');
+        const input = document.getElementById('custom-folder-input');
+        if (display) {
+            display.textContent = currentTargetCampaignFolder;
+            display.title = currentTargetCampaignFolder;
+        }
+        if (input) {
+            input.value = currentTargetCampaignFolder;
+        }
+        // Sync with backend
+        fetch('/api/boardroom/set_target_folder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target_folder: currentTargetCampaignFolder })
+        }).catch(err => console.warn('Could not sync initial target folder:', err));
+    }
+
+    async function openFolderPickerModal() {
+        const modal = document.getElementById('folder-picker-modal');
+        const container = document.getElementById('folder-list-container');
+        const input = document.getElementById('custom-folder-input');
+        if (input) input.value = currentTargetCampaignFolder;
+        if (modal) modal.style.display = 'flex';
+
+        try {
+            const resp = await fetch('/api/boardroom/campaign_folders');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            
+            if (data.folders && data.folders.length > 0) {
+                container.innerHTML = '';
+                data.folders.forEach(f => {
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0.5rem; margin-bottom: 0.25rem; border-radius: 4px; background: rgba(255,255,255,0.03); cursor: pointer; transition: background 0.15s; font-size: 0.68rem;';
+                    row.onmouseover = () => row.style.background = 'rgba(197, 160, 89, 0.15)';
+                    row.onmouseout = () => row.style.background = 'rgba(255,255,255,0.03)';
+                    row.onclick = () => {
+                        if (input) input.value = f;
+                        selectFolderItem(row);
+                    };
+
+                    const nameSpan = document.createElement('span');
+                    nameSpan.style.cssText = 'color: #e5e5e5; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 380px;';
+                    nameSpan.textContent = f;
+                    nameSpan.title = f;
+
+                    const pickBtn = document.createElement('button');
+                    pickBtn.className = 'stage-btn';
+                    pickBtn.style.cssText = 'font-size: 0.58rem; padding: 2px 6px; color: #dfba73; border-color: rgba(197,160,89,0.3);';
+                    pickBtn.textContent = 'Выбрать';
+
+                    row.appendChild(nameSpan);
+                    row.appendChild(pickBtn);
+                    container.appendChild(row);
+                });
+            } else {
+                container.innerHTML = '<div style="font-size: 0.68rem; color: #9ca3af; padding: 0.5rem; text-align: center;">Папки не найдены</div>';
+            }
+        } catch (e) {
+            container.innerHTML = `<div style="font-size: 0.68rem; color: #ef4444; padding: 0.5rem;">Ошибка загрузки: ${e}</div>`;
+        }
+    }
+
+    function selectFolderItem(rowElem) {
+        document.querySelectorAll('#folder-list-container > div').forEach(d => {
+            d.style.borderColor = 'transparent';
+        });
+        rowElem.style.border = '1px solid #dfba73';
+    }
+
+    function closeFolderPickerModal() {
+        const modal = document.getElementById('folder-picker-modal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    async function applyTargetFolder() {
+        const input = document.getElementById('custom-folder-input');
+        const folder = input ? input.value.trim() : '';
+        if (!folder) {
+            alert('Пожалуйста, укажите путь к папке');
+            return;
+        }
+
+        try {
+            const resp = await fetch('/api/boardroom/set_target_folder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_folder: folder })
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                currentTargetCampaignFolder = data.target_folder;
+                localStorage.setItem('veo_target_campaign_folder', currentTargetCampaignFolder);
+                const display = document.getElementById('target-folder-display');
+                if (display) {
+                    display.textContent = currentTargetCampaignFolder;
+                    display.title = currentTargetCampaignFolder;
+                }
+                closeFolderPickerModal();
+            } else {
+                alert('Ошибка: ' + (data.detail || 'Не удалось установить папку'));
+            }
+        } catch (e) {
+            alert('Сбой сети при установке папки: ' + e);
+        }
+    }
+
+    // Call initTargetFolderDisplay on window load
+    window.addEventListener('DOMContentLoaded', () => {
+        initTargetFolderDisplay();
+    });
 
 </script>
 

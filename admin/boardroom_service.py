@@ -87,6 +87,21 @@ class BoardroomService:
             pass
         return self.active_session
 
+    def record_council_verdict(self, sender: str, name: str, role: str, text: str, avatar: str = "🏆", color: str = "#dfba73") -> Dict:
+        """Официальная фиксация решения или утвержденного мастер-файла в протокол Совета."""
+        msg = {
+            "sender": sender,
+            "name": name,
+            "role": role,
+            "avatar": avatar,
+            "color": color,
+            "time": datetime.datetime.now().strftime("%H:%M"),
+            "text": text
+        }
+        self.active_session["messages"].append(msg)
+        self._save_session()
+        return msg
+
     def add_user_message(self, text: str):
         # Автоматическая фиксация продюсерских решений в банк Hindsight
         lower = text.lower()

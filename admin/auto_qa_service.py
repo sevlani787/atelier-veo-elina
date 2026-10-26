@@ -333,9 +333,16 @@ class AutoQALoopRunner:
         self.final_master_video: Optional[str] = None
         self.final_sanity_frame: Optional[str] = None
         self.dual_canvas_url: Optional[str] = None
+        self.target_folder: str = "D:/campaigns/заказ/выбрано/3"
+
+    def set_target_folder(self, folder: str):
+        p = Path(folder)
+        p.mkdir(parents=True, exist_ok=True)
+        self.target_folder = str(p)
 
     def get_telemetry(self) -> Dict[str, Any]:
         return {
+            "target_folder": self.target_folder,
             "is_running": self.is_running,
             "abort_requested": self.abort_requested,
             "phase": self.phase,
@@ -361,8 +368,11 @@ class AutoQALoopRunner:
         media_path: str,
         label_image: str,
         reference_packshot: str,
-        initial_params: Dict[str, Any]
+        initial_params: Dict[str, Any],
+        target_folder: Optional[str] = None
     ) -> Dict[str, Any]:
+        if target_folder:
+            self.set_target_folder(target_folder)
         self.is_running = True
         self.abort_requested = False
         self.current_iteration = 0
@@ -506,11 +516,16 @@ class AutoQALoopRunner:
             sku_name = Path(reference_packshot).stem
             self._save_sku_profile(sku_name, params)
 
-            # 2. Run full 4K render with Savitzky-Golay tracking
-            self.status_text = "ФАЗА Б: Финальный 4K-рендер с трекингом Савицкого-Голея..."
-            output_dir = Path("D:/campaigns/renders")
-            output_dir.mkdir(parents=True, exist_ok=True)
-            output_master = output_dir / f"{Path(media_path).stem}_4k_master_shielded.mp4"
+            # 2. Run full 4K render with Savitzky-Golay tracking into target campaign folder
+            self.status_text = f"ФАЗА Б: Рендер мастера в {self.target_folder}..."
+            target_dir = Path(self.target_folder)
+            target_dir.mkdir(parents=True, exist_ok=True)
+
+            media_p = Path(media_path)
+            stem = media_p.stem
+            ext = ".mp4" if media_p.suffix.lower() in [".mp4", ".mov", ".webm"] else media_p.suffix
+            master_filename = f"{stem}_shielded_master{ext}"
+            output_master = target_dir / master_filename
 
             final_cmd = [
                 "python", str(SHIELD_SCRIPT),
@@ -531,12 +546,33 @@ class AutoQALoopRunner:
             proc = await asyncio.to_thread(subprocess.run, final_cmd, capture_output=True, text=True)
             if proc.returncode == 0 and output_master.exists():
                 self.final_master_video = str(output_master)
-                sanity_frame = output_dir / f"{Path(media_path).stem}_4k_master_shielded_sanity_7.2s.jpg"
+                sanity_frame = target_dir / f"{stem}_shielded_master_sanity_7.2s.jpg"
                 if sanity_frame.exists():
                     self.final_sanity_frame = str(sanity_frame)
 
+                # Record official entry in Council Protocol (Session Memo)
+                try:
+                    from admin.boardroom_service import boardroom_service
+                    boardroom_service.record_council_verdict(
+                        sender="elina",
+                        name="Элина (ОТК Visual QA)",
+                        role="Главный Режиссёр & ОТК",
+                        avatar="👑",
+                        color="#dfba73",
+                        text=(
+                            f"🏆 **Финальный мастер зафиксирован в кампании:**\n\n"
+                            f"- **Файл:** `{master_filename}`\n"
+                            f"- **Папка кампании:** `{self.target_folder}`\n"
+                            f"- **Статус:** `APPROVED_4K_MASTER_LOCK` (100% точность Harrods Ready).\n"
+                            f"- **Калибровка:** Y={params['y_offset']}%, X={params['x_offset']}%, Scale={params['scale']}x, Defringe={params['defringe_bottom']}px.\n\n"
+                            f"Мастер утвержден и занесен в официальный протокол Совета."
+                        )
+                    )
+                except Exception as e_rec:
+                    print("Error recording verdict to council protocol:", e_rec)
+
                 self.phase = "MASTER_LOCKED"
-                self.status_text = "🎉 МАСТЕР ГОТОВ: Протокол Harrods Ready утвержден!"
+                self.status_text = f"🎉 МАСТЕР ГОТОВ: сохранен в {self.target_folder}!"
             else:
                 self.status_text = f"Ошибка финального 4K-рендера: {proc.stderr[:200]}"
                 self.phase = "ERROR"

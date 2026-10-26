@@ -555,6 +555,7 @@ class ShieldRunRequest(BaseModel):
     angle: float = 0.0
     defringe_bottom: int = 0
     geometry: str = "spherical"
+    target_folder: Optional[str] = None
     curvature: float = 0.25
     specular: float = 0.75
 
@@ -568,6 +569,7 @@ class ShieldPreviewRequest(BaseModel):
     defringe_bottom: int = 2
     specular: float = 0.75
     geometry: str = "spherical"
+    target_folder: Optional[str] = None
 
 class ExtractLabelRequest(BaseModel):
 
@@ -699,6 +701,7 @@ class AutoQAStartRequest(BaseModel):
     defringe_bottom: int = 2
     specular: float = 0.75
     geometry: str = "spherical"
+    target_folder: Optional[str] = None
 
 @app.post("/api/boardroom/auto_qa/start")
 async def boardroom_auto_qa_start(payload: AutoQAStartRequest, username: str = Depends(get_current_username)):
@@ -716,6 +719,7 @@ async def boardroom_auto_qa_start(payload: AutoQAStartRequest, username: str = D
             media_path=payload.media_path,
             label_image=payload.label_image or "",
             reference_packshot=ref,
+            target_folder=payload.target_folder,
             initial_params={
                 "y_offset": payload.y_offset,
                 "x_offset": payload.x_offset,
@@ -732,6 +736,55 @@ async def boardroom_auto_qa_start(payload: AutoQAStartRequest, username: str = D
 @app.get("/api/boardroom/auto_qa/status")
 async def boardroom_auto_qa_status(username: str = Depends(get_current_username)):
     return JSONResponse(content=auto_qa_runner.get_telemetry())
+
+
+class SetTargetFolderRequest(BaseModel):
+    target_folder: str
+
+@app.get("/api/boardroom/campaign_folders")
+async def boardroom_campaign_folders(username: str = Depends(get_current_username)):
+    """Возвращает список доступных папок кампаний для интерактивного выбора."""
+    roots = [Path("D:/campaigns"), Path("d:/Antigravity/AI_Video_Agency/campaigns")]
+    folders = []
+    seen = set()
+    
+    canonical_default = "D:/campaigns/заказ/выбрано/3"
+    folders.append(canonical_default)
+    seen.add(canonical_default.replace('\\', '/').lower())
+    
+    for r in roots:
+        if r.exists():
+            for p in r.glob("**/*"):
+                if p.is_dir() and ".git" not in str(p) and "venv" not in str(p) and "__pycache__" not in str(p):
+                    norm = str(p).replace('\\', '/')
+                    if norm.lower() not in seen:
+                        seen.add(norm.lower())
+                        folders.append(norm)
+                        if len(folders) >= 25:
+                            break
+    return JSONResponse(content={
+        "status": "success",
+        "current_target": auto_qa_runner.target_folder,
+        "folders": folders
+    })
+
+@app.post("/api/boardroom/set_target_folder")
+async def boardroom_set_target_folder(payload: SetTargetFolderRequest, username: str = Depends(get_current_username)):
+    folder = payload.target_folder.strip()
+    if not folder:
+        raise HTTPException(status_code=400, detail="Путь к папке не может быть пустым")
+    p = Path(folder)
+    try:
+        p.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Невозможно создать или открыть папку: {e}")
+    
+    auto_qa_runner.set_target_folder(str(p))
+    return JSONResponse(content={
+        "status": "success",
+        "target_folder": str(p),
+        "message": f"Папка сохранения кампании успешно установлена: {p}"
+    })
 
 @app.post("/api/boardroom/auto_qa/stop")
 async def boardroom_auto_qa_stop(username: str = Depends(get_current_username)):
