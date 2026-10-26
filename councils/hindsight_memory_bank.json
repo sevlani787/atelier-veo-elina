@@ -1,6 +1,6 @@
 {
   "bank": "atelier_veo_master",
-  "updated_at": "2026-10-26 17:10:37",
+  "updated_at": "2026-10-26 21:49:44",
   "invariants": [
     {
       "id": "inv_001_trade_secret",
@@ -236,6 +236,30 @@
       ],
       "author": "vladimir",
       "timestamp": "2026-10-26 17:10:37"
+    },
+    {
+      "id": "ep_1793044176_vladimir",
+      "category": "producer_decision",
+      "title": "Решение: КЛИЕНТСКИЙ ПРОЕКТ: arboté (Франция). Флагманский продукт: Oi...",
+      "content": "КЛИЕНТСКИЙ ПРОЕКТ: arboté (Франция). Флагманский продукт: Oil Sérum Bakuchiol de Nuit (Réparation Nocturne). Мастер-ассеты сохранены, студия готова к съемкам первого шота в VEO Boardroom.",
+      "tags": [
+        "production",
+        "vladimir"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-26 21:49:36"
+    },
+    {
+      "id": "ep_1793044184_vladimir",
+      "category": "producer_decision",
+      "title": "Решение: КЛИЕНТСКИЙ ПРОЕКТ: arbote (Франция). Флагманский продукт: Oi...",
+      "content": "КЛИЕНТСКИЙ ПРОЕКТ: arbote (Франция). Флагманский продукт: Oil Serum Bakuchiol de Nuit (Reparation Nocturne). Мастер-ассеты сохранены, студия готова к съемкам первого шота в VEO Boardroom.",
+      "tags": [
+        "production",
+        "vladimir"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-26 21:49:44"
     }
   ]
 }
