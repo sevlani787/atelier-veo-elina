@@ -1875,7 +1875,13 @@
 
                     </button>
 
-                    <button class="stage-btn" id="btn-stage-fullscreen" onclick="toggleStageFullscreen()" title="Развернуть видео/изображение во весь экран монитора (двойной клик)">
+                    <button class="stage-btn" id="btn-overlay-loupe" onclick="toggleLoupe()" title="Включить / выключить часовую лупу (горячая клавиша L)">
+
+                        🔍 Лупа x4.0
+
+                    </button>
+
+                    <button class="stage-btn" id="btn-stage-fullscreen" onclick="toggleStageFullscreen()" title="Развернуть видео/изображение во весь экран монитора (горячая клавиша F или двойной клик)">
 
                         ⛶ Во весь экран
 
@@ -2673,11 +2679,25 @@
 
         document.addEventListener('keydown', function(e) {
 
-            if (e.code === 'Space' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
+            if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+
+            if (e.code === 'Space') {
 
                 e.preventDefault();
 
                 toggleABCompare();
+
+            } else if (e.code === 'KeyL') {
+
+                e.preventDefault();
+
+                toggleLoupe();
+
+            } else if (e.code === 'KeyF') {
+
+                e.preventDefault();
+
+                toggleStageFullscreen();
 
             }
 
@@ -3824,9 +3844,22 @@
 
     function updateLoupeUI() {
         const btn = document.getElementById('loupe-btn');
+        const overlayBtn = document.getElementById('btn-overlay-loupe');
+        const text = `🔍 Часовая лупа x${currentLoupeZoom.toFixed(1)}`;
+        const overlayText = `🔍 Лупа x${currentLoupeZoom.toFixed(1)}`;
+        const title = `Колесико мыши: зум от 1.5x до 16.0x (текущий: x${currentLoupeZoom.toFixed(1)})`;
         if (btn) {
-            btn.innerHTML = `🔍 Часовая лупа x${currentLoupeZoom.toFixed(1)}`;
-            btn.title = `Колесико мыши: зум от 1.5x до 16.0x (текущий: x${currentLoupeZoom.toFixed(1)})`;
+            btn.innerHTML = text;
+            btn.title = title;
+            btn.style.borderColor = isLoupeActive ? '#dfba73' : '';
+            btn.style.background = isLoupeActive ? 'rgba(197, 160, 89, 0.2)' : '';
+        }
+        if (overlayBtn) {
+            overlayBtn.innerHTML = overlayText;
+            overlayBtn.title = title;
+            overlayBtn.style.borderColor = isLoupeActive ? '#dfba73' : '';
+            overlayBtn.style.background = isLoupeActive ? 'rgba(197, 160, 89, 0.25)' : '';
+            overlayBtn.style.color = isLoupeActive ? '#dfba73' : '';
         }
     }
 
