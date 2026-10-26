@@ -3807,7 +3807,7 @@
 
 
 
-    // Horological Loupe Engine (Dynamic Zoom 1.5x - 12.0x via Mouse Wheel)
+    // Horological Loupe Engine (Dynamic Zoom 1.5x - 16.0x via Mouse Wheel)
     let isLoupeActive = false;
     let loupeRAF = null;
     let lastMouseEvt = null;
@@ -3826,7 +3826,7 @@
         const btn = document.getElementById('loupe-btn');
         if (btn) {
             btn.innerHTML = `🔍 Часовая лупа x${currentLoupeZoom.toFixed(1)}`;
-            btn.title = `Колесико мыши: зум от 1.5x до 12.0x (текущий: x${currentLoupeZoom.toFixed(1)})`;
+            btn.title = `Колесико мыши: зум от 1.5x до 16.0x (текущий: x${currentLoupeZoom.toFixed(1)})`;
         }
     }
 
@@ -3875,7 +3875,7 @@
         }
     }, { passive: true });
 
-    // Dynamic Zoom on Mouse Wheel (1.5x - 12.0x)
+    // Dynamic Zoom on Mouse Wheel (1.5x - 16.0x)
     window.addEventListener('wheel', (e) => {
         if (!isLoupeActive) return;
         const stageVideo = document.getElementById('stage-video');
@@ -3892,8 +3892,8 @@
         if (mouseX >= rect.left && mouseX <= rect.right && mouseY >= rect.top && mouseY <= rect.bottom) {
             e.preventDefault();
             if (e.deltaY < 0) {
-                // Scroll UP -> zoom in (+0.5x, max 12.0x)
-                currentLoupeZoom = Math.min(12.0, Math.round((currentLoupeZoom + 0.5) * 10) / 10);
+                // Scroll UP -> zoom in (+0.5x, max 16.0x)
+                currentLoupeZoom = Math.min(16.0, Math.round((currentLoupeZoom + 0.5) * 10) / 10);
             } else {
                 // Scroll DOWN -> zoom out (-0.5x, min 1.5x)
                 currentLoupeZoom = Math.max(1.5, Math.round((currentLoupeZoom - 0.5) * 10) / 10);
@@ -3984,8 +3984,13 @@
         const mediaX = normX * mediaWidth;
         const mediaY = normY * mediaHeight;
 
-        const zoomFactor = currentLoupeZoom;
-        const sampleSize = 180 / zoomFactor;
+        // Calibrated Optical Scale: compensate for browser viewport downscaling
+        // Ensures 1.0x = true 1:1 screen magnification, 4.0x = true 4x magnification of what user sees
+        const displayScaleX = mediaWidth / rect.width;
+        const displayScaleY = mediaHeight / rect.height;
+
+        const sampleW = (180 / currentLoupeZoom) * displayScaleX;
+        const sampleH = (180 / currentLoupeZoom) * displayScaleY;
 
         ctx.clearRect(0, 0, 180, 180);
         ctx.imageSmoothingEnabled = true;
@@ -3993,7 +3998,7 @@
 
         ctx.drawImage(
             activeMedia,
-            mediaX - sampleSize / 2, mediaY - sampleSize / 2, sampleSize, sampleSize,
+            mediaX - sampleW / 2, mediaY - sampleH / 2, sampleW, sampleH,
             0, 0, 180, 180
         );
 
