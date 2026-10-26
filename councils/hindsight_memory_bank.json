@@ -1,6 +1,6 @@
 {
   "bank": "atelier_veo_master",
-  "updated_at": "2026-10-25 23:16:15",
+  "updated_at": "2026-10-26 11:14:55",
   "invariants": [
     {
       "id": "inv_001_trade_secret",
@@ -200,6 +200,18 @@
       ],
       "author": "elina",
       "timestamp": "2026-10-25 23:16:15"
+    },
+    {
+      "id": "ep_1793006095_vladimir",
+      "category": "producer_decision",
+      "title": "Решение: АТЕЛЬЕ-КИНОФАБРИКА HAUTE COUTURE (Матрица 4 услуг и Закон Чи...",
+      "content": "АТЕЛЬЕ-КИНОФАБРИКА HAUTE COUTURE (Матрица 4 услуг и Закон Чистого Стекла): 1. Hero Brand Films 4K (с нуля). 2. Virtual Talent Studio (Амбассадоры с динамическим LOD-порогом >5% площади для Identity Shield). 3. Environment Staging & Relighting (Новые локации с Contact Shadow Catcher, Caustic Cast и 4K-вектором). 4. Identity Restoration & Inpainting (Хирургия чужих видео: SAM2 + ProPainter затирка до чистого стекла + наложение шелкографии). Единый инвариант: Нейросеть никогда не касается шрифтов и этикетки; 2K Google Pro база + нативный 4K вектор Identity Shield.",
+      "tags": [
+        "production",
+        "vladimir"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-26 11:14:55"
     }
   ]
 }
