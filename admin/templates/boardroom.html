@@ -1050,10 +1050,16 @@
     }
 
     .stage-viewport:fullscreen .viewport-overlay-bar {
-        top: 1rem;
-        left: 1rem;
-        right: 1rem;
-        z-index: 100;
+        top: 1.5rem !important;
+        left: 1.5rem !important;
+        right: 1.5rem !important;
+        z-index: 999999 !important;
+        background: rgba(10, 10, 16, 0.92) !important;
+        backdrop-filter: blur(12px) !important;
+        padding: 0.5rem 1rem !important;
+        border-radius: 8px !important;
+        border: 1px solid rgba(223, 186, 115, 0.4) !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8) !important;
     }
 
     #stage-video, #stage-image {
@@ -1913,7 +1919,7 @@
 
 
 
-            <video id="stage-video" loop controls style="display: none;"></video>
+            <video id="stage-video" loop controls controlsList="nofullscreen" style="display: none;"></video>
 
             <img id="stage-image" style="display: none;" />
 
@@ -2029,9 +2035,15 @@
 
             <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
 
-                <button id="loupe-btn" class="stage-btn" onclick="toggleLoupe()">
+                <button id="loupe-btn" class="stage-btn" onclick="toggleLoupe()" title="Включить / выключить лупу (горячая клавиша L)">
 
                     🔍 Часовая лупа x4.0
+
+                </button>
+
+                <button id="main-fullscreen-btn" class="stage-btn" onclick="toggleStageFullscreen()" style="border-color: #38bdf8; color: #38bdf8; background: rgba(56, 189, 248, 0.1);" title="Развернуть видео во весь экран монитора (горячая клавиша F или двойной клик)">
+
+                    ⛶ Во весь экран (F)
 
                 </button>
 
@@ -2677,28 +2689,26 @@
 
         // Spacebar handler for Play/Pause and A/B compare
 
-        document.addEventListener('keydown', function(e) {
+        window.addEventListener('keydown', function(e) {
 
-            if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+            if (e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT' || e.target.isContentEditable)) return;
 
-            if (e.code === 'Space') {
+            const key = (e.key || '').toLowerCase();
+            const code = e.code || '';
 
+            if (code === 'Space' || key === ' ') {
                 e.preventDefault();
-
                 toggleABCompare();
-
-            } else if (e.code === 'KeyL') {
-
+            } else if (code === 'KeyL' || key === 'l' || key === 'д' || key === 'k') {
                 e.preventDefault();
-
                 toggleLoupe();
-
-            } else if (e.code === 'KeyF') {
-
+            } else if (code === 'KeyF' || key === 'f' || key === 'а') {
                 e.preventDefault();
-
                 toggleStageFullscreen();
-
+            } else if (code === 'Escape' || key === 'escape') {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen?.();
+                }
             }
 
         });
@@ -3935,20 +3945,23 @@
         }
     }, { passive: false });
 
-    // Fullscreen Toggle for Video / Image Stage
+    // Fullscreen Toggle for Video / Image Stage (Native + Cinema Fallback)
     function toggleStageFullscreen() {
         const stage = document.getElementById('viewport-stage');
         if (!stage) return;
-        if (!document.fullscreenElement) {
-            if (stage.requestFullscreen) {
-                stage.requestFullscreen();
-            } else if (stage.webkitRequestFullscreen) {
-                stage.webkitRequestFullscreen();
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            const req = stage.requestFullscreen || stage.webkitRequestFullscreen || stage.mozRequestFullScreen || stage.msRequestFullscreen;
+            if (req) {
+                req.call(stage).catch(err => {
+                    console.warn('Native Fullscreen blocked, switching to Cinema Mode:', err);
+                    toggleCinemaMode();
+                });
+            } else {
+                toggleCinemaMode();
             }
         } else {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            }
+            const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+            if (exit) exit.call(document);
         }
     }
 
@@ -3967,12 +3980,17 @@
     window.addEventListener('DOMContentLoaded', () => {
         ensureLoupeInBody();
         const stage = document.getElementById('viewport-stage');
-        if (stage) {
-            stage.addEventListener('dblclick', (e) => {
-                if (e.target.closest('button') || e.target.closest('input')) return;
-                toggleStageFullscreen();
-            });
+        const stageVid = document.getElementById('stage-video');
+        const stageImg = document.getElementById('stage-image');
+        
+        function onMediaDblClick(e) {
+            if (e.target.closest('button') || e.target.closest('input')) return;
+            toggleStageFullscreen();
         }
+
+        if (stage) stage.addEventListener('dblclick', onMediaDblClick);
+        if (stageVid) stageVid.addEventListener('dblclick', onMediaDblClick);
+        if (stageImg) stageImg.addEventListener('dblclick', onMediaDblClick);
     });
 
     function renderLoupeFrame() {
