@@ -2101,6 +2101,71 @@
                         </div>
                     </div>
 
+                                        <!-- Режим Кинофабрики (Atelier Pipeline Presets) -->
+                    <div style="background: linear-gradient(145deg, rgba(197, 160, 89, 0.08), rgba(15, 15, 22, 0.6)); border: 1px solid rgba(197, 160, 89, 0.35); border-radius: 8px; padding: 0.65rem; margin: 0.2rem 0 0.85rem 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                            <span style="font-size: 0.7rem; color: #dfba73; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">
+                                <span>🏛️</span> Режим Кинофабрики:
+                            </span>
+                            <span id="factory-mode-badge" style="font-size: 0.6rem; color: #6ee7b7; padding: 2px 7px; border-radius: 4px; background: rgba(110, 231, 183, 0.12); border: 1px solid rgba(110, 231, 183, 0.3); font-weight: 700; letter-spacing: 0.04em;">
+                                ПРОДАКШН
+                            </span>
+                        </div>
+                        
+                        <div class="param-row" style="margin-bottom: 0.4rem;">
+                            <select id="factory-pipeline-mode" onchange="handleFactoryModeChange(this.value)" style="width: 100%; font-size: 0.72rem; padding: 0.35rem 0.5rem; background: rgba(0,0,0,0.6); border: 1px solid rgba(197, 160, 89, 0.4); color: #fff; border-radius: 5px;">
+                                <option value="clean_production">🎬 Чистый продакшн (Clean Plate + Shield)</option>
+                                <option value="restoration">🩹 Реставрация чужих роликов (Inpaint Cleanse + Shield)</option>
+                                <option value="ambassador">👑 Цифровой амбассадор (Hand Matte + Dynamic LOD)</option>
+                                <option value="new_location">🌍 Новая локация (2K Upscale + Kelvin Match)</option>
+                            </select>
+                        </div>
+
+                        <!-- Описание выбранного режима -->
+                        <div id="factory-mode-desc" style="font-size: 0.64rem; color: var(--text-dim); line-height: 1.35; padding: 0.4rem 0.55rem; background: rgba(0,0,0,0.3); border-radius: 5px; border-left: 2px solid #dfba73;">
+                            Генерация 2K чистой сцены без надписей («Закон чистого стекла») + наложение нативного 4K-вектора Identity Shield™. Без рисков галлюцинаций.
+                        </div>
+
+                        <!-- Подпанель: Направленный донор (для Реставрации) -->
+                        <div id="factory-sub-restoration" style="display: none; margin-top: 0.45rem; padding: 0.4rem 0.55rem; border-radius: 5px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); font-size: 0.63rem; color: #bae6fd;">
+                            <div style="font-weight: 600; margin-bottom: 0.15rem; display: flex; align-items: center; gap: 0.3rem;">
+                                <span>🧭</span> Вертикальный световой донор стекла (Vertical Donor)
+                            </div>
+                            <div style="color: #94a3b8; font-size: 0.6rem;">
+                                Затирка дефектов строго по вертикальному световому ребру (от горлышка к донцу). Предотвращает появление мыльных пятен под новым вектором.
+                            </div>
+                        </div>
+
+                        <!-- Подпанель: Маска пальцев и LOD (для Амбассадоров) -->
+                        <div id="factory-sub-ambassador" style="display: none; margin-top: 0.45rem; padding: 0.4rem 0.55rem; border-radius: 5px; background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.25); font-size: 0.63rem; color: #e9d5ff;">
+                            <div style="font-weight: 600; margin-bottom: 0.15rem; display: flex; align-items: center; gap: 0.3rem;">
+                                <span>🖐️</span> Маска пальцев (Finger Occlusion) + LOD > 5%
+                            </div>
+                            <div style="color: #cbd5e1; font-size: 0.6rem;">
+                                Векторная шелкография ложится строго под пальцы модели с контактной микро-тенью. Активируется только когда флакон занимает &gt;5% площади кадра.
+                            </div>
+                        </div>
+
+                        <!-- Подпанель: Kelvin Match & Grain Lock (для Новой локации) -->
+                        <div id="factory-sub-location" style="display: none; margin-top: 0.45rem; padding: 0.45rem 0.55rem; border-radius: 5px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); font-size: 0.63rem;">
+                            <div style="font-weight: 600; color: #fde68a; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.3rem;">
+                                <span>🌡️</span> Адаптация температуры света (Kelvin Tint Match)
+                            </div>
+                            <div style="display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.35rem;">
+                                <select id="factory-kelvin-select" onchange="handleKelvinChange(this.value)" style="flex: 1; font-size: 0.65rem; padding: 0.25rem 0.4rem; background: rgba(0,0,0,0.6); border: 1px solid rgba(245, 158, 11, 0.4); color: #fde68a; border-radius: 4px;">
+                                    <option value="2400">2400K — Вечернее барокко / свечи (янтарный)</option>
+                                    <option value="2700" selected>2700K — Тёплый вечерний интерьер (золото)</option>
+                                    <option value="4200">4200K — Нейтральный дневной / галерея</option>
+                                    <option value="5600">5600K — Скандинавское утро (платина)</option>
+                                    <option value="6500">6500K — Арктический холодный / пасмурно</option>
+                                </select>
+                            </div>
+                            <div style="color: #94a3b8; font-size: 0.59rem;">
+                                Авто-синхронизация рефлекса золота + пленочное микро-зерно 35mm (Kodak Vision3 Grain Lock).
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Выбор источника этикетки -->
 
                     <div class="param-row">
@@ -3543,7 +3608,11 @@
 
                     specular: spec,
 
-                    geometry: geometry
+                    geometry: geometry,
+
+                    factory_mode: currentFactoryMode,
+
+                    kelvin_temp: currentKelvinTemp
 
                 })
 
@@ -3677,7 +3746,11 @@
 
                     specular: spec,
 
-                    geometry: geometry
+                    geometry: geometry,
+
+                    factory_mode: currentFactoryMode,
+
+                    kelvin_temp: currentKelvinTemp
 
                 })
 
@@ -4669,7 +4742,9 @@
                     angle: angle,
                     defringe_bottom: defringe,
                     specular: specular,
-                    geometry: geometry
+                    geometry: geometry,
+                    factory_mode: currentFactoryMode,
+                    kelvin_temp: currentKelvinTemp
                 })
             });
 
@@ -4909,9 +4984,84 @@
         }
     }
 
-    // Call initTargetFolderDisplay on window load
+    
+    // === Режим Кинофабрики (Atelier Pipeline Presets) ===
+    let currentFactoryMode = localStorage.getItem('veo_factory_mode') || 'clean_production';
+    let currentKelvinTemp = parseInt(localStorage.getItem('veo_factory_kelvin') || '2700', 10);
+
+    function handleFactoryModeChange(mode) {
+        currentFactoryMode = mode;
+        localStorage.setItem('veo_factory_mode', mode);
+
+        const badge = document.getElementById('factory-mode-badge');
+        const desc = document.getElementById('factory-mode-desc');
+        const subRestoration = document.getElementById('factory-sub-restoration');
+        const subAmbassador = document.getElementById('factory-sub-ambassador');
+        const subLocation = document.getElementById('factory-sub-location');
+
+        if (subRestoration) subRestoration.style.display = 'none';
+        if (subAmbassador) subAmbassador.style.display = 'none';
+        if (subLocation) subLocation.style.display = 'none';
+
+        if (mode === 'clean_production') {
+            if (badge) {
+                badge.textContent = 'ПРОДАКШН';
+                badge.style.color = '#6ee7b7';
+                badge.style.background = 'rgba(110, 231, 183, 0.12)';
+                badge.style.borderColor = 'rgba(110, 231, 183, 0.3)';
+            }
+            if (desc) desc.textContent = 'Генерация 2K чистой сцены без надписей («Закон чистого стекла») + наложение нативного 4K-вектора Identity Shield™. Без рисков галлюцинаций.';
+        } else if (mode === 'restoration') {
+            if (badge) {
+                badge.textContent = 'РЕСТАВРАЦИЯ';
+                badge.style.color = '#38bdf8';
+                badge.style.background = 'rgba(56, 189, 248, 0.12)';
+                badge.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+            }
+            if (desc) desc.textContent = 'Удаление дефектных/чужих надписей направленным вертикальным донором по световому блику стекла + фиксация чистой 4K-шелкографии.';
+            if (subRestoration) subRestoration.style.display = 'block';
+        } else if (mode === 'ambassador') {
+            if (badge) {
+                badge.textContent = 'АМБАССАДОР';
+                badge.style.color = '#c084fc';
+                badge.style.background = 'rgba(192, 132, 252, 0.12)';
+                badge.style.borderColor = 'rgba(192, 132, 252, 0.3)';
+            }
+            if (desc) desc.textContent = 'Генерация цифровой модели с чистым флаконом. При LOD >5% шелкография ложится строго под пальцы с контактной микро-тенью.';
+            if (subAmbassador) subAmbassador.style.display = 'block';
+        } else if (mode === 'new_location') {
+            if (badge) {
+                badge.textContent = 'ЛОКАЦИЯ 2K→4K';
+                badge.style.color = '#f59e0b';
+                badge.style.background = 'rgba(245, 158, 11, 0.12)';
+                badge.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+            }
+            if (desc) desc.textContent = 'Апскейл Google Pro 2K до 4K + колористическая адаптация золота по Кельвину под окружающий свет + плёночное зерно 35mm.';
+            if (subLocation) subLocation.style.display = 'block';
+        }
+    }
+
+    function handleKelvinChange(temp) {
+        currentKelvinTemp = parseInt(temp, 10);
+        localStorage.setItem('veo_factory_kelvin', temp);
+    }
+
+    function initFactoryModeUI() {
+        const sel = document.getElementById('factory-pipeline-mode');
+        const kelvinSel = document.getElementById('factory-kelvin-select');
+        if (sel) {
+            sel.value = currentFactoryMode;
+        }
+        if (kelvinSel) {
+            kelvinSel.value = currentKelvinTemp.toString();
+        }
+        handleFactoryModeChange(currentFactoryMode);
+    }
+
+// Call initTargetFolderDisplay on window load
     window.addEventListener('DOMContentLoaded', () => {
         initTargetFolderDisplay();
+        initFactoryModeUI();
     });
 
 </script>

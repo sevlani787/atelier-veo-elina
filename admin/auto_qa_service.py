@@ -369,7 +369,9 @@ class AutoQALoopRunner:
         label_image: str,
         reference_packshot: str,
         initial_params: Dict[str, Any],
-        target_folder: Optional[str] = None
+        target_folder: Optional[str] = None,
+        factory_mode: str = "clean_production",
+        kelvin_temp: int = 2700
     ) -> Dict[str, Any]:
         if target_folder:
             self.set_target_folder(target_folder)
@@ -422,6 +424,10 @@ class AutoQALoopRunner:
             ]
             if label_image and Path(label_image).exists():
                 cmd.extend(["--label-image", label_image])
+            if getattr(self, 'factory_mode', None):
+                cmd.extend(["--factory-mode", self.factory_mode])
+            if getattr(self, 'kelvin_temp', None):
+                cmd.extend(["--kelvin-temp", str(self.kelvin_temp)])
 
             proc = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True)
             if proc.returncode != 0 or not preview_output.exists():
@@ -542,6 +548,10 @@ class AutoQALoopRunner:
             ]
             if label_image and Path(label_image).exists():
                 final_cmd.extend(["--label-image", label_image])
+            if getattr(self, 'factory_mode', None):
+                final_cmd.extend(["--factory-mode", self.factory_mode])
+            if getattr(self, 'kelvin_temp', None):
+                final_cmd.extend(["--kelvin-temp", str(self.kelvin_temp)])
 
             proc = await asyncio.to_thread(subprocess.run, final_cmd, capture_output=True, text=True)
             if proc.returncode == 0 and output_master.exists():

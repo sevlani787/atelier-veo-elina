@@ -558,6 +558,8 @@ class ShieldRunRequest(BaseModel):
     target_folder: Optional[str] = None
     curvature: float = 0.25
     specular: float = 0.75
+    factory_mode: Optional[str] = "clean_production"
+    kelvin_temp: Optional[int] = 2700
 
 class ShieldPreviewRequest(BaseModel):
     media_path: str
@@ -570,6 +572,8 @@ class ShieldPreviewRequest(BaseModel):
     specular: float = 0.75
     geometry: str = "spherical"
     target_folder: Optional[str] = None
+    factory_mode: Optional[str] = "clean_production"
+    kelvin_temp: Optional[int] = 2700
 
 class ExtractLabelRequest(BaseModel):
 
@@ -698,6 +702,10 @@ async def boardroom_preview_shield(payload: ShieldPreviewRequest, username: str 
     ]
     if payload.label_image and Path(payload.label_image).exists():
         cmd.extend(["--label-image", str(payload.label_image)])
+    if getattr(payload, 'factory_mode', None):
+        cmd.extend(["--factory-mode", payload.factory_mode])
+    if getattr(payload, 'kelvin_temp', None):
+        cmd.extend(["--kelvin-temp", str(payload.kelvin_temp)])
     
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
@@ -725,6 +733,8 @@ class AutoQAStartRequest(BaseModel):
     specular: float = 0.75
     geometry: str = "spherical"
     target_folder: Optional[str] = None
+    factory_mode: Optional[str] = "clean_production"
+    kelvin_temp: Optional[int] = 2700
 
 @app.post("/api/boardroom/auto_qa/start")
 async def boardroom_auto_qa_start(payload: AutoQAStartRequest, username: str = Depends(get_current_username)):
@@ -743,6 +753,8 @@ async def boardroom_auto_qa_start(payload: AutoQAStartRequest, username: str = D
             label_image=payload.label_image or "",
             reference_packshot=ref,
             target_folder=payload.target_folder,
+            factory_mode=payload.factory_mode or "clean_production",
+            kelvin_temp=payload.kelvin_temp or 2700,
             initial_params={
                 "y_offset": payload.y_offset,
                 "x_offset": payload.x_offset,
