@@ -1323,6 +1323,7 @@ async def process_video_audit(
     is_temp_file: bool = False
 ):
     """Единое ядро эстетического и режиссерского аудита видео (Prompt Doctor / Multimodal QA)."""
+    is_admin = (user_id == config.admin_id)
     try:
         # Извлекаем раскадровку в отдельном потоке (до 6 ключевых кадров)
         frames = await asyncio.to_thread(extract_keyframes_from_video, temp_video_path, float(duration), 6)
@@ -1551,6 +1552,7 @@ async def keep_typing(bot, chat_id, stop_event):
 @router.message(F.text & ~F.command)
 async def handle_message(message: Message):
     user_id = message.from_user.id
+    is_admin = (user_id == config.admin_id)
     lock = user_locks.setdefault(user_id, asyncio.Lock())
 
     # Добавляем сообщение в буфер пользователя
