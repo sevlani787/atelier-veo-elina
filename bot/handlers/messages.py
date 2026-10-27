@@ -34,33 +34,213 @@ photo_buffering_active: dict[str, bool] = {}
 photo_locks: dict[str, asyncio.Lock] = {}
 
 
+def _analyze_text_language(text: str, fallback_lang_code: Optional[str] = None) -> str:
+    """Определяет язык текста (ru, fr, it, en) по лексическим маркерам и графике."""
+    if not text or not text.strip():
+        if fallback_lang_code:
+            code = fallback_lang_code.lower()
+            if code.startswith('ru'): return 'ru'
+            if code.startswith('fr'): return 'fr'
+            if code.startswith('it'): return 'it'
+        return 'en'
+
+    text_lower = text.lower()
+
+    # 1. Русский (кириллица)
+    cyrillic_chars = len(re.findall(r'[\u0400-\u04FF]', text_lower))
+    non_space_chars = len(re.sub(r'\s+', '', text_lower))
+    if cyrillic_chars >= 3 or (non_space_chars > 0 and (cyrillic_chars / non_space_chars) > 0.2):
+        return 'ru'
+
+    # 2. Французские маркеры (акценты, апострофы и характерная лексика люкса/диалога)
+    fr_accents = len(re.findall(r'[éèêëàâùûüîïôçœ]', text_lower))
+    fr_keywords = [
+        'bonjour', 'salut', 'merci', 'parfum', 'flacon', 'bouteille', 'crème', 'beauté',
+        'pour', 'avec', 'dans', 'nous', 'vous', 'notre', 'votre', 'c\'est', 's\'il vous plaît',
+        'svp', 'arboté', 'nuit', 'lumière', 'campagne', 'création', 'sérum', 'bakuchiol',
+        'élégance', 'maison', 'atelier', 'sublime', 'doré', 'matière', 'cadre', 'cinéma',
+        'est', 'sont', 'une', 'des', 'les', 'aux', 'qui', 'que', 'très', 'aussi', 'bien',
+        'soir', 'jour', 'voici', 'voilà', 'faire', 'projet'
+    ]
+    fr_score = fr_accents * 2 + sum(3 for w in fr_keywords if re.search(r'\b' + re.escape(w) + r'\b', text_lower))
+    if re.search(r"[êëçœ]|c\'est|s\'il|d\'un|l\'eau|j\'ai|l\'huile|d\'or", text_lower):
+        fr_score += 4
+
+    # 3. Итальянские маркеры
+    it_accents = len(re.findall(r'[àèéìíîòóùú]', text_lower))
+    it_keywords = [
+        'ciao', 'grazie', 'buongiorno', 'buonasera', 'profumo', 'bottiglia', 'bellezza',
+        'nostro', 'vostro', 'questo', 'questa', 'per favore', 'campagna', 'marchio',
+        'storia', 'progetto', 'luce', 'della', 'nella', 'anche', 'sempre', 'molto',
+        'tutto', 'bene', 'posso', 'creazione', 'sublime', 'cinema', 'sono', 'siamo',
+        'fare', 'nuovo', 'nuova', 'vorremmo'
+    ]
+    it_score = it_accents + sum(3 for w in it_keywords if re.search(r'\b' + re.escape(w) + r'\b', text_lower))
+
+    if fr_score >= 3 and fr_score > it_score:
+        return 'fr'
+    if it_score >= 3 and it_score > fr_score:
+        return 'it'
+
+    # Fallback на код языка Telegram при отсутствии явных маркеров
+    if fallback_lang_code:
+        code = fallback_lang_code.lower()
+        if code.startswith('ru'): return 'ru'
+        if code.startswith('fr'): return 'fr'
+        if code.startswith('it'): return 'it'
+
+    return 'en'
+
+
+async def detect_user_dialogue_language(user_id: int, message: Optional[Message] = None) -> str:
+    """
+    Определяет язык живого общения клиента с Элиной:
+    1. Проверяет явные настройки user_lang_{user_id}.
+    2. Анализирует текущее входящее сообщение/подпись.
+    3. Если текста мало, поднимает недавние сообщения пользователя из базы.
+    4. Fallback на message.from_user.language_code.
+    5. По умолчанию 'en' (международный люксовый стандарт).
+    """
+    try:
+        saved_lang = await db.get_setting(f"user_lang_{user_id}")
+        if saved_lang in ("ru", "fr", "it", "en"):
+            sample = ""
+            if message:
+                sample = message.text or message.caption or ""
+            if sample and len(sample.strip()) > 15:
+                detected_live = _analyze_text_language(sample)
+                if detected_live != saved_lang and detected_live != 'en':
+                    await db.set_setting(f"user_lang_{user_id}", detected_live)
+                    return detected_live
+            return saved_lang
+    except Exception:
+        pass
+
+    sample_text = ""
+    if message:
+        if message.text and not message.text.startswith('/'):
+            sample_text += " " + message.text
+        elif message.caption:
+            sample_text += " " + message.caption
+
+    if len(sample_text.strip()) < 15:
+        try:
+            history = await db.get_history(user_id, limit=6)
+            for h in reversed(history):
+                if h.get('role') == 'user':
+                    c = h.get('content', '')
+                    if isinstance(c, str) and not c.startswith('/'):
+                        sample_text += " " + c
+                        if len(sample_text.strip()) > 100:
+                            break
+        except Exception:
+            pass
+
+    fallback_code = message.from_user.language_code if (message and message.from_user) else None
+    detected = _analyze_text_language(sample_text, fallback_code)
+
+    try:
+        await db.set_setting(f"user_lang_{user_id}", detected)
+    except Exception:
+        pass
+
+    return detected
+
+
 async def send_out_of_credits_message(message: Message, sub_type: str = "free"):
     """Служебное уведомление об исчерпании кредитов (Элина никогда не говорит о деньгах)."""
+    user_id = message.from_user.id
+    lang = await detect_user_dialogue_language(user_id, message)
+
     if sub_type == "premium":
-        kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="💳 Top-Up Atelier Credits", url="https://veocreative.agency/club")],
-            [InlineKeyboardButton(text="🏛 Contact Executive Producer", url="https://t.me/veocreative")]
-        ])
-        await message.answer(
-            "✦ <b>ATELIER VEO CLUB | NOTICE</b>\n\n"
-            "Your production credits for this billing cycle have been fulfilled.\n"
-            "Unused credits will roll over upon cycle renewal, or you may acquire a Studio Booster pack for immediate production.",
-            reply_markup=kb,
-            parse_mode="HTML"
-        )
+        if lang == "fr":
+            text = (
+                "✦ <b>ATELIER VEO CLUB | NOTIFICATION</b> ✦\n\n"
+                "Votre dotation de crédits de production pour ce cycle a été entièrement honorée.\n\n"
+                "Les crédits restants sont reportés lors du renouvellement de votre cycle, ou vous pouvez acquérir un pack Studio Booster pour vos productions immédiates."
+            )
+            kb = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="💳 Recharger les Crédits Atelier", url="https://veocreative.agency/club")],
+                [InlineKeyboardButton(text="🏛 Contacter le Producteur Exécutif", url="https://t.me/veocreative")]
+            ])
+        elif lang == "it":
+            text = (
+                "✦ <b>ATELIER VEO CLUB | AVVISO</b> ✦\n\n"
+                "Il vostro pool di crediti di produzione per questo ciclo è stato completato.\n\n"
+                "I crediti rimanenti vengono trasferiti al rinnovo del ciclo, oppure è possibile acquistare un pacchetto Studio Booster per la produzione immediata."
+            )
+            kb = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="💳 Ricarica Crediti Atelier", url="https://veocreative.agency/club")],
+                [InlineKeyboardButton(text="🏛 Contatta il Produttore Esecutivo", url="https://t.me/veocreative")]
+            ])
+        elif lang == "ru":
+            text = (
+                "✦ <b>ATELIER VEO CLUB | УВЕДОМЛЕНИЕ</b> ✦\n\n"
+                "Ваш пул производственных кредитов на текущий цикл исчерпан.\n\n"
+                "Неиспользованные кредиты переносятся при продлении цикла, либо вы можете приобрести пакет Studio Booster для немедленного продолжения съемок."
+            )
+            kb = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="💳 Пополнить баланс кредитов", url="https://veocreative.agency/club")],
+                [InlineKeyboardButton(text="🏛 Связаться с продюсером", url="https://t.me/veocreative")]
+            ])
+        else:
+            text = (
+                "✦ <b>ATELIER VEO CLUB | NOTICE</b> ✦\n\n"
+                "Your production credits for this billing cycle have been fulfilled.\n\n"
+                "Unused credits will roll over upon cycle renewal, or you may acquire a Studio Booster pack for immediate production."
+            )
+            kb = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="💳 Top-Up Atelier Credits", url="https://veocreative.agency/club")],
+                [InlineKeyboardButton(text="🏛 Contact Executive Producer", url="https://t.me/veocreative")]
+            ])
+        await message.answer(text, reply_markup=kb, parse_mode="HTML")
     else:
-        kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="💎 Apply for Atelier Residency (20 Seats)", url="https://veocreative.agency/club")],
-            [InlineKeyboardButton(text="🏛 Explore Atelier VEO Portfolio", url="https://veocreative.agency")]
-        ])
-        await message.answer(
-            "✦ <b>ATELIER VEO | TASTING PASS CONCLUDED</b>\n\n"
-            "Your complimentary 20 production credits have been fulfilled.\n\n"
-            "To continue co-creating with Elina as your dedicated Creative Director in residence, "
-            "apply for one of the strictly 20 global brand memberships at our atelier.",
-            reply_markup=kb,
-            parse_mode="HTML"
-        )
+        if lang == "fr":
+            text = (
+                "✦ <b>ATELIER VEO | ACCÈS DÉGUSTATION COMPLÉTÉ</b> ✦\n\n"
+                "Vos 20 crédits de dégustation offerts ont été honorés.\n\n"
+                "Pour continuer à créer avec Elina comme votre Directrice Artistique attitrée en résidence, "
+                "postulez à l'une des 20 résidences de marque exclusives de notre Maison."
+            )
+            kb = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="💎 Postuler à la Résidence (20 Sièges)", url="https://veocreative.agency/club")],
+                [InlineKeyboardButton(text="🏛 Explorer le Portfolio Atelier VEO", url="https://veocreative.agency")]
+            ])
+        elif lang == "it":
+            text = (
+                "✦ <b>ATELIER VEO | PASS DEGUSTAZIONE COMPLETATO</b> ✦\n\n"
+                "I vostri 20 crediti di produzione di cortesia sono stati utilizzati.\n\n"
+                "Per continuare a creare con Elina come vostra Direttrice Creativa dedicata in residenza, "
+                "candidatevi per uno dei 20 accessi esclusivi del nostro atelier."
+            )
+            kb = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="💎 Candidati alla Residenza (20 Posti)", url="https://veocreative.agency/club")],
+                [InlineKeyboardButton(text="🏛 Esplora il Portfolio Atelier VEO", url="https://veocreative.agency")]
+            ])
+        elif lang == "ru":
+            text = (
+                "✦ <b>ATELIER VEO | ДЕГУСТАЦИОННЫЙ ДОСТУП ЗАВЕРШЕН</b> ✦\n\n"
+                "Ваши приветственные 20 производственных кредитов израсходованы.\n\n"
+                "Чтобы продолжить созидание с Элиной в качестве вашего персонального креативного директора, "
+                "подайте заявку на одно из 20 эксклюзивных мест в резидентуре Atelier VEO."
+            )
+            kb = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="💎 Подать заявку на резидентство (20 мест)", url="https://veocreative.agency/club")],
+                [InlineKeyboardButton(text="🏛 Исследовать портфолио Atelier VEO", url="https://veocreative.agency")]
+            ])
+        else:
+            text = (
+                "✦ <b>ATELIER VEO | TASTING PASS CONCLUDED</b> ✦\n\n"
+                "Your complimentary 20 production credits have been fulfilled.\n\n"
+                "To continue co-creating with Elina as your dedicated Creative Director in residence, "
+                "apply for one of the strictly 20 global brand memberships at our atelier."
+            )
+            kb = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="💎 Apply for Atelier Residency (20 Seats)", url="https://veocreative.agency/club")],
+                [InlineKeyboardButton(text="🏛 Explore Atelier VEO Portfolio", url="https://veocreative.agency")]
+            ])
+        await message.answer(text, reply_markup=kb, parse_mode="HTML")
+
 
 async def check_user_and_balance(user_id: int, message: Message, cost: int = 1) -> Optional[dict]:
     """Проверка существования пользователя, срока действия подписки и его баланса Atelier Credits."""
@@ -91,9 +271,35 @@ async def check_user_and_balance(user_id: int, message: Message, cost: int = 1) 
                     await db.set_setting(f"user_model_{user_id}", "google/gemini-2.5-flash")
                     
                     remaining = user_data.get('tokens', 0)
-                    is_ru = bool(message.from_user.language_code and message.from_user.language_code.startswith('ru'))
+                    lang = await detect_user_dialogue_language(user_id, message)
                     
-                    if is_ru:
+                    if lang == "fr":
+                        notice_text = (
+                            "✦ <b>ATELIER VEO | NOTIFICATION DE RÉSIDENCE</b> ✦\n\n"
+                            "Le cycle mensuel de votre résidence au Club est arrivé à son terme.\n\n"
+                            f"L'intégralité de vos crédits restants (<b>{remaining:,} Atelier Credits</b>) est précieusement conservée — "
+                            "vous pouvez continuer à créer avec Elina en <b>Mode Conversationnel (Gemini 2.5 Flash)</b>.\n\n"
+                            "Pour réactiver le moteur directorial d'élite <b>Gemini 4 Argon</b> avec physique optique cinématique à 5 composants "
+                            "et recevoir votre nouvelle dotation mensuelle de crédits, vous pouvez renouveler votre adhésion à tout moment."
+                        )
+                        kb = InlineKeyboardMarkup(inline_keyboard=[
+                            [InlineKeyboardButton(text="💎 Renouveler la Résidence (Gemini 4 Argon)", url="https://veocreative.agency/club")],
+                            [InlineKeyboardButton(text="🏛 Producteur Exécutif", url="https://t.me/veocreative")]
+                        ])
+                    elif lang == "it":
+                        notice_text = (
+                            "✦ <b>ATELIER VEO | NOTIFICA DI RESIDENZA</b> ✦\n\n"
+                            "Il ciclo mensile della vostra residenza al Club è giunto al termine.\n\n"
+                            f"L'intero saldo rimanente (<b>{remaining:,} Atelier Credits</b>) è completamente preservato — "
+                            "potete continuare a creare con Elina in <b>Modalità Conversazionale (Gemini 2.5 Flash)</b>.\n\n"
+                            "Per riattivare il motore registico d'élite <b>Gemini 4 Argon</b> con fisica ottica cinematografica a 5 componenti "
+                            "e ricevere la nuova dotazione mensile di crediti, potete rinnovare la residenza in qualsiasi momento."
+                        )
+                        kb = InlineKeyboardMarkup(inline_keyboard=[
+                            [InlineKeyboardButton(text="💎 Rinnova la Residenza (Gemini 4 Argon)", url="https://veocreative.agency/club")],
+                            [InlineKeyboardButton(text="🏛 Produttore Esecutivo", url="https://t.me/veocreative")]
+                        ])
+                    elif lang == "ru":
                         notice_text = (
                             "✦ <b>ATELIER VEO | УВЕДОМЛЕНИЕ О РЕЖИМЕ РАБОТЫ</b> ✦\n\n"
                             "Срок вашего месячного клубного цикла подошел к концу.\n\n"
@@ -111,7 +317,7 @@ async def check_user_and_balance(user_id: int, message: Message, cost: int = 1) 
                             "✦ <b>ATELIER VEO | RESIDENCY CYCLE NOTICE</b> ✦\n\n"
                             "Your monthly residency cycle has concluded.\n\n"
                             f"All your remaining balance (<b>{remaining:,} Atelier Credits</b>) is fully preserved — "
-                            "you may continue co-creating with them in <b>Conversational Mode (Gemini 2.5 Flash)</b>.\n\n"
+                            "you may continue co-creating with Elina in <b>Conversational Mode (Gemini 2.5 Flash)</b>.\n\n"
                             "To reactivate the flagship directorial engine <b>Gemini 4 Argon</b> with 5-component cinematic optics "
                             "and receive your fresh production credit pool, you may renew your residency at any time."
                         )
@@ -253,8 +459,9 @@ async def cmd_start(message: Message):
         await db.add_tokens(user_id, trial_tokens)
         user_data = await db.get_user_data(user_id)
 
-    # By default, English for international luxury clients unless user has previously chosen
-    welcome_text, start_kb = get_start_content(user_id, user_data, lang="en")
+    # Автоматически определяем язык диалога или Telegram-клиента
+    lang = await detect_user_dialogue_language(user_id, message)
+    welcome_text, start_kb = get_start_content(user_id, user_data, lang=lang)
     if start_kb:
         await message.answer(welcome_text, reply_markup=start_kb, parse_mode="HTML")
     else:
@@ -263,6 +470,7 @@ async def cmd_start(message: Message):
 @router.callback_query(F.data == "lang_ru")
 async def switch_lang_ru(callback: CallbackQuery):
     user_id = callback.from_user.id
+    await db.set_setting(f"user_lang_{user_id}", "ru")
     user_data = await db.get_user_data(user_id)
     welcome_text, start_kb = get_start_content(user_id, user_data, lang="ru")
     await callback.message.edit_text(welcome_text, reply_markup=start_kb, parse_mode="HTML")
@@ -271,10 +479,29 @@ async def switch_lang_ru(callback: CallbackQuery):
 @router.callback_query(F.data == "lang_en")
 async def switch_lang_en(callback: CallbackQuery):
     user_id = callback.from_user.id
+    await db.set_setting(f"user_lang_{user_id}", "en")
     user_data = await db.get_user_data(user_id)
     welcome_text, start_kb = get_start_content(user_id, user_data, lang="en")
     await callback.message.edit_text(welcome_text, reply_markup=start_kb, parse_mode="HTML")
     await callback.answer("Language switched to English")
+
+@router.callback_query(F.data == "lang_fr")
+async def switch_lang_fr(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    await db.set_setting(f"user_lang_{user_id}", "fr")
+    user_data = await db.get_user_data(user_id)
+    welcome_text, start_kb = get_start_content(user_id, user_data, lang="fr")
+    await callback.message.edit_text(welcome_text, reply_markup=start_kb, parse_mode="HTML")
+    await callback.answer("Langue changée en Français")
+
+@router.callback_query(F.data == "lang_it")
+async def switch_lang_it(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    await db.set_setting(f"user_lang_{user_id}", "it")
+    user_data = await db.get_user_data(user_id)
+    welcome_text, start_kb = get_start_content(user_id, user_data, lang="it")
+    await callback.message.edit_text(welcome_text, reply_markup=start_kb, parse_mode="HTML")
+    await callback.answer("Lingua impostata su Italiano")
 
 
 @router.message(Command('clear'))
@@ -407,7 +634,7 @@ async def cmd_check_model(message: Message):
 
 @router.message(Command("status", "credits", "balance"))
 async def cmd_status(message: Message):
-    """Проверка статуса членства и остатка кредитов."""
+    """Проверка статуса членства и остатка кредитов на языке общения клиента."""
     user_id = message.from_user.id
     user_data = await db.get_user_data(user_id)
     if not user_data:
@@ -417,40 +644,133 @@ async def cmd_status(message: Message):
     sub_type = user_data.get('sub_type', 'free')
     tokens = user_data.get('tokens', 0)
     expiry = user_data.get('sub_expiry')
-
-    if sub_type == 'admin':
-        status_line = "Founder & Executive Producer (Unlimited)"
-        expiry_line = "Permanent Access"
-    elif sub_type == 'premium':
-        status_line = "Atelier Resident (Founding Pass)"
-        expiry_line = f"Active until: {expiry[:10]}" if expiry else "Active"
-    else:
-        status_line = "Tasting Guest (Complimentary Pass)"
-        expiry_line = "Standard access"
+    lang = await detect_user_dialogue_language(user_id, message)
 
     prompts_avail = tokens // 20
     qa_avail = tokens // 25
     audits_avail = tokens // 50
 
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="💎 Резидентура & Подписка", callback_data="buy_premium_menu"),
-            InlineKeyboardButton(text="📜 Меню услуг & Кредиты", callback_data="view_rates_menu")
-        ],
-        [InlineKeyboardButton(text="🏛 Сайт: veocreative.agency", url="https://veocreative.agency/club")]
-    ])
+    if lang == "fr":
+        if sub_type == 'admin':
+            status_line = "Fondateur & Producteur Exécutif (Illimité)"
+            expiry_line = "Accès Permanent"
+        elif sub_type == 'premium':
+            status_line = "Résident Atelier (Founding Pass)"
+            expiry_line = f"Actif jusqu'au : {expiry[:10]}" if expiry else "Actif"
+        else:
+            status_line = "Invité Dégustation (Pass Découverte)"
+            expiry_line = "Accès Standard"
 
-    text = (
-        "✦ <b>ATELIER VEO | RESIDENCY STATUS</b> ✦\n\n"
-        f"• <b>Status:</b> {status_line}\n"
-        f"• <b>Term:</b> {expiry_line}\n"
-        f"• <b>Available Balance:</b> <b>{tokens:,}</b> Atelier Credits\n\n"
-        "<b>Available Production Equivalent:</b>\n"
-        f"• Dual-Layer Director Prompts (Veo 2/Kling): ~{prompts_avail}\n"
-        f"• Video QA & Prompt Doctor Audits: ~{qa_avail}\n"
-        f"• Brand Aesthetic Audits: ~{audits_avail}\n\n"
-        "<i>Unused credits roll over to the next month upon residency renewal.</i>"
-    )
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="💎 Résidence & Adhésion", callback_data="buy_premium_menu_en"),
+                InlineKeyboardButton(text="📜 Tarifs & Crédits", callback_data="view_rates_menu_en")
+            ],
+            [InlineKeyboardButton(text="🏛 Site : veocreative.agency", url="https://veocreative.agency/club")]
+        ])
+
+        text = (
+            "✦ <b>ATELIER VEO | STATUT DE RÉSIDENCE</b> ✦\n\n"
+            f"• <b>Statut :</b> {status_line}\n"
+            f"• <b>Validité :</b> {expiry_line}\n"
+            f"• <b>Solde disponible :</b> <b>{tokens:,}</b> Atelier Credits\n\n"
+            "<b>Équivalence de production estimée :</b>\n"
+            f"• Prompts Directoriels Dual-Layer (Veo 2/Kling) : ~{prompts_avail}\n"
+            f"• Audits Vidéo QA & Prompt Doctor : ~{qa_avail}\n"
+            f"• Audits Esthétiques de Marque : ~{audits_avail}\n\n"
+            "<i>Les crédits non utilisés sont reportés au mois suivant lors du renouvellement.</i>"
+        )
+    elif lang == "it":
+        if sub_type == 'admin':
+            status_line = "Fondatore & Produttore Esecutivo (Illimitato)"
+            expiry_line = "Accesso Permanente"
+        elif sub_type == 'premium':
+            status_line = "Residente Atelier (Founding Pass)"
+            expiry_line = f"Attivo fino al: {expiry[:10]}" if expiry else "Attivo"
+        else:
+            status_line = "Ospite Degustazione (Pass di Prova)"
+            expiry_line = "Accesso Standard"
+
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="💎 Residenza & Adesione", callback_data="buy_premium_menu_en"),
+                InlineKeyboardButton(text="📜 Listino & Crediti", callback_data="view_rates_menu_en")
+            ],
+            [InlineKeyboardButton(text="🏛 Sito: veocreative.agency", url="https://veocreative.agency/club")]
+        ])
+
+        text = (
+            "✦ <b>ATELIER VEO | STATO DELLA RESIDENZA</b> ✦\n\n"
+            f"• <b>Stato:</b> {status_line}\n"
+            f"• <b>Validità:</b> {expiry_line}\n"
+            f"• <b>Saldo disponibile:</b> <b>{tokens:,}</b> Atelier Credits\n\n"
+            "<b>Equivalente di produzione stimato:</b>\n"
+            f"• Prompt Registici Dual-Layer (Veo 2/Kling): ~{prompts_avail}\n"
+            f"• Audit Video QA & Prompt Doctor: ~{qa_avail}\n"
+            f"• Audit Estetico del Brand: ~{audits_avail}\n\n"
+            "<i>I crediti non utilizzati vengono trasferiti al mese successivo al momento del rinnovo.</i>"
+        )
+    elif lang == "ru":
+        if sub_type == 'admin':
+            status_line = "Основатель & Исполнительный продюсер (Безлимит)"
+            expiry_line = "Пожизненный доступ"
+        elif sub_type == 'premium':
+            status_line = "Резидент Ателье (Клубный доступ)"
+            expiry_line = f"Активен до: {expiry[:10]}" if expiry else "Активен"
+        else:
+            status_line = "Дегустационный гость (Tasting Pass)"
+            expiry_line = "Базовый доступ"
+
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="💎 Резидентура & Подписка", callback_data="buy_premium_menu_ru"),
+                InlineKeyboardButton(text="📜 Меню услуг & Кредиты", callback_data="view_rates_menu_ru")
+            ],
+            [InlineKeyboardButton(text="🏛 Сайт: veocreative.agency", url="https://veocreative.agency/club")]
+        ])
+
+        text = (
+            "✦ <b>ATELIER VEO | СТАТУС РЕЗИДЕНТУРЫ</b> ✦\n\n"
+            f"• <b>Статус:</b> {status_line}\n"
+            f"• <b>Срок:</b> {expiry_line}\n"
+            f"• <b>Доступный баланс:</b> <b>{tokens:,}</b> Atelier Credits\n\n"
+            "<b>Оценочный производственный эквивалент:</b>\n"
+            f"• Режиссерские промпты Dual-Layer (Veo 2/Kling): ~{prompts_avail}\n"
+            f"• Video QA & Аудит промптов: ~{qa_avail}\n"
+            f"• Эстетический аудит бренда: ~{audits_avail}\n\n"
+            "<i>Неиспользованные кредиты переносятся на следующий месяц при продлении.</i>"
+        )
+    else:
+        if sub_type == 'admin':
+            status_line = "Founder & Executive Producer (Unlimited)"
+            expiry_line = "Permanent Access"
+        elif sub_type == 'premium':
+            status_line = "Atelier Resident (Founding Pass)"
+            expiry_line = f"Active until: {expiry[:10]}" if expiry else "Active"
+        else:
+            status_line = "Tasting Guest (Complimentary Pass)"
+            expiry_line = "Standard access"
+
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="💎 Residency & Tiers", callback_data="buy_premium_menu_en"),
+                InlineKeyboardButton(text="📜 Service Menu & Credits", callback_data="view_rates_menu_en")
+            ],
+            [InlineKeyboardButton(text="🏛 Website: veocreative.agency", url="https://veocreative.agency/club")]
+        ])
+
+        text = (
+            "✦ <b>ATELIER VEO | RESIDENCY STATUS</b> ✦\n\n"
+            f"• <b>Status:</b> {status_line}\n"
+            f"• <b>Term:</b> {expiry_line}\n"
+            f"• <b>Available Balance:</b> <b>{tokens:,}</b> Atelier Credits\n\n"
+            "<b>Available Production Equivalent:</b>\n"
+            f"• Dual-Layer Director Prompts (Veo 2/Kling): ~{prompts_avail}\n"
+            f"• Video QA & Prompt Doctor Audits: ~{qa_avail}\n"
+            f"• Brand Aesthetic Audits: ~{audits_avail}\n\n"
+            "<i>Unused credits roll over to the next month upon residency renewal.</i>"
+        )
+
     await message.answer(text, reply_markup=kb, parse_mode="HTML")
 
 
@@ -488,16 +808,46 @@ async def cmd_grant(message: Message):
     )
 
     try:
-        await message.bot.send_message(
-            chat_id=target_user_id,
-            text=(
+        user_lang = await db.get_setting(f"user_lang_{target_user_id}", "en")
+        if user_lang == "fr":
+            notice = (
+                "✦ <b>BIENVENUE DANS LA RÉSIDENCE ATELIER VEO</b> ✦\n\n"
+                "Votre adhésion privée a été officiellement confirmée par le Producteur Exécutif Vladimir.\n\n"
+                f"• <b>Statut :</b> Atelier Resident (Actif pendant {months} mois)\n"
+                f"• <b>Dotation de production :</b> +{credits_to_add:,} Atelier Credits\n"
+                "• <b>Moteur directorial :</b> Gemini 4 Argon Activé\n\n"
+                "Elina est à votre entière disposition. Échangez directement avec elle pour lancer votre première campagne."
+            )
+        elif user_lang == "it":
+            notice = (
+                "✦ <b>BENVENUTO NELLA RESIDENZA ATELIER VEO</b> ✦\n\n"
+                "La vostra adesione privata è stata ufficialmente confermata dal Produttore Esecutivo Vladimir.\n\n"
+                f"• <b>Stato:</b> Atelier Resident (Attivo per {months} mesi)\n"
+                f"• <b>Dotazione di produzione:</b> +{credits_to_add:,} Atelier Credits\n"
+                "• <b>Motore registico:</b> Gemini 4 Argon Attivo\n\n"
+                "Elina è a vostra completa disposizione. Scrivetele direttamente per avviare la vostra prima campagna."
+            )
+        elif user_lang == "ru":
+            notice = (
+                "✦ <b>ДОБРО ПОЖАЛОВАТЬ В РЕЗИДЕНТУРУ ATELIER VEO</b> ✦\n\n"
+                "Ваше членство в закрытом клубе официально подтверждено Исполнительным продюсером Владимиром.\n\n"
+                f"• <b>Статус:</b> Atelier Resident (Активен на {months} мес.)\n"
+                f"• <b>Производственный пул:</b> +{credits_to_add:,} Atelier Credits\n"
+                "• <b>Режиссерский разум:</b> Gemini 4 Argon активен\n\n"
+                "Элина к вашим услугам. Напишите ей напрямую, чтобы запустить вашу первую кампанию."
+            )
+        else:
+            notice = (
                 "✦ <b>WELCOME TO ATELIER VEO RESIDENCY</b> ✦\n\n"
                 "Your private membership has been officially confirmed by Executive Producer Vladimir.\n\n"
                 f"• <b>Status:</b> Atelier Resident (Active for {months} mo.)\n"
                 f"• <b>Production Pool:</b> +{credits_to_add:,} Atelier Credits\n"
                 "• <b>Directorial Engine:</b> Gemini 4 Argon Active\n\n"
                 "Elina is at your service. Speak directly to her to initiate your first campaign."
-            ),
+            )
+        await message.bot.send_message(
+            chat_id=target_user_id,
+            text=notice,
             parse_mode="HTML"
         )
     except Exception as e:
@@ -1186,6 +1536,11 @@ async def handle_message(message: Message):
                 return
 
             await target_message.bot.send_chat_action(chat_id=target_message.chat.id, action="typing")
+
+            # Фоново синхронизируем язык диалога пользователя с Элиной
+            detected_live = _analyze_text_language(user_text)
+            if detected_live in ('ru', 'fr', 'it'):
+                asyncio.create_task(db.set_setting(f"user_lang_{user_id}", detected_live))
 
             # Добавляем сообщение пользователя в историю
             await memory.add_message(user_id, 'user', user_text)
