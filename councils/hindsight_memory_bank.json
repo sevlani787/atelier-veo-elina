@@ -1,6 +1,6 @@
 {
   "bank": "atelier_veo_master",
-  "updated_at": "2026-10-26 21:49:44",
+  "updated_at": "2026-10-27 08:56:53",
   "invariants": [
     {
       "id": "inv_001_trade_secret",
@@ -260,6 +260,18 @@
       ],
       "author": "vladimir",
       "timestamp": "2026-10-26 21:49:44"
+    },
+    {
+      "id": "ep_1793084213_vladimir",
+      "category": "producer_decision",
+      "title": "Решение: ФИЛОСОФСКИЙ ИНВАРИАНТ ДОМА: ПРОВИДЕНИЕ И ГРАВИТАЦИЯ МАСТЕРСТ...",
+      "content": "ФИЛОСОФСКИЙ ИНВАРИАНТ ДОМА: ПРОВИДЕНИЕ И ГРАВИТАЦИЯ МАСТЕРСТВА. Первые два отказа спасли студию от ранней девальвации сырым продуктом. Пауза лаборатории породила Identity Shield, Закон чистого стекла и VEO Boardroom. Момент завершения технологии активировал входящую гравитацию мирового рынка: Sonia Ramou (arbote), Dr. Khaled (Bostan Naturals), Emre Savas, Valerie Madrid, Eric Mei. Возможности приходят в момент истинной готовности сосуда.",
+      "tags": [
+        "production",
+        "vladimir"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-27 08:56:53"
     }
   ]
 }
