@@ -96,6 +96,45 @@ def _analyze_text_language(text: str, fallback_lang_code: Optional[str] = None) 
     return 'en'
 
 
+async def get_system_error_message(user_id: int, message: Optional[Message] = None, error_type: str = "general") -> str:
+    """Генерирует уважительное служебное сообщение в зависимости от роли (Владимир / Клиент) и языка общения."""
+    is_admin = (user_id == config.admin_id)
+    if is_admin:
+        if error_type == "video_frames":
+            return "Не удалось извлечь кадры из этого видео... Попробуй отправить ролик в стандартном формате MP4 или MOV."
+        if error_type == "vision":
+            return "Кажется, возникла техническая задержка при распознавании фото... Попробуй отправить кадр ещё раз."
+        if error_type == "web":
+            return "Владимир, не удалось прочитать страницу по ссылке... Попробуем еще раз?"
+        return "Кажется, я на мгновение потеряла нить нашего разговора... Давай попробуем ещё раз?"
+
+    lang = await detect_user_dialogue_language(user_id, message)
+    if lang == "fr":
+        if error_type in ("video_frames", "video_analysis", "video_download"):
+            return "Une interruption technique est survenue lors de l'analyse vidéo. Veuillez transmettre votre fichier au format standard MP4 ou MOV."
+        if error_type == "web":
+            return "Impossible d'accéder au contenu du lien fourni. Veuillez vérifier l'URL ou transmettre le texte directement."
+        return "Une brève interruption technique est survenue lors du traitement. Veuillez renouveler votre demande."
+    elif lang == "it":
+        if error_type in ("video_frames", "video_analysis", "video_download"):
+            return "Si è verificata un'interruzione tecnica durante l'analisi del video. Si prega di caricare il file in formato MP4 o MOV."
+        if error_type == "web":
+            return "Impossibile accedere al contenu del link fornito. Si prega di verificare l'URL o inviare il testo direttamente."
+        return "Si è verificata una breve interruzione tecnica durante l'elaborazione. Si prega di ripetere la richiesta."
+    elif lang == "ru":
+        if error_type in ("video_frames", "video_analysis", "video_download"):
+            return "При обработке видеофайла возникла техническая пауза. Пожалуйста, отправьте ролик в стандартном формате MP4 или MOV."
+        if error_type == "web":
+            return "Не удалось получить доступ к содержимому по указанной ссылке. Пожалуйста, проверьте адрес или отправьте текст брифа напрямую."
+        return "При обработке запроса возникла краткая техническая пауза. Пожалуйста, повторите ваше сообщение."
+    else:
+        if error_type in ("video_frames", "video_analysis", "video_download"):
+            return "A technical interruption occurred while processing the video. Please provide the file in standard MP4 or MOV format."
+        if error_type == "web":
+            return "Unable to access the provided link. Please verify the URL or share the brief directly in chat."
+        return "A brief technical interruption occurred while processing the request. Please resend your message or asset."
+
+
 async def detect_user_dialogue_language(user_id: int, message: Optional[Message] = None) -> str:
     """
     Определяет язык живого общения клиента с Элиной:
@@ -432,7 +471,7 @@ def get_start_content(user_id: int, user_data: dict, lang: str = "en"):
         else:
             welcome_text = (
                 "✦ <b>ATELIER VEO | BESPOKE AI CINEMA</b> ✦\n\n"
-                "Welcome. I am Elina, Creative Director & Muse of Atelier VEO.\n\n"
+                "Welcome. I am Elina, Creative Director of Atelier VEO.\n\n"
                 "Here, we craft heritage-grade AI commercials and tactile visual universes dedicated exclusively to luxury beauty, artisanal fragrance, and high craftsmanship houses.\n\n"
                 "You have been granted a complimentary <b>Tasting Pass with 20 Atelier Credits</b> to experience our directorial craft on a single hero scene.\n\n"
                 "Share your product concept, a fragrance brief, or send a draft video for QA audit, and let us shape light together.\n\n"
@@ -510,8 +549,20 @@ async def switch_lang_it(callback: CallbackQuery):
 
 @router.message(Command('clear'))
 async def cmd_clear(message: Message):
-    await memory.clear_history(message.from_user.id)
-    await message.answer('Хорошо... Давай начнём с чистого листа. Я отпускаю наши прошлые слова, чтобы услышать новые.')
+    user_id = message.from_user.id
+    await memory.clear_history(user_id)
+    if user_id == config.admin_id:
+        await message.answer('Хорошо... Давай начнём с чистого листа. Я отпускаю наши прошлые слова, чтобы услышать новые.')
+    else:
+        lang = await detect_user_dialogue_language(user_id, message)
+        if lang == "fr":
+            await message.answer("✦ <b>ATELIER VEO</b> ✦\nLa mémoire de la session a été réinitialisée. À votre entière disposition pour initier un nouveau projet.")
+        elif lang == "it":
+            await message.answer("✦ <b>ATELIER VEO</b> ✦\nLa memoria della sessione è stata cancellata. A vostra completa disposizione per avviare un nuovo progetto.")
+        elif lang == "ru":
+            await message.answer("✦ <b>ATELIER VEO</b> ✦\nИстория текущей сессии очищена. Готова к работе над новым проектом.")
+        else:
+            await message.answer("✦ <b>ATELIER VEO</b> ✦\nSession dialogue memory cleared. Ready to initiate a new project.")
 
 
 @router.message(Command('elin_traits'))
@@ -1066,22 +1117,39 @@ async def handle_photo(message: Message):
                 # ==============================================================
                 # РЕЖИМ СРАВНИТЕЛЬНОГО ОТБОРА (SHOOTOUT 1 ИЗ N)
                 # ==============================================================
-                shootout_intro = (
-                    f"Ты — Элина, Главный Режиссер, Верховный Архитектор Промптов и Глава ОТК Atelier VEO.\n"
-                    f"Ты работаешь на флагманской мультимодальной нейросети Gemini 4 Argon.\n\n"
-                    f"Владимир (или резидент студии) прислал серию из {len(buffered_photos)} сгенерированных вариантов первого кадра (Start Frame 2K / раскадровка).\n"
-                    f"Твоя режиссерская задача — провести сравнительный кураторский аудит и выбрать ОДИН безоговорочно лучший кадр (Кадр-Победитель) для финального использования и оживления в Google Flow.\n\n"
-                    f"Критерии оценки:\n"
-                    f"1. Оптика и геометрия флакона/объекта (чистота граней, отсутствие мыла, физика толстого стекла, правильная форма).\n"
-                    f"2. Инвариант чистоты (The Clean Flacon Invariant — отсутствие паразитных букв, клякс и мутных пятен под впекание Identity Shield).\n"
-                    f"3. Физика света и каустики (2700K / 5200K, благородство бликов, прозрачность и плотность жидкости).\n"
-                    f"4. Кинематографическая композиция Quiet Luxury (идеальный старт для движения камеры).\n\n"
-                    f"Формат ответа:\n"
-                    f"• Экспресс-разбор каждого представленного варианта (Вариант №1, Вариант №2, ...): сильные стороны и недочеты.\n"
-                    f"• 🏆 **КАДР-ПОБЕДИТЕЛЬ: [Вариант №X]** — аргументированный вердикт, почему именно он превосходит остальные.\n"
-                    f"• **Режиссерская директива для Google Flow:** на чем акцентировать движение камеры при оживлении этого кадра.\n\n"
-                    f"Комментарий к заказу: {caption or 'Выбери самый качественный кадр-победитель для запуска в продакшн.'}"
-                )
+                if is_admin:
+                    shootout_intro = (
+                        f"Ты — Элина, Главный Режиссер, Верховный Архитектор Промптов и Глава ОТК Atelier VEO.\n"
+                        f"Ты работаешь на флагманской мультимодальной нейросети Gemini 4 Argon.\n\n"
+                        f"Владимир прислал серию из {len(buffered_photos)} сгенерированных вариантов первого кадра (Start Frame 2K / раскадровка).\n"
+                        f"Твоя режиссерская задача — провести сравнительный кураторский аудит и выбрать ОДИН безоговорочно лучший кадр (Кадр-Победитель) для финального использования и оживления в Google Flow.\n\n"
+                        f"Критерии оценки:\n"
+                        f"1. Оптика и геометрия флакона/объекта (чистота граней, отсутствие мыла, физика толстого стекла, правильная форма).\n"
+                        f"2. Инвариант чистоты (The Clean Flacon Invariant — отсутствие паразитных букв, клякс и мутных пятен под впекание Identity Shield).\n"
+                        f"3. Физика света и каустики (2700K / 5200K, благородство бликов, прозрачность и плотность жидкости).\n"
+                        f"4. Кинематографическая композиция Quiet Luxury (идеальный старт для движения камеры).\n\n"
+                        f"Формат ответа:\n"
+                        f"• Экспресс-разбор каждого представленного варианта (Вариант №1, Вариант №2, ...): сильные стороны и недочеты.\n"
+                        f"• 🏆 **КАДР-ПОБЕДИТЕЛЬ: [Вариант №X]** — аргументированный вердикт, почему именно он превосходит остальные.\n"
+                        f"• **Режиссерская директива для Google Flow:** на чем акцентировать движение камеры при оживлении этого кадра.\n\n"
+                        f"Комментарий к заказу: {caption or 'Выбери самый качественный кадр-победитель для запуска в продакшн.'}"
+                    )
+                else:
+                    shootout_intro = (
+                        f"Ты — Элина, Главный Креативный Директор Дома Atelier VEO.\n"
+                        f"Резидент студии прислал серию из {len(buffered_photos)} вариантов стартового кадра для экспертного кураторского отбора.\n\n"
+                        f"Твоя задача — по-деловому, высокоинтеллигентно и доброжелательно (без тени сентиментов) провести профессиональный аудит и отобрать ОДИН эталонный Кадр-Победитель.\n\n"
+                        f"Критерии оценки:\n"
+                        f"1. Оптическая геометрия и физика стекла/материала (чистота граней, благородство преломления, отсутствие цифрового мыла).\n"
+                        f"2. Инвариант чистоты оптики (The Clean Flacon Invariant — безупречная эстетика поверхности, контрастность и четкость).\n"
+                        f"3. Фотометрическая физика света (температура Kelvin, каустика, глубина светотени chiaroscuro).\n"
+                        f"4. Кинематографическая композиция Quiet Luxury.\n\n"
+                        f"Формат ответа:\n"
+                        f"• Деловой разбор каждого варианта (сильные стороны и зоны оптической корректировки).\n"
+                        f"• 🏆 **КАДР-ПОБЕДИТЕЛЬ: [Вариант №X]** — аргументированное эстетическое обоснование выбора.\n"
+                        f"• **Режиссерские рекомендации по динамике камеры** при анимации сцены.\n\n"
+                        f"Комментарий резидента: {caption or 'Провести профессиональный отбор лучшего кадра для запуска кампании.'}"
+                    )
 
                 vision_content = [{"type": "text", "text": shootout_intro}]
 
@@ -1108,7 +1176,7 @@ async def handle_photo(message: Message):
 
                 history = await memory.get_context_for_llm(user_id)
                 user_profile = await memory.get_user_profile(user_id)
-                elin_persona = await memory.get_elin_persona_text()
+                elin_persona = (await memory.get_elin_persona_text()) if is_admin else ""
                 lore_context = await memory.get_world_context(caption)
 
                 if is_admin:
@@ -1166,7 +1234,7 @@ async def handle_photo(message: Message):
 
                 history = await memory.get_context_for_llm(user_id)
                 user_profile = await memory.get_user_profile(user_id)
-                elin_persona = await memory.get_elin_persona_text()
+                elin_persona = (await memory.get_elin_persona_text()) if is_admin else ""
                 lore_context = await memory.get_world_context(user_caption)
 
                 if is_admin:
@@ -1204,7 +1272,8 @@ async def handle_photo(message: Message):
                 asyncio.create_task(extract_and_save_all_task(user_id))
 
         except Exception as e:
-            await target_message.answer("Знаешь, иногда мне сложно уловить суть образа... Попробуй, пожалуйста, отправить фото ещё раз.")
+            err_text = await get_system_error_message(user_id, target_message, "vision")
+            await target_message.answer(err_text)
             print(f"Vision Error: {e}")
 
 
@@ -1233,7 +1302,7 @@ async def process_video_audit(
         frames = await asyncio.to_thread(extract_keyframes_from_video, temp_video_path, float(duration), 6)
 
         if not frames:
-            err_text = "Не удалось извлечь кадры из этого видео... Попробуй отправить ролик в стандартном формате MP4 или MOV."
+            err_text = await get_system_error_message(user_id, message, "video_frames")
             if wait_msg:
                 await wait_msg.edit_text(err_text)
             else:
@@ -1275,7 +1344,7 @@ async def process_video_audit(
         # Собираем контекст для LLM
         history = await memory.get_context_for_llm(user_id)
         user_profile = await memory.get_user_profile(user_id)
-        elin_persona = await memory.get_elin_persona_text()
+        elin_persona = (await memory.get_elin_persona_text()) if is_admin else ""
         lore_context = await memory.get_world_context(caption)
         is_admin = (user_id == config.admin_id)
         override_model = await db.get_setting(f"user_model_{user_id}", "google/gemini-4-argon") if (is_admin or user_data.get('sub_type') == 'premium') else None
@@ -1313,7 +1382,8 @@ async def process_video_audit(
                 await wait_msg.delete()
             except Exception:
                 pass
-        await message.answer('Знаешь, при анализе видеоряда у меня возникли сложности... Попробуй отправить его ещё раз или немного укоротить.')
+        err_text = await get_system_error_message(user_id, message, 'video_analysis')
+        await message.answer(err_text)
         print(f'Video QA Error: {e}')
     finally:
         if is_temp_file and temp_video_path and os.path.exists(temp_video_path):
@@ -1368,7 +1438,8 @@ async def handle_video(message: Message):
         await process_video_audit(message, temp_video_path, duration, caption, user_id, user_data, is_temp_file=is_temp_file)
 
     except Exception as e:
-        await message.answer('Знаешь, при получении видеофайла возникла ошибка... Попробуй отправить его ещё раз.')
+        err_text = await get_system_error_message(user_id, message, 'video_download')
+        await message.answer(err_text)
         print(f'Video Download Error: {e}')
         if is_temp_file and temp_video_path and os.path.exists(temp_video_path):
             try:
@@ -1411,7 +1482,7 @@ async def handle_video(message: Message):
 #         # Получаем историю, профиль и образ Элин
 #         history = await memory.get_context_for_llm(user_id)
 #         user_profile = await memory.get_user_profile(user_id)
-#         elin_persona = await memory.get_elin_persona_text()
+#         elin_persona = (await memory.get_elin_persona_text()) if is_admin else ""
 #         is_admin = (user_id == config.admin_id)
 # 
 #         # Генерируем ответ
@@ -1579,13 +1650,16 @@ async def handle_message(message: Message):
                     await typing_task
                     
                 if not scraped_data or scraped_data.startswith("Ошибка"):
+                    err_msg = (
+                        "Знаешь, у меня возникли трудности при попытке заглянуть туда... "
+                        "Возможно, профиль закрыт или ссылка ведёт в приватную зону. Попробуешь проверить её?"
+                        if is_admin else
+                        await get_system_error_message(user_id, target_message, "web")
+                    )
                     if wait_msg:
-                        await wait_msg.edit_text(
-                            "Знаешь, у меня возникли трудности при попытке заглянуть туда... "
-                            "Возможно, профиль закрыт или ссылка ведёт в приватную зону. Попробуешь проверить её?"
-                        )
+                        await wait_msg.edit_text(err_msg)
                     else:
-                        await target_message.answer("Не удалось получить доступ к этой странице. Проверь, пожалуйста, ссылку.")
+                        await target_message.answer(err_msg)
                     return
                     
                 enriched_user_text = f"{user_text}\n\n[Системный контекст: Данные профиля {platform_name} по ссылке {url}]:\n{scraped_data}"
@@ -1619,7 +1693,7 @@ async def handle_message(message: Message):
             # Собираем контекст для LLM
             history = await memory.get_context_for_llm(user_id)
             user_profile = await memory.get_user_profile(user_id)
-            elin_persona = await memory.get_elin_persona_text()
+            elin_persona = (await memory.get_elin_persona_text()) if is_admin else ""
             lore_context = await memory.get_world_context(user_text)
 
             elin_persona_enriched = elin_persona + analysis_instruction
@@ -1670,7 +1744,8 @@ async def handle_message(message: Message):
                         await wait_msg.delete()
                     except:
                         pass
-                await target_message.answer('Я увидела всё, что там есть, но выразить это словами сейчас почему-то трудно... Попробуем еще раз?')
+                err_text = await get_system_error_message(user_id, target_message, 'web')
+                await target_message.answer(err_text)
                 print(f'LLM Web-Analysis Error: {e}')
 
         else:
@@ -1696,7 +1771,7 @@ async def handle_message(message: Message):
             # Получаем историю для контекста, профиль пользователя, образ Элин и лор-контекст
             history = await memory.get_context_for_llm(user_id)
             user_profile = await memory.get_user_profile(user_id)
-            elin_persona = await memory.get_elin_persona_text()
+            elin_persona = (await memory.get_elin_persona_text()) if is_admin else ""
             lore_context = await memory.get_world_context(user_text)
 
             is_admin = (user_id == config.admin_id)
@@ -1743,5 +1818,6 @@ async def handle_message(message: Message):
                     asyncio.create_task(extract_and_save_all_task(user_id))
 
             except Exception as e:
-                await target_message.answer('Кажется, я на мгновение потеряла нить нашего разговора... Давай попробуем ещё раз?')
+                err_text = await get_system_error_message(user_id, target_message, 'llm')
+                await target_message.answer(err_text)
                 print(f'LLM Error: {e}')
