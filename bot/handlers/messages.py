@@ -496,11 +496,37 @@ def get_start_content(user_id: int, user_data: dict, lang: str = "en"):
 async def cmd_start(message: Message):
     user_id = message.from_user.id
     user_data = await db.get_user_data(user_id)
+    is_new_user = False
     
     if not user_data:
+        is_new_user = True
         trial_tokens = int(await db.get_setting("trial_tokens", "20"))
         await db.add_tokens(user_id, trial_tokens)
         user_data = await db.get_user_data(user_id)
+
+    # Фиксируем переход из закрытого клуба (?start=club)
+    text_content = message.text or ""
+    is_from_club = ("club" in text_content.lower())
+    if is_from_club:
+        await db.set_setting(f"user_source_{user_id}", "club")
+
+    # Уведомляем Владимира в Telegram о новом госте из клуба или сайта
+    if is_new_user and config.admin_id and user_id != config.admin_id:
+        user_name = message.from_user.full_name or "Гость"
+        username_str = f"@{message.from_user.username}" if message.from_user.username else "без username"
+        source_label = "Закрытый салон (veocreative.agency/club)" if is_from_club else "Прямой переход в бота"
+        admin_alert = (
+            f"✦ <b>НОВЫЙ ГОСТЬ В ATELIER VEO</b> ✦\n\n"
+            f"👤 <b>Клиент:</b> {user_name} ({username_str})\n"
+            f"🆔 <b>Telegram ID:</b> <code>{user_id}</code>\n"
+            f"📍 <b>Источник:</b> {source_label}\n"
+            f"🎁 <b>Баланс:</b> Tasting Pass (20 Atelier Credits)\n\n"
+            f"<i>Элина готова к приему брифа на сцену или раскадровку.</i>"
+        )
+        try:
+            await message.bot.send_message(config.admin_id, admin_alert, parse_mode="HTML")
+        except Exception as e:
+            print(f"[ONBOARDING ALERT] Failed to notify admin: {e}")
 
     # Автоматически определяем язык диалога или Telegram-клиента
     lang = await detect_user_dialogue_language(user_id, message)
