@@ -373,6 +373,15 @@ class Database:
                 settings[key] = val
         return settings
 
+    async def set_sub_type(self, user_id: int, sub_type: str):
+        """Обновление статуса подписки пользователя (free / premium / admin)."""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                "UPDATE users SET sub_type = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?",
+                (sub_type, user_id)
+            )
+            await db.commit()
+
 
 # Глобальный экземпляр
 db = Database()

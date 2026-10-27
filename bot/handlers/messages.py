@@ -63,7 +63,7 @@ async def send_out_of_credits_message(message: Message, sub_type: str = "free"):
         )
 
 async def check_user_and_balance(user_id: int, message: Message, cost: int = 1) -> Optional[dict]:
-    """Проверка существования пользователя и его баланса Atelier Credits."""
+    """Проверка существования пользователя, срока действия подписки и его баланса Atelier Credits."""
     user_data = await db.get_user_data(user_id)
     
     if not user_data:
@@ -74,6 +74,55 @@ async def check_user_and_balance(user_id: int, message: Message, cost: int = 1) 
     
     if user_id == config.admin_id or (user_data and user_data.get('sub_type') == 'admin'):
         return user_data
+
+    # Проверка срока действия клубной резидентуры
+    if user_data.get('sub_type') == 'premium':
+        expiry_str = user_data.get('sub_expiry')
+        if expiry_str:
+            try:
+                from datetime import datetime
+                expiry_clean = expiry_str.replace('Z', '+00:00')
+                expiry_dt = datetime.fromisoformat(expiry_clean)
+                now = datetime.now(expiry_dt.tzinfo) if expiry_dt.tzinfo else datetime.now()
+                if now > expiry_dt:
+                    # Срок подписки истек: сохраняем остаток кредитов, переводим в free и сбрасываем на Gemini 2.5 Flash
+                    await db.set_sub_type(user_id, 'free')
+                    user_data['sub_type'] = 'free'
+                    await db.set_setting(f"user_model_{user_id}", "google/gemini-2.5-flash")
+                    
+                    remaining = user_data.get('tokens', 0)
+                    is_ru = bool(message.from_user.language_code and message.from_user.language_code.startswith('ru'))
+                    
+                    if is_ru:
+                        notice_text = (
+                            "✦ <b>ATELIER VEO | УВЕДОМЛЕНИЕ О РЕЖИМЕ РАБОТЫ</b> ✦\n\n"
+                            "Срок вашего месячного клубного цикла подошел к концу.\n\n"
+                            f"Все ваши оставшиеся кредиты (<b>{remaining:,} Atelier Credits</b>) полностью сохранены за вами — "
+                            "вы можете продолжать использовать их в <b>базовом режиме (Gemini 2.5 Flash)</b>.\n\n"
+                            "Для возврата флагманского режиссерского разума <b>Gemini 4 Argon</b> с 5-компонентной оптикой "
+                            "и начисления нового пула кредитов вы можете продлить резидентуру в любой удобный момент."
+                        )
+                        kb = InlineKeyboardMarkup(inline_keyboard=[
+                            [InlineKeyboardButton(text="💎 Продлить резидентуру (Gemini 4 Argon)", url="https://veocreative.agency/club")],
+                            [InlineKeyboardButton(text="🏛 Исполнительный продюсер", url="https://t.me/veocreative")]
+                        ])
+                    else:
+                        notice_text = (
+                            "✦ <b>ATELIER VEO | RESIDENCY CYCLE NOTICE</b> ✦\n\n"
+                            "Your monthly residency cycle has concluded.\n\n"
+                            f"All your remaining balance (<b>{remaining:,} Atelier Credits</b>) is fully preserved — "
+                            "you may continue co-creating with them in <b>Conversational Mode (Gemini 2.5 Flash)</b>.\n\n"
+                            "To reactivate the flagship directorial engine <b>Gemini 4 Argon</b> with 5-component cinematic optics "
+                            "and receive your fresh production credit pool, you may renew your residency at any time."
+                        )
+                        kb = InlineKeyboardMarkup(inline_keyboard=[
+                            [InlineKeyboardButton(text="💎 Renew Residency (Gemini 4 Argon)", url="https://veocreative.agency/club")],
+                            [InlineKeyboardButton(text="🏛 Executive Producer", url="https://t.me/veocreative")]
+                        ])
+                    
+                    await message.answer(notice_text, reply_markup=kb, parse_mode="HTML")
+            except Exception as e:
+                print(f"Error checking sub_expiry for {user_id}: {e}")
 
     # Проверка баланса для всех, кроме администратора
     if user_data.get('sub_type') != 'admin' and user_data.get('tokens', 0) < cost:
