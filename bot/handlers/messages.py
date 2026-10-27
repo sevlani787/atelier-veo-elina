@@ -1,4 +1,8 @@
 import base64
+import logging
+from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
 import io
 import asyncio
 import json
@@ -852,6 +856,150 @@ async def cmd_grant(message: Message):
         )
     except Exception as e:
         await message.answer(f"⚠️ Членство активировано, но уведомление пользователю не доставлено: {e}")
+
+
+@router.callback_query(F.data.startswith("prolong_"))
+async def handle_admin_prolong(callback: CallbackQuery):
+    """Быстрое продление членства резидента в 1 клик прямо из уведомления (Admin only)."""
+    if callback.from_user.id != config.admin_id:
+        await callback.answer("Действие зарезервировано за Исполнительным продюсером.")
+        return
+
+    parts = callback.data.split("_")
+    target_user_id = int(parts[1])
+    months = int(parts[2])
+    credits_to_add = 1000 * months
+
+    await db.add_subscription_credits(target_user_id, months=months, credits=credits_to_add)
+    await db.set_setting(f"user_model_{target_user_id}", "google/gemini-4-argon")
+
+    new_user_data = await db.get_user_data(target_user_id) or {}
+    new_expiry = (new_user_data.get('sub_expiry') or "")[:10]
+    new_tokens = new_user_data.get('tokens', 0)
+
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+
+    await callback.message.answer(
+        f"✅ <b>Резидентство успешно продлено!</b>\n\n"
+        f"👤 <b>User ID:</b> <code>{target_user_id}</code>\n"
+        f"📅 <b>Срок:</b> +{months} мес. (активно до <b>{new_expiry}</b>)\n"
+        f"💎 <b>Баланс:</b> <b>{new_tokens:,}</b> Atelier Credits (Rollover применен)\n"
+        f"🏛 <b>Режим:</b> Gemini 4 Argon",
+        parse_mode="HTML"
+    )
+    await callback.answer(f"Продлено на {months} мес.")
+
+    user_lang = await db.get_setting(f"user_lang_{target_user_id}", "en")
+    if user_lang == "fr":
+        client_text = (
+            "✦ <b>ATELIER VEO | RENOUVELLEMENT DE RÉSIDENCE</b> ✦\n\n"
+            "Votre adhésion privée au Club a été renouvelée avec succès par le Producteur Exécutif Vladimir.\n\n"
+            f"• <b>Statut :</b> Atelier Resident (Prolongé de {months} mois)\n"
+            f"• <b>Dotation de production :</b> +{credits_to_add:,} Atelier Credits (Rollover préservé)\n"
+            "• <b>Moteur directorial :</b> Gemini 4 Argon Activé\n\n"
+            "Elina est à votre entière disposition pour poursuivre nos créations cinématiques."
+        )
+    elif user_lang == "it":
+        client_text = (
+            "✦ <b>ATELIER VEO | RINNOVO DELLA RESIDENZA</b> ✦\n\n"
+            "La vostra adesione privata al Club è stata rinnovata con successo dal Produttore Esecutivo Vladimir.\n\n"
+            f"• <b>Stato :</b> Atelier Resident (Prorogato di {months} mesi)\n"
+            f"• <b>Dotazione di produzione :</b> +{credits_to_add:,} Atelier Credits (Rollover preservato)\n"
+            "• <b>Motore registico :</b> Gemini 4 Argon Attivo\n\n"
+            "Elina è a vostra completa disposizione per continuare le nostre creazioni cinematografiche."
+        )
+    elif user_lang == "ru":
+        client_text = (
+            "✦ <b>ATELIER VEO | ПРОДЛЕНИЕ РЕЗИДЕНТУРЫ</b> ✦\n\n"
+            "Ваше клубное членство успешно продлено Исполнительным продюсером Владимиром.\n\n"
+            f"• <b>Статус:</b> Atelier Resident (Продлен на {months} мес.)\n"
+            f"• <b>Производственный пул:</b> +{credits_to_add:,} Atelier Credits (с учетом Rollover)\n"
+            "• <b>Режиссерский разум:</b> Gemini 4 Argon активен\n\n"
+            "Элина к вашим услугам для продолжения съемок и сценариев."
+        )
+    else:
+        client_text = (
+            "✦ <b>ATELIER VEO | RESIDENCY RENEWAL</b> ✦\n\n"
+            "Your private Club residency has been successfully renewed by Executive Producer Vladimir.\n\n"
+            f"• <b>Status:</b> Atelier Resident (Extended by {months} mo.)\n"
+            f"• <b>Production Pool:</b> +{credits_to_add:,} Atelier Credits (Rollover preserved)\n"
+            "• <b>Directorial Engine:</b> Gemini 4 Argon Active\n\n"
+            "Elina is at your service to continue shaping our cinematic campaigns."
+        )
+    try:
+        await callback.bot.send_message(chat_id=target_user_id, text=client_text, parse_mode="HTML")
+    except Exception as e:
+        logger.warning(f"Failed to deliver renewal notice to {target_user_id}: {e}")
+
+
+@router.message(Command("members", "residents", "clients"))
+async def cmd_list_members(message: Message):
+    """Реестр активных резидентов клуба (Admin only)."""
+    if message.from_user.id != config.admin_id:
+        return
+
+    from bot.services.subscription_manager import get_client_display_info
+    residents = await db.get_active_residents()
+    client_residents = [r for r in residents if r.get('user_id') != config.admin_id]
+
+    if not client_residents:
+        await message.answer(
+            "✦ <b>ATELIER VEO | РЕЕСТР РЕЗИДЕНТОВ</b> ✦\n\n"
+            "В данный момент активных платных резидентур нет.\n"
+            "Все 20 клубных мест свободны для Домов высокой парфюмерии и бьюти.\n\n"
+            "Для активации клиента: <code>/grant &lt;user_id&gt; [months=1] [credits=1000]</code>",
+            parse_mode="HTML"
+        )
+        return
+
+    now = datetime.now()
+    lines = [
+        "✦ <b>ATELIER VEO | РЕЕСТР РЕЗИДЕНТОВ (КВОТА 20 МЕСТ)</b> ✦\n",
+        f"Занято мест: <b>{len(client_residents)} / 20</b>\n"
+    ]
+
+    for idx, r in enumerate(client_residents, start=1):
+        uid = r.get('user_id')
+        tokens = r.get('tokens', 0)
+        exp_str = r.get('sub_expiry')
+        info = await get_client_display_info(message.bot, uid)
+        
+        days_left_str = "?"
+        if exp_str:
+            try:
+                exp_dt = datetime.fromisoformat(exp_str.replace('Z', '+00:00'))
+                dt_now = datetime.now(exp_dt.tzinfo) if exp_dt.tzinfo else now
+                delta = exp_dt - dt_now
+                days_left = round(delta.total_seconds() / 86400, 1)
+                days_left_str = f"{days_left} дн." if days_left > 0 else "ИСТЕК"
+            except Exception:
+                pass
+
+        lines.append(
+            f"<b>{idx}. {info['client_name']}</b> ({info['username_str']})\n"
+            f"   • Бренд: {info['brand_name']}\n"
+            f"   • ID: <code>{uid}</code>\n"
+            f"   • Срок: до {exp_str[:10] if exp_str else '—'} (осталось {days_left_str})\n"
+            f"   • Баланс: <b>{tokens:,}</b> Atelier Credits\n"
+            f"   • Продлить: <code>/grant {uid} 1</code>\n"
+        )
+
+    await message.answer("\n".join(lines), parse_mode="HTML")
+
+
+@router.message(Command("check_subs"))
+async def cmd_check_subs_manually(message: Message):
+    """Ручной запуск аудита подписок и отправки предупреждений (Admin only)."""
+    if message.from_user.id != config.admin_id:
+        return
+
+    from bot.services.subscription_manager import check_expiring_subscriptions
+    await message.answer("🔍 Запускаю проверку резидентур и сроков окончания...")
+    await check_expiring_subscriptions(message.bot)
+    await message.answer("✅ Проверка резидентур завершена.")
 
 
 @router.message(F.photo)

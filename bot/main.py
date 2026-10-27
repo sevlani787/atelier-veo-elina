@@ -10,6 +10,7 @@ from bot.config import config
 from bot.handlers.messages import router as messages_router
 from bot.handlers.payments import router as payments_router
 from bot.services.database import db
+from bot.services.subscription_manager import subscription_watchdog
 
 logging.basicConfig(level=logging.INFO)
 
@@ -51,7 +52,11 @@ async def main():
         logging.error(f"Error registering menu commands: {e}")
 
     logging.info('Элин запускается...')
-    await dp.start_polling(bot)
+    watchdog_task = asyncio.create_task(subscription_watchdog(bot))
+    try:
+        await dp.start_polling(bot)
+    finally:
+        watchdog_task.cancel()
 
 
 if __name__ == '__main__':

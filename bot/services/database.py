@@ -382,6 +382,17 @@ class Database:
             )
             await db.commit()
 
+    async def get_active_residents(self) -> list[dict]:
+        """Получение списка всех активных резидентов клуба (sub_type == 'premium')."""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT user_id, facts, tokens, sub_type, sub_expiry FROM users WHERE sub_type = 'premium' AND sub_expiry IS NOT NULL"
+            ) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(row) for row in rows]
+
+
 
 # Глобальный экземпляр
 db = Database()
