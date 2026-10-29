@@ -3,6 +3,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.filters import Command
 
 from bot.services.database import db
+from bot.config import config
 
 router = Router()
 
@@ -109,44 +110,48 @@ async def view_rates_menu_ru(callback: CallbackQuery):
 async def view_rates_menu_internal(target, lang: str = "en"):
     if lang == "ru":
         text = (
-            "✦ <b>ATELIER VEO | СЕТКА УСЛУГ И КРЕДИТОВ</b> ✦\n\n"
+            "✦ <b>ATELIER VEO | 5 МОДУЛЕЙ И СЕТКА КРЕДИТОВ</b> ✦\n\n"
             "Каждое режиссерское действие с Элиной обеспечено выделенными вычислительными мощностями:\n\n"
-            "• <b>Двухслойный режиссерский промпт (Veo 2 / Kling):</b> 20 Credits (~$3.8)\n"
-            "  <i>Художественный анализ + блок кода 5-компонентной оптики VEO на английском языке.</i>\n\n"
-            "• <b>Prompt Doctor & Multimodal Video QA Audit:</b> 25 Credits (~$4.7)\n"
-            "  <i>Покадровый аудит дефектов (свет, анатомия, стекло флакона) + готовый скорректированный промпт.</i>\n\n"
-            "• <b>Аудит эстетики бренда (Brand DNA Audit):</b> 50 Credits (~$9.5)\n"
-            "  <i>Глубокий анализ референсов, палитры и позиционирование в кодах Quiet Luxury.</i>\n\n"
-            "• <b>Синтез цифрового амбассадора Дома:</b> 100 Credits (~$19)\n"
-            "  <i>Фотометрическая архитектура лица и консистентность виртуальной модели бренда.</i>\n\n"
-            "• <b>Режиссерский диалог и брейншторм:</b> 1 Credit (~$0.19)\n"
-            "  <i>Креативные консультации, поиск визуальных метафор и итерации.</i>\n\n"
+            "1. <b>Dual-Layer Cinematic Prompt (/prompt):</b> <b>20 Cr</b>\n"
+            "   <i>Layer 1: Режиссерский тритмент + Layer 2: 5-компонентный математический промпт на английском (Veo 2 / Kling / Sora).</i>\n\n"
+            "2. <b>Visual QA & Prompt Doctor (/qa):</b> <b>25 Cr</b>\n"
+            "   <i>Видеоаудит (файл до 2 ГБ / облачная ссылка): оценка /10, диагностика 4 зон + анти-дрейф патч.</i>\n\n"
+            "3. <b>Website & Instagram Teardown (/audit):</b> <b>50 Cr</b>\n"
+            "   <i>Aesthetic Prestige Score (/10), фотометрия, точки потери статуса + 3 готовых киносценария.</i>\n\n"
+            "4. <b>Virtual Muse Architecture (/muse):</b> <b>100 Cr</b>\n"
+            "   <i>Паспорт цифрового амбассадора: мульти-ракурсные семена, текстура кожи Hasselblad, палитра гардероба.</i>\n\n"
+            "5. <b>Living Brand DNA Memory (/dna /vault):</b> <b>0 Cr</b> (Включено)\n"
+            "   <i>Личный суверенный сейф бренда: геометрия, пантоны, материалы упаковки с авто-учетом (Zero-Rebriefing).</i>\n\n"
+            "• <b>Режиссерский диалог и консультации:</b> <b>1 Cr</b>\n\n"
             "<i>✦ 100% Rollover Policy: Все неиспользованные кредиты бессрочно переносятся на следующий месяц.</i>"
         )
         kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⚡️ Докупить кредиты (/topup)", callback_data="open_topup_menu_ru")],
             [InlineKeyboardButton(text="💎 Вступить в Клуб / Оплата (Payoneer)", url="https://veocreative.agency/club")],
-            [InlineKeyboardButton(text="« Вернуться к условиям резидентуры", callback_data="buy_premium_menu_ru")],
+            [InlineKeyboardButton(text="« Условия резидентуры", callback_data="buy_premium_menu_ru")],
             [InlineKeyboardButton(text="🌐 Switch to English", callback_data="view_rates_menu_en")]
         ])
     else:
         text = (
-            "✦ <b>ATELIER VEO | PRODUCTION RATES MENU</b> ✦\n\n"
+            "✦ <b>ATELIER VEO | 5 DIRECTORIAL MODULES & RATES</b> ✦\n\n"
             "Each creative action with Elina is backed by discrete compute quotas:\n\n"
-            "• <b>The Dual-Layer Director Prompt (Veo 2 / Kling):</b> 20 Credits (~$3.8)\n"
-            "  <i>Directorial treatment + English 5-component optical formula code block (anamorphic T-stops, Kelvin photometrics).</i>\n\n"
-            "• <b>Prompt Doctor & Multimodal Video QA Audit:</b> 25 Credits (~$4.7)\n"
-            "  <i>Frame-by-frame diagnostic audit (geometry drift, lighting flaws, anatomical fidelity) + immediate prompt doctoring.</i>\n\n"
-            "• <b>Brand Aesthetic Audit:</b> 50 Credits (~$9.5)\n"
-            "  <i>Social/web audit + sensory brand archive alignment in Quiet Luxury codes.</i>\n\n"
-            "• <b>Virtual Ambassador Blueprint:</b> 100 Credits (~$19)\n"
-            "  <i>Photometric prompt architecture for consistent digital brand ambassadors.</i>\n\n"
-            "• <b>Directorial Brainstorm & Dialogue:</b> 1 Credit (~$0.19)\n"
-            "  <i>Directorial consultations, moodboard analysis, and scene iterations.</i>\n\n"
+            "1. <b>Dual-Layer Cinematic Prompt (/prompt):</b> <b>20 Cr</b>\n"
+            "   <i>Layer 1: Directorial treatment + Layer 2: English 5-component optical formula code block (Veo 2 / Kling / Sora).</i>\n\n"
+            "2. <b>Visual QA & Prompt Doctor (/qa):</b> <b>25 Cr</b>\n"
+            "   <i>Video audit (up to 2 GB or Drive link): /10 score, 4-zone diagnostics + prompt doctor patch.</i>\n\n"
+            "3. <b>Website & Instagram Teardown (/audit):</b> <b>50 Cr</b>\n"
+            "   <i>Aesthetic prestige score (/10), photometry teardown, prestige leaks + 3 bespoke cinematic shot-lists.</i>\n\n"
+            "4. <b>Virtual Muse Architecture (/muse):</b> <b>100 Cr</b>\n"
+            "   <i>Digital ambassador blueprint: multi-angle seeds, Hasselblad dermal micro-texture, wardrobe palette.</i>\n\n"
+            "5. <b>Living Brand DNA Memory (/dna /vault):</b> <b>0 Cr</b> (Included)\n"
+            "   <i>Private Sovereign Vault: pantones, materials, sensory archive with Zero-Rebriefing.</i>\n\n"
+            "• <b>Directorial Brainstorm & Dialogue:</b> <b>1 Cr</b>\n\n"
             "<i>✦ 100% Rollover Privilege: Unused credits never expire upon monthly residency renewal.</i>"
         )
         kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⚡️ Top-Up Booster Packs (/topup)", callback_data="open_topup_menu_en")],
             [InlineKeyboardButton(text="💎 Apply for Residency via Payoneer", url="https://veocreative.agency/club")],
-            [InlineKeyboardButton(text="« Return to Residency Menu", callback_data="buy_premium_menu_en")],
+            [InlineKeyboardButton(text="« Residency Tiers", callback_data="buy_premium_menu_en")],
             [InlineKeyboardButton(text="🌐 Русский язык", callback_data="view_rates_menu_ru")]
         ])
     
@@ -154,3 +159,170 @@ async def view_rates_menu_internal(target, lang: str = "en"):
         await target.answer(text, reply_markup=kb, parse_mode="HTML")
     elif isinstance(target, CallbackQuery):
         await target.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
+
+
+@router.message(Command("topup", "boost", "booster"))
+async def cmd_topup(message: Message, lang: str = "en"):
+    """Меню пакетов докупки кредитов (Booster Top-Up Packs)."""
+    user_id = message.from_user.id
+    user_data = await db.get_user_data(user_id)
+    balance = user_data.get('tokens', 0) if user_data else 0
+    user_lang = await db.get_setting(f"user_lang_{user_id}", lang)
+
+    if user_lang == "ru":
+        text = (
+            "✦ <b>ATELIER VEO CLUB | ПАКЕТЫ ДОКУПКИ КРЕДИТОВ</b> ✦\n\n"
+            f"• <b>Текущий баланс:</b> <b>{balance:,}</b> Atelier Credits\n\n"
+            "Если у вас активный сезон релизов и кредиты подходят к концу, вы можете пополнить баланс без смены тарифного плана:\n\n"
+            "• 💎 <b>Studio Booster:</b> +300 Credits — <b>$69</b>\n"
+            "• 🚀 <b>Production Sprint:</b> +700 Credits — <b>$139</b>\n"
+            "• 👑 <b>Commercial Master:</b> +1,500 Credits — <b>$249</b>\n\n"
+            "<i>Все докупленные кредиты защищены 100% Rollover Policy и никогда не сгорают.</i>"
+        )
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💎 Studio Booster (+300 Cr • $69)", callback_data="buy_topup_300")],
+            [InlineKeyboardButton(text="🚀 Production Sprint (+700 Cr • $139)", callback_data="buy_topup_700")],
+            [InlineKeyboardButton(text="👑 Commercial Master (+1,500 Cr • $249)", callback_data="buy_topup_1500")],
+            [InlineKeyboardButton(text="« Вернуться к сетке услуг", callback_data="view_rates_menu_ru")]
+        ])
+    else:
+        text = (
+            "✦ <b>ATELIER VEO CLUB | BOOSTER TOP-UP PACKS</b> ✦\n\n"
+            f"• <b>Current Production Balance:</b> <b>{balance:,}</b> Atelier Credits\n\n"
+            "For intensive campaign cycles, top up your production compute without altering your residency tier:\n\n"
+            "• 💎 <b>Studio Booster:</b> +300 Credits — <b>$69</b>\n"
+            "• 🚀 <b>Production Sprint:</b> +700 Credits — <b>$139</b>\n"
+            "• 👑 <b>Commercial Master:</b> +1,500 Credits — <b>$249</b>\n\n"
+            "<i>All booster credits enjoy 100% Rollover privilege and never expire.</i>"
+        )
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💎 Studio Booster (+300 Cr • $69)", callback_data="buy_topup_300")],
+            [InlineKeyboardButton(text="🚀 Production Sprint (+700 Cr • $139)", callback_data="buy_topup_700")],
+            [InlineKeyboardButton(text="👑 Commercial Master (+1,500 Cr • $249)", callback_data="buy_topup_1500")],
+            [InlineKeyboardButton(text="« Return to Rates Menu", callback_data="view_rates_menu_en")]
+        ])
+
+    if isinstance(message, Message):
+        await message.answer(text, reply_markup=kb, parse_mode="HTML")
+    elif isinstance(message, CallbackQuery):
+        await message.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
+
+
+@router.callback_query(F.data.in_(["open_topup_menu", "open_topup_menu_en"]))
+async def open_topup_menu_en_cb(callback: CallbackQuery):
+    await cmd_topup(callback, lang="en")
+    await callback.answer()
+
+
+@router.callback_query(F.data == "open_topup_menu_ru")
+async def open_topup_menu_ru_cb(callback: CallbackQuery):
+    await cmd_topup(callback, lang="ru")
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("buy_topup_"))
+async def process_topup_selection(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    pack_key = callback.data.replace("buy_topup_", "")
+    
+    pack_info = {
+        "300": {"name": "Studio Booster", "credits": 300, "price": "$69"},
+        "700": {"name": "Production Sprint", "credits": 700, "price": "$139"},
+        "1500": {"name": "Commercial Master", "credits": 1500, "price": "$249"}
+    }.get(pack_key, {"name": "Custom Pack", "credits": int(pack_key) if pack_key.isdigit() else 300, "price": "Custom"})
+
+    user_lang = await db.get_setting(f"user_lang_{user_id}", "en")
+    
+    if user_lang == "ru":
+        reply_text = (
+            f"✦ <b>ATELIER VEO | ДОКУПКА: {pack_info['name'].upper()}</b> ✦\n\n"
+            f"• <b>Выбранный пакет:</b> +{pack_info['credits']:,} Atelier Credits\n"
+            f"• <b>Стоимость:</b> <b>{pack_info['price']}</b>\n\n"
+            "Для мгновенной активации завершите B2B-расчет через Payoneer на официальном сайте или свяжитесь с Исполнительным продюсером Владимиром (@veocreative).\n\n"
+            "<i>Запрос зарегистрирован. Кредиты зачисляются сразу после подтверждения транзакции.</i>"
+        )
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💎 Оплатить через Payoneer", url="https://veocreative.agency/club")],
+            [InlineKeyboardButton(text="👤 Связаться с Продюсером", url="https://t.me/veocreative")],
+            [InlineKeyboardButton(text="« Вернуться в меню", callback_data="open_topup_menu_ru")]
+        ])
+    else:
+        reply_text = (
+            f"✦ <b>ATELIER VEO | TOP-UP: {pack_info['name'].upper()}</b> ✦\n\n"
+            f"• <b>Selected Package:</b> +{pack_info['credits']:,} Atelier Credits\n"
+            f"• <b>Settlement:</b> <b>{pack_info['price']}</b>\n\n"
+            "To finalize instant activation, complete your B2B settlement via Payoneer or contact Executive Producer Vladimir (@veocreative).\n\n"
+            "<i>Your request has been logged. Credits are provisioned immediately upon transaction confirmation.</i>"
+        )
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💎 Pay via Payoneer", url="https://veocreative.agency/club")],
+            [InlineKeyboardButton(text="👤 Contact Producer", url="https://t.me/veocreative")],
+            [InlineKeyboardButton(text="« Back to Booster Menu", callback_data="open_topup_menu_en")]
+        ])
+
+    await callback.message.edit_text(reply_text, reply_markup=kb, parse_mode="HTML")
+    await callback.answer()
+
+    # VIP-оповещение Владимиру с кнопкой моментального начисления в 1 клик
+    if config.admin_id and user_id != config.admin_id:
+        user_name = callback.from_user.full_name or "Резидент"
+        username_str = f"@{callback.from_user.username}" if callback.from_user.username else "без username"
+        admin_alert = (
+            f"💎 <b>ЗАПРОС НА ДОКУПКУ КРЕДИТОВ В КЛУБЕ</b> 💎\n\n"
+            f"👤 <b>Резидент:</b> {user_name} ({username_str})\n"
+            f"🆔 <b>Telegram ID:</b> <code>{user_id}</code>\n"
+            f"📦 <b>Пакет:</b> {pack_info['name']} (+{pack_info['credits']:,} Cr • {pack_info['price']})\n"
+            f"💳 <b>Расчет:</b> Payoneer B2B\n\n"
+            f"После получения оплаты нажмите кнопку ниже для мгновенного начисления:"
+        )
+        admin_kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=f"✅ Начислить +{pack_info['credits']} Cr", callback_data=f"grant_booster_{user_id}_{pack_info['credits']}")]
+        ])
+        try:
+            await callback.bot.send_message(config.admin_id, admin_alert, reply_markup=admin_kb, parse_mode="HTML")
+        except Exception as e:
+            print(f"[TOPUP ALERT] Failed to notify admin: {e}")
+
+
+@router.callback_query(F.data.startswith("grant_booster_"))
+async def admin_grant_booster_cb(callback: CallbackQuery):
+    if callback.from_user.id != config.admin_id:
+        await callback.answer("Только для исполнительного продюсера.", show_alert=True)
+        return
+
+    parts = callback.data.split("_")
+    if len(parts) >= 4:
+        target_uid = int(parts[2])
+        credits_to_add = int(parts[3])
+        await db.add_tokens(target_uid, credits_to_add)
+        new_balance = (await db.get_user_data(target_uid))['tokens']
+        
+        await callback.message.edit_text(
+            f"{callback.message.text}\n\n"
+            f"✅ <b>КРЕДИТЫ НАЧИСЛЕНЫ!</b>\n"
+            f"Добавлено: +{credits_to_add:,} Cr. Новый баланс: {new_balance:,} Cr.",
+            parse_mode="HTML"
+        )
+        await callback.answer("Кредиты успешно начислены!")
+
+        # Уведомляем резидента
+        try:
+            user_lang = await db.get_setting(f"user_lang_{target_uid}", "en")
+            if user_lang == "ru":
+                client_msg = (
+                    f"✦ <b>ATELIER VEO | БАЛАНС ПОПОЛНЕН</b> ✦\n\n"
+                    f"Вам успешно начислен пакет +{credits_to_add:,} Atelier Credits.\n"
+                    f"Текущий баланс студии: <b>{new_balance:,}</b> Credits.\n\n"
+                    f"Элина готова к продолжению съемок и разработке сцен."
+                )
+            else:
+                client_msg = (
+                    f"✦ <b>ATELIER VEO | PRODUCTION TOP-UP ACTIVATED</b> ✦\n\n"
+                    f"+{credits_to_add:,} Atelier Credits have been provisioned to your account.\n"
+                    f"Current production balance: <b>{new_balance:,}</b> Credits.\n\n"
+                    f"Elina is at your service to continue shaping light."
+                )
+            await callback.bot.send_message(target_uid, client_msg, parse_mode="HTML")
+        except Exception as e:
+            print(f"[BOOSTER NOTICE] Failed to notify resident: {e}")
+

@@ -638,7 +638,7 @@ async def boardroom_send(payload: CouncilSendRequest, username: str = Depends(ge
 
     responses = await boardroom_service.execute_council_cycle(payload.text)
 
-    return JSONResponse(content={"status": "success", "responses": responses})
+    return JSONResponse(content={"status": "success", "responses": responses, "messages": responses})
 
 
 
@@ -734,11 +734,35 @@ class AutoQAStartRequest(BaseModel):
 async def boardroom_auto_qa_start(payload: AutoQAStartRequest, username: str = Depends(get_current_username)):
     ref = payload.reference_packshot
     if not ref or not Path(ref).exists():
-        fallback_ref = Path("D:/Antigravity/AI_Video_Agency/campaigns/edeniste_pilot/vanille_irresistible_official_clean.jpg")
-        if fallback_ref.exists():
-            ref = str(fallback_ref)
+        search_dirs = []
+        if payload.target_folder and Path(payload.target_folder).exists():
+            search_dirs.append(Path(payload.target_folder))
+        media_p = Path(payload.media_path)
+        if media_p.exists():
+            search_dirs.append(media_p.parent)
+        search_dirs.extend([
+            Path("D:/campaigns/Отработка/Выбрано"),
+            Path("d:/Antigravity/AI_Video_Agency/campaigns/closerie_rose_cardamome"),
+            Path("D:/campaigns")
+        ])
+        
+        found_ref = None
+        for sdir in search_dirs:
+            if sdir.exists():
+                for pat in ["brand_reference_packshot.*", "rose_cardamome_1.*", "*packshot*.*", "*reference*.*", "*official*.*"]:
+                    matches = [m for m in sdir.glob(pat) if m.suffix.lower() in [".jpg", ".jpeg", ".png"] and "clean" not in m.name.lower()]
+                    if matches:
+                        found_ref = str(matches[0])
+                        break
+            if found_ref:
+                break
+        
+        if found_ref:
+            ref = found_ref
+        elif Path("d:/Antigravity/AI_Video_Agency/campaigns/closerie_rose_cardamome/rose_cardamome_1.jpg").exists():
+            ref = "d:/Antigravity/AI_Video_Agency/campaigns/closerie_rose_cardamome/rose_cardamome_1.jpg"
         else:
-            raise HTTPException(status_code=400, detail="Эталон бренда (packshot) не найден на диске")
+            ref = "D:/campaigns/Отработка/Выбрано/brand_reference_packshot.jpg" 
     
     # Run loop in background
     asyncio.create_task(
@@ -772,25 +796,43 @@ class SetTargetFolderRequest(BaseModel):
 
 @app.get("/api/boardroom/campaign_folders")
 async def boardroom_campaign_folders(username: str = Depends(get_current_username)):
-    """Возвращает список доступных папок кампаний для интерактивного выбора."""
-    roots = [Path("D:/campaigns"), Path("d:/Antigravity/AI_Video_Agency/campaigns")]
+    roots = [Path("d:/Antigravity/AI_Video_Agency/campaigns"), Path("D:/campaigns")]
     folders = []
     seen = set()
     
-    canonical_default = "D:/campaigns/заказ/выбрано/3"
-    folders.append(canonical_default)
-    seen.add(canonical_default.replace('\\', '/').lower())
+    pinned = [
+        "D:/campaigns/Отработка/Выбрано",
+        "d:/Antigravity/AI_Video_Agency/campaigns/closerie_rose_cardamome",
+        "D:/campaigns/Отработка",
+        "D:/campaigns/заказ/выбрано/3"
+    ]
+    for p_str in pinned:
+        p_obj = Path(p_str)
+        if p_obj.exists():
+            norm = str(p_obj).replace('\\', '/')
+            if norm.lower() not in seen:
+                folders.append(norm)
+                seen.add(norm.lower())
     
+    candidate_dirs = []
     for r in roots:
         if r.exists():
-            for p in r.glob("**/*"):
+            for p in r.glob("*"):
                 if p.is_dir() and ".git" not in str(p) and "venv" not in str(p) and "__pycache__" not in str(p):
-                    norm = str(p).replace('\\', '/')
-                    if norm.lower() not in seen:
-                        seen.add(norm.lower())
-                        folders.append(norm)
-                        if len(folders) >= 25:
-                            break
+                    candidate_dirs.append(p)
+            for p in r.glob("*/*"):
+                if p.is_dir() and ".git" not in str(p) and "venv" not in str(p) and "__pycache__" not in str(p):
+                    candidate_dirs.append(p)
+    
+    candidate_dirs.sort(key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
+    for p in candidate_dirs:
+        norm = str(p).replace('\\', '/')
+        if norm.lower() not in seen:
+            seen.add(norm.lower())
+            folders.append(norm)
+            if len(folders) >= 30:
+                break
+                
     return JSONResponse(content={
         "status": "success",
         "current_target": auto_qa_runner.target_folder,
@@ -809,9 +851,21 @@ async def boardroom_set_target_folder(payload: SetTargetFolderRequest, username:
         raise HTTPException(status_code=400, detail=f"Невозможно создать или открыть папку: {e}")
     
     auto_qa_runner.set_target_folder(str(p))
+    
+    found_label = None
+    found_label_name = None
+    for pat in ["*label*master*.png", "*master*.png", "*label*.png", "*.png"]:
+        matches = [f for f in p.glob(pat) if "preview" not in f.name.lower() and "clean" not in f.name.lower()]
+        if matches:
+            found_label = str(matches[0]).replace('\\', '/')
+            found_label_name = matches[0].name
+            break
+            
     return JSONResponse(content={
         "status": "success",
         "target_folder": str(p),
+        "found_label": found_label,
+        "found_label_name": found_label_name,
         "message": f"Папка сохранения кампании успешно установлена: {p}"
     })
 
@@ -865,12 +919,19 @@ async def boardroom_run_shield(payload: ShieldRunRequest, username: str = Depend
         cmd.extend(["--reference-with-label", str(payload.reference_with_label)])
 
     if payload.y_offset is not None:
-
         cmd.extend(["--y-offset", str(payload.y_offset)])
-
+    if payload.x_offset is not None:
+        cmd.extend(["--x-offset", str(payload.x_offset)])
     if payload.scale != 1.0:
-
         cmd.extend(["--scale", str(payload.scale)])
+    if getattr(payload, 'geometry', None):
+        cmd.extend(["--geometry", payload.geometry])
+    if getattr(payload, 'angle', None):
+        cmd.extend(["--angle", str(payload.angle)])
+    if getattr(payload, 'defringe_bottom', None):
+        cmd.extend(["--defringe-bottom", str(payload.defringe_bottom)])
+    if getattr(payload, 'factory_mode', None):
+        cmd.extend(["--factory-mode", payload.factory_mode])
 
 
 
@@ -1020,9 +1081,11 @@ async def boardroom_visual_qa(payload: VisualQARequest, username: str = Depends(
 
 async def boardroom_compare_variants(payload: CompareVariantsRequest, username: str = Depends(get_current_username)):
 
-    res = await boardroom_service.execute_variants_comparison(payload.media_paths)
-
-    return JSONResponse(content=res)
+    try:
+        res = await boardroom_service.execute_variants_comparison(payload.media_paths)
+        return JSONResponse(content=res)
+    except Exception as e:
+        return JSONResponse(content={"status": "error", "detail": f"Ошибка отбора вариантов: {str(e)}"})
 
 
 

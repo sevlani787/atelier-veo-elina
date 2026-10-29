@@ -51,9 +51,11 @@ class Config:
         if action in ("remediation", "shield", "finishing"):
             val = await db.get_setting("credit_cost_remediation", "100")
             return int(val)
-        if action == "ambassador":
-            val = await db.get_setting("credit_cost_ambassador", "100")
+        if action in ("ambassador", "muse"):
+            val = await db.get_setting("credit_cost_muse", "100")
             return int(val)
+        if action in ("dna", "vault"):
+            return 0
         val = await db.get_setting("credit_cost_msg", "1")
         return int(val)
 

@@ -40,10 +40,15 @@ async def main():
     # Universal Telegram commands in English for international luxury founders
     commands = [
         BotCommand(command="start", description="Restart Atelier & Director greeting"),
+        BotCommand(command="prompt", description="Dual-Layer Cinematic Prompt (20 Cr)"),
+        BotCommand(command="qa", description="Visual QA & Prompt Doctor (25 Cr)"),
+        BotCommand(command="audit", description="Website & Instagram Teardown (50 Cr)"),
+        BotCommand(command="muse", description="Virtual Muse Architecture (100 Cr)"),
+        BotCommand(command="dna", description="Living Brand DNA Sovereign Vault (0 Cr)"),
+        BotCommand(command="status", description="Your Atelier Credits balance & residency"),
+        BotCommand(command="topup", description="Booster top-up packs (+300, +700, +1500)"),
         BotCommand(command="club", description="Private Residency terms & 20-seat quota"),
-        BotCommand(command="services", description="Production rates & Atelier Credits menu"),
-        BotCommand(command="status", description="Your Atelier Credits balance & status"),
-        BotCommand(command="clear", description="Clear dialogue memory"),
+        BotCommand(command="help", description="Guide to Elina's 5 Directorial Modules"),
     ]
     try:
         await bot.set_my_commands(commands)

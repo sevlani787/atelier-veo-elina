@@ -2231,7 +2231,21 @@
 
                         </div>
 
-                    </div>
+                    
+
+                        <div style="display: flex; gap: 0.4rem; margin-top: 0.35rem;">
+
+                            <button class="stage-btn" style="flex: 1; font-size: 0.64rem; padding: 4px 8px; color: #dfba73; border-color: rgba(197, 160, 89, 0.4); background: rgba(197, 160, 89, 0.12);" onclick="document.getElementById('custom-label-file-input').click()">
+
+                                📂 Выбрать файл этикетки (PNG)
+
+                            </button>
+
+                            <input type="file" id="custom-label-file-input" accept="image/png,image/jpeg" style="display: none;" onchange="handleCustomLabelUpload(event)" />
+
+                        </div>
+
+</div>
 
 
 
@@ -2279,7 +2293,7 @@
 
                             </span>
 
-                            <input type="range" id="shield-y" min="20" max="80" value="48" oninput="updateParamLabel('lbl-y', this.value + '%')">
+                            <input type="range" id="shield-y" min="15" max="85" value="48" oninput="updateParamLabel('lbl-y', this.value + '%'); scheduleLiveShieldPreview();" onchange="runShieldPreview(true);">
 
                         </div>
 
@@ -2297,7 +2311,7 @@
 
                             </span>
 
-                            <input type="range" id="shield-x" min="-10" max="10" value="0" oninput="updateParamLabel('lbl-x', (this.value > 0 ? '+' : '') + this.value + '%')">
+                            <input type="range" id="shield-x" min="-30" max="30" value="0" oninput="updateParamLabel('lbl-x', (this.value > 0 ? '+' : '') + this.value + '%'); scheduleLiveShieldPreview();" onchange="runShieldPreview(true);">
 
                         </div>
 
@@ -2315,7 +2329,7 @@
 
                             </span>
 
-                            <input type="range" id="shield-scale" min="50" max="150" value="100" oninput="updateParamLabel('lbl-scale', (this.value/100).toFixed(2) + 'x')">
+                            <input type="range" id="shield-scale" min="40" max="180" value="100" oninput="updateParamLabel('lbl-scale', (this.value/100).toFixed(2) + 'x'); scheduleLiveShieldPreview();" onchange="runShieldPreview(true);">
 
                         </div>
 
@@ -2333,7 +2347,7 @@
 
                             </span>
 
-                            <input type="range" id="shield-angle" min="-15" max="15" value="0" oninput="updateParamLabel('lbl-angle', (this.value > 0 ? '+' : '') + this.value + '°')">
+                            <input type="range" id="shield-angle" min="-25" max="25" value="0" oninput="updateParamLabel('lbl-angle', (this.value > 0 ? '+' : '') + this.value + '°'); scheduleLiveShieldPreview();" onchange="runShieldPreview(true);">
 
                         </div>
 
@@ -2562,6 +2576,70 @@
 
 <!-- Всплывающая кнопка при выделении текста мышкой -->
 
+
+
+<!-- Модальное окно: Выбор папки кампании и заготовок -->
+
+<div id="folder-picker-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center;">
+
+    <div style="background: #0f0f14; border: 1px solid #dfba73; border-radius: 12px; width: 90%; max-width: 680px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.9);">
+
+        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid rgba(197, 160, 89, 0.25); display: flex; justify-content: space-between; align-items: center; background: rgba(197, 160, 89, 0.06);">
+
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+
+                <span style="font-size: 1.3rem;">📁</span>
+
+                <span style="font-size: 0.95rem; font-weight: 700; color: #dfba73; text-transform: uppercase; letter-spacing: 0.05em;">Выбор папки кампании и заготовок</span>
+
+            </div>
+
+            <button onclick="closeFolderPickerModal()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;">✕</button>
+
+        </div>
+
+        <div style="padding: 0.85rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(0,0,0,0.25);">
+
+            <div style="font-size: 0.72rem; color: #dfba73; font-weight: 600; margin-bottom: 0.35rem;">Путь к рабочей папке проекта:</div>
+
+            <div style="display: flex; gap: 0.5rem;">
+
+                <input id="custom-folder-input" type="text" style="flex: 1; background: rgba(0,0,0,0.6); border: 1px solid rgba(197, 160, 89, 0.35); border-radius: 5px; padding: 0.45rem 0.65rem; color: #6ee7b7; font-family: monospace; font-size: 0.75rem;" placeholder="Например: D:/campaigns/Отработка/Выбрано" />
+
+                <button class="stage-btn" style="color: #dfba73; border-color: rgba(197, 160, 89, 0.5); padding: 0.45rem 0.9rem;" onclick="applyTargetFolder()">Применить</button>
+
+            </div>
+
+        </div>
+
+        <div style="padding: 0.6rem 1.25rem 0.2rem 1.25rem; font-size: 0.68rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em;">
+
+            Обнаруженные рабочие папки (по новизне):
+
+        </div>
+
+        <div id="folder-list-container" style="padding: 0.5rem 1.25rem 1rem 1.25rem; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.3rem; max-height: 42vh;">
+
+            <!-- Заполняется динамически -->
+
+        </div>
+
+        <div style="padding: 0.75rem 1.25rem; border-top: 1px solid rgba(197, 160, 89, 0.25); display: flex; justify-content: flex-end; gap: 0.5rem; background: rgba(10,10,14,0.9);">
+
+            <button class="stage-btn" onclick="closeFolderPickerModal()">Отмена</button>
+
+            <button class="btn-send" style="padding: 0.45rem 1.25rem; font-size: 0.8rem; width: auto; height: auto;" onclick="applyTargetFolder()">Выбрать эту папку</button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+
+
 <div id="floating-pin-btn" class="floating-pin-btn" style="display: none;" onmousedown="pinSelectedTextTooltip(event)">
 
     <span>📌</span> В планшет
@@ -2612,6 +2690,7 @@
     let isABComparing = false;
 
     let activeLabelPath = 'D:/campaigns/test_extracted_label.png';
+    let currentExtractedLabelPath = activeLabelPath;
 
 
 
@@ -3193,7 +3272,7 @@
 
             if (data.status === 'success') {
 
-                data.messages.forEach(m => {
+                (data.messages || data.responses || []).forEach(m => {
 
                     appendMessage(m.sender, m.name, m.role, m.avatar, m.color, m.text);
 
@@ -3591,7 +3670,15 @@
 
     // =========================================================
 
-    async function runShieldPreview() {
+    let shieldLiveDebounceTimer = null;
+    function scheduleLiveShieldPreview() {
+        if (shieldLiveDebounceTimer) clearTimeout(shieldLiveDebounceTimer);
+        shieldLiveDebounceTimer = setTimeout(() => {
+            runShieldPreview(true);
+        }, 300);
+    }
+
+    async function runShieldPreview(silent = false) {
 
         const sel = document.getElementById('media-selector');
 
@@ -3599,7 +3686,7 @@
 
         if (!mediaPath) {
 
-            alert('Сначала выберите изображение или видео в селекторе LookDev!');
+            if (!silent) alert('Сначала выберите изображение или видео в селекторе LookDev!');
 
             return;
 
@@ -3621,15 +3708,18 @@
 
         const geometry = document.getElementById('shield-geometry').value;
 
+        const btnPreview = document.querySelector('button[onclick*="runShieldPreview"]');
+        const originalBtnText = btnPreview ? btnPreview.innerHTML : '';
 
-
-        const banner = document.getElementById('thinking-banner');
-
-        const thinkingText = document.getElementById('thinking-text');
-
-        thinkingText.textContent = 'Быстрый расчет оптической проекции этикетки (<0.5 сек)...';
-
-        banner.style.display = 'flex';
+        if (!silent) {
+            const banner = document.getElementById('thinking-banner');
+            const thinkingText = document.getElementById('thinking-text');
+            if (thinkingText) thinkingText.textContent = 'Быстрый расчет оптической проекции этикетки (<0.5 сек)...';
+            if (banner) banner.style.display = 'flex';
+        } else if (btnPreview) {
+            btnPreview.innerHTML = '⏳ Проекция...';
+            btnPreview.style.borderColor = '#dfba73';
+        }
 
 
 
@@ -3671,29 +3761,25 @@
 
             const res = await resp.json();
 
-            banner.style.display = 'none';
-
-
+            const banner = document.getElementById('thinking-banner');
+            if (banner) banner.style.display = 'none';
+            if (btnPreview && silent) btnPreview.innerHTML = originalBtnText;
 
             if (res.status === 'success' && res.preview_url) {
 
                 previewShieldUrl = res.preview_url;
 
-
-
                 // Load preview into stage image
-
                 const stageImage = document.getElementById('stage-image');
-
                 const stageVideo = document.getElementById('stage-video');
-
-                stageVideo.style.display = 'none';
-
-                stageVideo.pause();
-
-                stageImage.style.display = 'block';
-
-                stageImage.src = res.preview_url;
+                if (stageVideo) {
+                    stageVideo.style.display = 'none';
+                    stageVideo.pause();
+                }
+                if (stageImage) {
+                    stageImage.style.display = 'block';
+                    stageImage.src = res.preview_url + '&ts=' + Date.now();
+                }
 
 
 
@@ -4289,6 +4375,13 @@
 
             });
 
+            if (!resp.ok) {
+                const errText = await resp.text();
+                banner.style.display = 'none';
+                alert('Сбой сервера (' + resp.status + '): ' + errText);
+                return;
+            }
+
             const res = await resp.json();
 
             banner.style.display = 'none';
@@ -4824,7 +4917,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     media_path: mediaPath,
-                    label_image: currentExtractedLabelPath || '',
+                    label_image: (typeof activeLabelPath !== 'undefined' ? activeLabelPath : (typeof currentExtractedLabelPath !== 'undefined' ? currentExtractedLabelPath : '')) || '',
                     reference_packshot: '', // Backend automatically discovers vanille_irresistible packshot
                     target_folder: currentTargetCampaignFolder,
                     y_offset: yOffset,
@@ -5038,7 +5131,95 @@
         rowElem.style.border = '1px solid #dfba73';
     }
 
-    function closeFolderPickerModal() {
+    
+
+    async function handleCustomLabelUpload(event) {
+
+        const file = event.target.files[0];
+
+        if (!file) return;
+
+
+
+        const banner = document.getElementById('thinking-banner');
+
+        const thinkingText = document.getElementById('thinking-text');
+
+        if (thinkingText) thinkingText.textContent = `Загрузка и привязка мастер-этикетки: ${file.name}...`;
+
+        if (banner) banner.style.display = 'flex';
+
+
+
+        try {
+
+            const formData = new FormData();
+
+            formData.append('file', file);
+
+            formData.append('campaign', currentTargetCampaignFolder || 'closerie_rose_cardamome');
+
+
+
+            const resp = await fetch('/api/boardroom/upload', {
+
+                method: 'POST',
+
+                body: formData
+
+            });
+
+            const res = await resp.json();
+
+            if (banner) banner.style.display = 'none';
+
+
+
+            if (res && res.path) {
+
+                activeLabelPath = res.path;
+
+                currentExtractedLabelPath = res.path;
+
+                const lblText = document.getElementById('active-label-text');
+
+                if (lblText) lblText.textContent = '✅ Активна: ' + (file.name || 'Мастер-этикетка');
+
+                const activeBadge = document.getElementById('active-label-badge');
+
+                if (activeBadge) {
+
+                    activeBadge.style.color = '#6ee7b7';
+
+                    activeBadge.style.background = 'rgba(110, 231, 183, 0.12)';
+
+                    activeBadge.style.borderColor = 'rgba(110, 231, 183, 0.35)';
+
+                }
+
+                alert('✅ Мастер-этикетка успешно выбрана: ' + file.name);
+
+                runShieldPreview();
+
+            } else {
+
+                alert('Ошибка загрузки этикетки');
+
+            }
+
+        } catch(e) {
+
+            if (banner) banner.style.display = 'none';
+
+            alert('Сбой при загрузке этикетки: ' + e);
+
+        }
+
+    }
+
+
+
+function closeFolderPickerModal() {
         const modal = document.getElementById('folder-picker-modal');
         if (modal) modal.style.display = 'none';
     }

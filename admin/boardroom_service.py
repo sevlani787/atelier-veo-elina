@@ -6,6 +6,9 @@ import datetime
 from pathlib import Path
 from typing import List, Dict, Optional
 import subprocess
+import re
+import base64
+import urllib.parse
 
 from bot.services.llm import llm
 from bot.services.memory import memory

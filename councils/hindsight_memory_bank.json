@@ -1,6 +1,6 @@
 {
   "bank": "atelier_veo_master",
-  "updated_at": "2026-10-27 13:43:41",
+  "updated_at": "2026-10-27 20:47:00",
   "invariants": [
     {
       "id": "inv_001_trade_secret",
@@ -286,6 +286,78 @@
       ],
       "author": "vladimir",
       "timestamp": "2026-10-27 08:56:53"
+    },
+    {
+      "id": "ep_1793116001_elina",
+      "category": "studio_experience",
+      "title": "Режиссерский канон: Начинаем работу над нашим новым роликом Фото флако",
+      "content": "Владимир, приветствую. Совет в полной готовности, оптические контуры Gemini 4 Argon откалиброваны.\n\nПоскольку вы обозначили, что исходное фото флакона направляется в наше мультимодальное окно, сейчас важно зафиксировать точную процедуру старта, чтобы мы сразу вышли на эталонную геометрию стекла и корректный пайплайн для Адриана.\n\nКак только кадр появится в окне (или вы уточните название Дома и баз",
+      "tags": [
+        "production",
+        "elina"
+      ],
+      "author": "elina",
+      "timestamp": "2026-10-27 17:46:41"
+    },
+    {
+      "id": "ep_1793116444_elina",
+      "category": "studio_experience",
+      "title": "Режиссерский канон: @Элина  Вот досеь бренда  🏛️ Atelier VEO Master Pr",
+      "content": "Владимир, досье **La Closerie des Parfums — Rose Cardamome** для Валери Мадрид принято в разработку. \n\nАрхитектура этого флакона представляет собой исключительный интерес для нашей оптики: тяжелое восьмигранное стекло с массивным 20-миллиметровым донцем, глубокий гранатово-рубиновый джус розы Сентифолии и сложная двухъярусная этикетка (бордовая хлопковая бумага ручного отлива сверху и нижней стрип",
+      "tags": [
+        "production",
+        "elina"
+      ],
+      "author": "elina",
+      "timestamp": "2026-10-27 17:54:04"
+    },
+    {
+      "id": "ep_1793126130_elina",
+      "category": "studio_experience",
+      "title": "Режиссерский канон: @Элина  Проверь видео в окне с наложенной этикетко",
+      "content": "Владимир, Адриан, я провела покадровый оптический аудит рендера **Сцены 1 (La Closerie des Parfums — Rose Cardamome)** с интегрированной двухъярусной этикеткой. \n\nБазовая кинематография, стабильность геометрии восьмигранного флакона, густота рубиновой каустики на сланце и плавность левитации лепестков розы в луче 2800K выполнены на высоком уровне. Однако для того, чтобы шот выдержал инспекцию под",
+      "tags": [
+        "production",
+        "elina"
+      ],
+      "author": "elina",
+      "timestamp": "2026-10-27 20:35:30"
+    },
+    {
+      "id": "ep_1793126199_vladimir",
+      "category": "producer_decision",
+      "title": "Решение: @Адриан  Вот корректировка Элины  Владимир, Адриан, я провел...",
+      "content": "@Адриан  Вот корректировка Элины  Владимир, Адриан, я провела покадровый оптический аудит рендера **Сцены 1 (La Closerie des Parfums — Rose Cardamome)** с интегрированной двухъярусной этикеткой.\n\nБазовая кинематография, стабильность геометрии восьмигранного флакона, густота рубиновой каустики на сланце и плавность левитации лепестков розы в луче 2800K выполнены на высоком уровне. Однако для того, чтобы шот выдержал инспекцию под 16-кратной цифровой лупой и соответствовал физике материалов Дома Валери Мадрид, Адриану необходимо внести **4 точечные инженерные корректировки в пайплайн композитинга Atelier Identity Shield™**:\n\n---\n\n### 1. ПРОТОКОЛ ВИЗУАЛЬНОГО ОТК (QA AUDIT) И КОРРЕКТИРОВКИ ДЛЯ АДРИАНА\n\n#### А. Геометрия фасок и масштаб посадки (Facet Wrapping & Scale)\n* **Диагноз:** Сейчас векторный пласт этикетки слегка выходит за пределы центральной фронтальной грани, касаясь скошенных боковых фацетов (beveled edges), из-за чего при орбитальном движении камеры края этикетки кажутся плоскими. Кроме того, при цилиндрическом/сферическом варпинге (`Curvature: 0.25`) на плоской передней грани возникает легкое дугообразное провисание горизонтальных линий.\n* **Директива Адриану:**\n1. Уменьшить общий масштаб (`Scale`) этикетки на **6–8%**, строго вписав ее внутрь плоской центральной фаски с сохранением стеклянного воздуха по краям (минимум 2.5 мм от ребра грани).\n2. Снизить параметр сферической кривизны (`Curvature`) с `0.25` до **`0.04–0.06`** (Planar Perspective Lock), так как передняя грань флакона плоская, а не цилиндрическая.\n\n#### Б. Разделение шейдеров бумаги и микрорельеф (Dual-Tier Paper Physics)\n* **Диагноз:** Верхний бордовый блок и нижний стрип цвета слоновой кости сейчас считываются как единая гладкая декаль, а тисненые золотисто-кремовые шрифты дают излишний зеркальный блик.\n* **Директива Адриану:**\n1. Снизить `Specular Pass` на самой бумаге с `75%/90%` до **`22%` (Roughness `0.85`)**. Хлопковая бумага ручного отлива (Cotton Rag) должна поглощать свет, рассеивая его матовым бархатистым зерном.\n2. Усилить `Micro-Normal / Bump Map` волокнистой текстуры бумаги до **`+35%`**, чтобы в косом луче 2800K читалась пористость хлопка.\n3. Между верхним бордовым блоком и нижним стрипом слоновой кости (`LA CLOSERIE DES PARFUMS`) добавить микро-фаску (`Drop Shadow / Bevel 1.5px, Opacity 40%`), подчеркивающую физическую толщину накладной бумаги. Для шрифта высокой печати (Letterpress) включить легкий внутренний `Deboss (-0.8px)`.\n\n#### В. Световая интеграция и Z-Depth окклюзия (Photometric Blending & Matte)\n* **Диагноз:** На `00:02–00:04`, когда нижний бархатный лепесток розы проходит вблизи левого нижнего угла флакона, этикетка рендерится поверх тонкой полутени лепестка, и ее левый край остается равномерно освещенным, хотя сам флакон уходит в прохладную сланец-тень (5200K).\n* **Директива Адриану:**\n1. Прорезать маску перекрытия (`Dynamic Roto / Z-Depth Matte`) для нижнего лепестка розы и его мягкой контактной тени (`Contact Shadow Catcher`), чтобы лепесток физически перекрывал угол этикетки и отбрасывал на бумагу мягкую полутень.\n2. Наложить на этикетку горизонтальный градиент освещенности (`Luminance Ramp` слева направо): приглушить левый край этикетки на **`-18% Exposure`** с легким сдвигом в холодный тон (`5200K`), оставив правый край в теплом золотистом ключе (`2800K`).\n\n#### Г. Субпиксельная стабилизация антиалиасинга (Typography Lock)\n* **Диагноз:** При медленном накате камеры тонкие засечки шрифта French Didone в строке `EAU DE PARFUM` дают легкий субпиксельный тремор (shimmering) на контрасте с бордовым фоном.\n* **Директива Адриану:** Переключить фильтр ресемплинга трекера в режим **`Bicubic Sharper / Mitchell-Netravali`** с добавлением `0.3px Gaussian Edge Softness` и `Motion Blur Shutter 180°`, синхронизированным с вектором движения камеры.\n\n---\n\n### 2. ТЕХНИЧЕСКИЙ ПАТЧ-ПРОМПТ ДЛЯ АДРИАНА (COMPOSITE & SHADER SPEC)\n\nВладимир, передайте этот конфигурационный блок Адриану для обновления ноды **Atelier Identity Shield™** перед финальным рендером 4K-мастера:\n\n```yaml\n# ATELIER VEO — IDENTITY SHIELD™ COMPOSITING PATCH (SHOT 01: ROSE CARDAMOME)\nTarget_Shot: \"Scene_01_Secret_Garden_of_Spices_clean_flow.mp4\"\nResolution_Pipeline: \"1080p Flow Base -> 4096x4096 Vector Label -> 2x Integer Upscale (True 4K Master)\"\n\nGeometry_&_Tracking:\nTracker_Mode: \"Planar Perspective Warp (Octagonal Front Facet Lock)\"\nGlobal_Scale_Adjustment: \"-7% (Strictly inside front flat bevel margins)\"\nCurvature_Factor: 0.05 # Reduced from 0.25 to prevent barrel distortion on flat crystal facet\nMotion_Blur_Sync: \"180-degree shutter, sub-pixel Mitchell-Netravali filtering\"\n\nMaterial_Shader_Pass (Dual-Tier Cotton Rag):\nUpper_Tier_Burgundy_Paper:\nDiffuse_Color: \"#3A0E16 (Deep Burgundy Cotton)\"\nSpecular_Intensity: 0.22 # Matte fibrous absorption (down from 0.75)\nRoughness: 0.85\nMicro_Normal_Bump: \"+35% (16x Loupe fibrous cotton tooth)\"\nLower_Tier_Ivory_Strip:\nDiffuse_Color: \"#F3EFE6 (Warm Off-White Ivory)\"\nEdge_Separation_Gap: \"2px physical paper thickness bevel with 40% ambient occlusion shadow\"\nLetterpress_Typography: \"Deboss -0.8px, sub-pixel anti-aliasing +0.3px softness\"\n\nPhotometric_Relighting_&_Occlusion:\nDirectional_Light_Ramp: \"2800K Warm Key on Right (+10% gain) -> 5200K Slate Shadow Falloff on Left (-18% exposure)\"\nForeground_Occlusion_Matte: \"Active Z-Depth Roto for lower-left floating crimson rose petal + 12px soft contact shadow cast onto label corner\"\nInternal_Ruby_Transmission: \"8% backlit garnet bleed (#6E0B14) through ivory paper strip edges\"\n```\n\n---\n\n### 3. СКОРРЕКТИРОВАННЫЙ МАСТЕР-ПРОМПТ ДЛЯ GOOGLE FLOW (ОПЦИОНАЛЬНО)\nВладимир, если вы с Адрианом решите перегенерировать саму базовую сцену во Flow, чтобы лепесток розы гарантированно не заходил на зону клея этикетки и оставлял центральную грань полностью открытой для трекинга, используйте эту уточненную версию промпта:\n\n```text\n[Visual & Clean Plate]: 6-second continuous macro shot, 35mm anamorphic macro lens T1.8, 24fps, 180-degree shutter. Slow dolly push-in with subtle right micro-parallax toward the unlabelled heavy beveled octagonal crystal flacon containing deep garnet-ruby juice and topped with a matte dark umber cap. Warm 2800K sunrise light cuts diagonally across a 5200K slate background with a soft shadow of French wrought-iron garden gates. Three velvety crimson rose petals and two green cardamom pods levitate in 0.25x slow-motion strictly to the left and right peripheries of the bottle, keeping the entire flat central front crystal facet 100% clear and unobstructed for compositing. Shifting ruby-amber caustic refractions glow through the 20mm thick glass base. Strict clean plate, unlabelled bottle, zero text, zero typography.\n\n[Audio & Foley SFX]: Meditative acoustic breath at 00:00, a deep resonant muted cello chord at 00:01, and the delicate tactile foley of morning dew settling on heavy chamfered crystal at 00:04.\n\n[Voiceover]: Intimate, velvety female whisper with a cultured Parisian cadence, close to the ribbon mic: \"Behind the iron gates... a secret garden awakens in crimson and spice.\"\n```\n\nЖду обновленный рендер от Адриана после применения патча шейдеров бумаги и планара — после этого сразу утверждаем Сцену 1 в чистовой мастер и переходим к Сцене 2.\n🏛 Весь Совет\n👑 @Элина\n⚡ @Адри",
+      "tags": [
+        "production",
+        "vladimir"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-27 20:36:39"
+    },
+    {
+      "id": "ep_1793126217_elina",
+      "category": "studio_experience",
+      "title": "Режиссерский канон: @Адриан  Вот корректировка Элины  Владимир, Адриан",
+      "content": "Владимир, директивы по **Сцене 1 (La Closerie des Parfums — Rose Cardamome)** переданы в инженерный контур Адриана. \n\nС точки зрения режиссуры и оптического контроля качества (ОТК), этот патч решает ключевую задачу для презентации Валери Мадрид: он превращает цифровую графику в физически осязаемый материал под 16-кратной лупой. Переход со сферического варпинга (`0.25`) на планарную привязку к цент",
+      "tags": [
+        "production",
+        "elina"
+      ],
+      "author": "elina",
+      "timestamp": "2026-10-27 20:36:57"
+    },
+    {
+      "id": "ep_1793126820_elina",
+      "category": "studio_experience",
+      "title": "Режиссерский канон: Хорошо",
+      "content": "Владимир, отлично, контур синхронизирован. Адриан принял спецификацию шейдеров и геометрического планара в работу — дадим ему время спокойно откалибровать пайплайн **Atelier Identity Shield™** для **Сцены 1**, чтобы посадка двухъярусной этикетки выдержала тест под 16-кратной цифровой лупой.\n\nЧтобы мы не теряли производственный темп, пока идет рендер первой сцены, предлагаю параллельно подготовить",
+      "tags": [
+        "production",
+        "elina"
+      ],
+      "author": "elina",
+      "timestamp": "2026-10-27 20:47:00"
     }
   ]
 }

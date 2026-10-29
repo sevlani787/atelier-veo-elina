@@ -810,16 +810,19 @@ async def cmd_status(message: Message):
             [InlineKeyboardButton(text="🏛 Сайт: veocreative.agency", url="https://veocreative.agency/club")]
         ])
 
+        muse_avail = tokens // 100
         text = (
             "✦ <b>ATELIER VEO | СТАТУС РЕЗИДЕНТУРЫ</b> ✦\n\n"
             f"• <b>Статус:</b> {status_line}\n"
             f"• <b>Срок:</b> {expiry_line}\n"
             f"• <b>Доступный баланс:</b> <b>{tokens:,}</b> Atelier Credits\n\n"
-            "<b>Оценочный производственный эквивалент:</b>\n"
-            f"• Режиссерские промпты Dual-Layer (Veo 2/Kling): ~{prompts_avail}\n"
-            f"• Video QA & Аудит промптов: ~{qa_avail}\n"
-            f"• Эстетический аудит бренда: ~{audits_avail}\n\n"
-            "<i>Неиспользованные кредиты переносятся на следующий месяц при продлении.</i>"
+            "<b>Эквивалент по 5 модулям Элины:</b>\n"
+            f"• 1. Двухслойные промпты (/prompt • 20 Cr): ~{prompts_avail}\n"
+            f"• 2. Видеоаудит & Prompt Doctor (/qa • 25 Cr): ~{qa_avail}\n"
+            f"• 3. Разбор сайта & Instagram (/audit • 50 Cr): ~{audits_avail}\n"
+            f"• 4. Архитектура цифровой музы (/muse • 100 Cr): ~{muse_avail}\n"
+            f"• 5. Суверенный сейф ДНК бренда (/dna): Включен (0 Cr)\n\n"
+            "<i>Неиспользованные кредиты бессрочно переносятся со 100% Rollover.</i>"
         )
     else:
         if sub_type == 'admin':
@@ -840,16 +843,19 @@ async def cmd_status(message: Message):
             [InlineKeyboardButton(text="🏛 Website: veocreative.agency", url="https://veocreative.agency/club")]
         ])
 
+        muse_avail = tokens // 100
         text = (
             "✦ <b>ATELIER VEO | RESIDENCY STATUS</b> ✦\n\n"
             f"• <b>Status:</b> {status_line}\n"
             f"• <b>Term:</b> {expiry_line}\n"
             f"• <b>Available Balance:</b> <b>{tokens:,}</b> Atelier Credits\n\n"
-            "<b>Available Production Equivalent:</b>\n"
-            f"• Dual-Layer Director Prompts (Veo 2/Kling): ~{prompts_avail}\n"
-            f"• Video QA & Prompt Doctor Audits: ~{qa_avail}\n"
-            f"• Brand Aesthetic Audits: ~{audits_avail}\n\n"
-            "<i>Unused credits roll over to the next month upon residency renewal.</i>"
+            "<b>Available Production Equivalent across 5 Modules:</b>\n"
+            f"• 1. Dual-Layer Prompts (/prompt • 20 Cr): ~{prompts_avail}\n"
+            f"• 2. Video QA & Prompt Doctor (/qa • 25 Cr): ~{qa_avail}\n"
+            f"• 3. Website & Instagram Teardown (/audit • 50 Cr): ~{audits_avail}\n"
+            f"• 4. Virtual Muse Architecture (/muse • 100 Cr): ~{muse_avail}\n"
+            f"• 5. Living Brand DNA Vault (/dna): Included (0 Cr)\n\n"
+            "<i>Unused credits roll over with 100% Rollover privilege upon renewal.</i>"
         )
 
     await message.answer(text, reply_markup=kb, parse_mode="HTML")
@@ -858,30 +864,63 @@ async def cmd_status(message: Message):
 @router.message(Command("grant"))
 async def cmd_grant(message: Message):
     """Активация клубного резидентства для пользователя (Admin only).
-    Формат: /grant <user_id> [months=1] [credits=1000]
+    Форматы:
+    • /grant <user_id> 1000 founding
+    • /grant <user_id> 1000 standard
+    • /grant <user_id> [months=1] [credits=1000]
     """
     if message.from_user.id != config.admin_id:
         return
 
     parts = message.text.strip().split()
     if len(parts) < 2:
-        await message.answer("Использование: `/grant <user_id> [months=1] [credits=1000]`", parse_mode="Markdown")
+        await message.answer(
+            "Использование:\n"
+            "• `/grant <user_id> 1000 founding` (1000 Cr, 1 мес, Founding Pass $190)\n"
+            "• `/grant <user_id> 1000 standard` (1000 Cr, 1 мес, Standard Pass $250)\n"
+            "• `/grant <user_id> [months=1] [credits=1000]`",
+            parse_mode="Markdown"
+        )
         return
 
     try:
         target_user_id = int(parts[1])
-        months = int(parts[2]) if len(parts) > 2 else 1
-        credits_to_add = int(parts[3]) if len(parts) > 3 else (1000 * months)
+        tier = "founding"
+        months = 1
+        credits_to_add = 1000
+
+        if len(parts) > 2:
+            arg2 = parts[2].lower()
+            if arg2 in ("founding", "standard"):
+                tier = arg2
+                months = 1
+                credits_to_add = 1000
+            elif arg2.isdigit():
+                val2 = int(arg2)
+                if val2 >= 100:  # e.g. 1000 credits
+                    credits_to_add = val2
+                    months = 1
+                    if len(parts) > 3 and parts[3].lower() in ("founding", "standard"):
+                        tier = parts[3].lower()
+                    elif len(parts) > 3 and parts[3].isdigit():
+                        months = int(parts[3])
+                else:  # months
+                    months = val2
+                    credits_to_add = int(parts[3]) if (len(parts) > 3 and parts[3].isdigit()) else (1000 * months)
+                    if len(parts) > 4 and parts[4].lower() in ("founding", "standard"):
+                        tier = parts[4].lower()
     except ValueError:
-        await message.answer("Ошибка: ID пользователя, месяцы и кредиты должны быть числами.")
+        await message.answer("Ошибка в аргументах команды /grant. Проверьте числовые значения.")
         return
 
-    await db.add_subscription_credits(target_user_id, months=months, credits=credits_to_add)
+    await db.add_subscription_credits(target_user_id, months=months, credits=credits_to_add, tier=tier)
     await db.set_setting(f"user_model_{target_user_id}", "google/gemini-4-argon")
 
+    tier_label = "Founding Cohort ($190/mo)" if tier == "founding" else "Standard Residency ($250/mo)"
     await message.answer(
         f"✅ <b>Резидентство успешно активировано!</b>\n\n"
         f"👤 <b>User ID:</b> <code>{target_user_id}</code>\n"
+        f"💎 <b>Тариф:</b> {tier_label}\n"
         f"📅 <b>Срок:</b> {months} мес.\n"
         f"💎 <b>Начислено кредитов:</b> +{credits_to_add:,} Credits (с учетом Rollover)\n"
         f"🏛 <b>Статус:</b> Atelier Resident",
@@ -1077,6 +1116,382 @@ async def cmd_check_subs_manually(message: Message):
     await message.answer("🔍 Запускаю проверку резидентур и сроков окончания...")
     await check_expiring_subscriptions(message.bot)
     await message.answer("✅ Проверка резидентур завершена.")
+
+
+
+async def execute_llm_module_request(
+    message: Message,
+    user_id: int,
+    user_data: dict,
+    enriched_instruction: str,
+    cost: int,
+    action_name: str = "module",
+    url: Optional[str] = None
+):
+    """Универсальный исполнитель запросов к 5 директорским модулям Элины."""
+    is_admin = (user_id == config.admin_id)
+    await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
+
+    scraped_context = ""
+    if url:
+        from bot.services.apify import apify_service
+        from bot.services.web_reader import web_reader
+        platform = apify_service.detect_platform(url)
+        if platform:
+            scraped = await apify_service.scrape(url)
+        else:
+            scraped = await web_reader.read_url(url)
+        if scraped and not scraped.startswith("Ошибка"):
+            scraped_context = f"\n\n[ДАННЫЕ РЕСУРСА {url}]:\n{scraped}"
+
+    full_user_text = enriched_instruction + scraped_context
+    await memory.add_message(user_id, 'user', full_user_text)
+
+    history = await memory.get_context_for_llm(user_id)
+    user_profile = await memory.get_user_profile(user_id)
+    elin_persona = (await memory.get_elin_persona_text()) if is_admin else ""
+    lore_context = await memory.get_world_context(full_user_text)
+
+    if is_admin:
+        hindsight_mem = hindsight_bridge.recall(full_user_text, limit=4)
+        lore_context = (lore_context or "") + f"\n\n[HINDSIGHT STUDIO MEMORY - EXCLUSIVE FOR VLADIMIR]:\n{hindsight_mem}\n"
+
+    try:
+        override_model = await db.get_setting(f"user_model_{user_id}", "google/gemini-4-argon") if (is_admin or user_data.get('sub_type') == 'premium') else None
+        response = await llm.respond(
+            messages=history,
+            user_profile=user_profile,
+            elin_persona=elin_persona,
+            lore_context=lore_context,
+            is_admin=is_admin,
+            override_model=override_model
+        )
+
+        if cost > 0:
+            await db.spend_tokens(user_id, cost)
+
+        await memory.add_message(user_id, 'assistant', response)
+        new_balance = (await db.get_user_data(user_id))['tokens']
+        balance_info = f"\n\n<i>✦ Atelier Credits: {new_balance:,}</i>" if (user_data.get('sub_type') != 'admin' and not is_admin) else ""
+
+        await send_long_message(message, response + balance_info, parse_mode="HTML")
+    except Exception as e:
+        err_text = await get_system_error_message(user_id, message, 'llm')
+        await message.answer(err_text)
+        print(f"Error in module {action_name}: {e}")
+
+
+@router.message(Command("prompt"))
+async def cmd_prompt(message: Message):
+    """Модуль 1: Dual-Layer Cinematic Prompt (20 Cr)."""
+    user_id = message.from_user.id
+    lang = await detect_user_dialogue_language(user_id, message)
+    args = message.text.partition(' ')[2].strip()
+
+    cost = await config.get_token_cost(action='prompt')
+    user_data = await check_user_and_balance(user_id, message, cost=cost)
+    if not user_data:
+        return
+
+    if not args:
+        if lang == "ru":
+            await message.answer(
+                "✦ <b>МОДУЛЬ 1: DUAL-LAYER CINEMATIC PROMPT (20 Cr)</b> ✦\n\n"
+                "Генерация двухуровневого сценария для Veo 2, Kling 1.5 или Sora:\n"
+                "• <b>Layer 1:</b> Режиссерский тритмент (свет Kelvin, каустика, ракурс).\n"
+                "• <b>Layer 2:</b> 5-компонентная формула VEO на английском в блоке кода.\n\n"
+                "<i>Для запуска укажите бриф, например:</i>\n"
+                "<code>/prompt Янтарный флакон духов на мраморе на закате, теплый боковой свет 2800K, медленный наезд камеры</code>",
+                parse_mode="HTML"
+            )
+        else:
+            await message.answer(
+                "✦ <b>MODULE 1: DUAL-LAYER CINEMATIC PROMPT (20 Cr)</b> ✦\n\n"
+                "Turnkey dual-layer cinematic script for Veo 2, Kling 1.5, or Sora:\n"
+                "• <b>Layer 1:</b> Directorial treatment (optics, Kelvin lighting, caustics, framing).\n"
+                "• <b>Layer 2:</b> 5-component VEO optical formula code block in English.\n\n"
+                "<i>To trigger, submit your scene brief:</i>\n"
+                "<code>/prompt Amber perfume flacon on wet marble at dusk, 2800K chiaroscuro light, slow anamorphic push-in</code>",
+                parse_mode="HTML"
+            )
+        return
+
+    prompt_brief = (
+        f"[ДИРЕКТОРСКИЙ ЗАПРОС /prompt (20 Credits)]:\n"
+        f"Создай эталонный двухуровневый кинематографический сценарий по следующему брифу резидента:\n"
+        f"\"{args}\"\n\n"
+        f"Обязательно включи:\n"
+        f"1. Режиссерский тритмент (оптика 50mm/85mm T1.4, свет Kelvin, поведение каустики стекла).\n"
+        f"2. Пятикомпонентный математический промпт на английском в отдельном блоке кода (```code block```) по формуле VEO.\n"
+        f"3. Acoustic Timecodes (ASMR-разметка звука)."
+    )
+    await execute_llm_module_request(message, user_id, user_data, prompt_brief, cost=cost, action_name="prompt")
+
+
+@router.message(Command("qa"))
+async def cmd_qa(message: Message):
+    """Модуль 2: Visual QA & Prompt Doctor (25 Cr)."""
+    user_id = message.from_user.id
+    lang = await detect_user_dialogue_language(user_id, message)
+    args = message.text.partition(' ')[2].strip()
+
+    if args:
+        cloud_url = extract_video_url_from_text(args)
+        if cloud_url:
+            qa_cost = await config.get_token_cost(action='qa')
+            user_data = await check_user_and_balance(user_id, message, cost=qa_cost)
+            if not user_data:
+                return
+            wait_msg = await message.answer("Приняла ссылку на видео... Начинаю загрузку для аудита.")
+            with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp_file:
+                temp_video_path = tmp_file.name
+            success = await download_cloud_video(cloud_url, temp_video_path, max_size_mb=config.max_video_size_mb)
+            if success and os.path.exists(temp_video_path) and os.path.getsize(temp_video_path) > 0:
+                duration = get_video_duration(temp_video_path)
+                await process_video_audit(message, temp_video_path, duration, args, user_id, user_data, wait_msg=wait_msg, is_temp_file=True)
+                return
+            else:
+                await wait_msg.edit_text("Не удалось загрузить видео по ссылке. Пожалуйста, отправьте файл напрямую в чат.")
+                return
+
+    if lang == "ru":
+        await message.answer(
+            "✦ <b>МОДУЛЬ 2: VISUAL QA & PROMPT DOCTOR (25 Cr)</b> ✦\n\n"
+            "Покадровый экспертный аудит сгенерированного видео (до 2 ГБ):\n"
+            "• Оценка качества (Score /10)\n"
+            "• Диагностика 4 зон: анатомическая стабильность, четкость этикетки, свет и темпоритм\n"
+            "• <b>Prompt Doctor:</b> анти-дрейф патч для перегенерации\n\n"
+            "<i>Чтобы запустить аудит, отправьте видеофайл в чат или укажите ссылку:</i>\n"
+            "<code>/qa https://drive.google.com/file/d/...</code>",
+            parse_mode="HTML"
+        )
+    else:
+        await message.answer(
+            "✦ <b>MODULE 2: VISUAL QA & PROMPT DOCTOR (25 Cr)</b> ✦\n\n"
+            "Frame-by-frame expert diagnostic audit of footage (up to 2 GB):\n"
+            "• Quality Score (/10)\n"
+            "• 4-zone diagnostics: anatomical stability, label/typography, caustics, camera rhythm\n"
+            "• <b>Prompt Doctor:</b> corrective prompt patch\n\n"
+            "<i>To trigger, send your video file to this chat or provide a link:</i>\n"
+            "<code>/qa https://drive.google.com/file/d/...</code>",
+            parse_mode="HTML"
+        )
+
+
+@router.message(Command("audit", "teardown"))
+async def cmd_audit(message: Message):
+    """Модуль 3: Website & Instagram Teardown (50 Cr)."""
+    user_id = message.from_user.id
+    lang = await detect_user_dialogue_language(user_id, message)
+    args = message.text.partition(' ')[2].strip()
+
+    cost = await config.get_token_cost(action='audit')
+    user_data = await check_user_and_balance(user_id, message, cost=cost)
+    if not user_data:
+        return
+
+    if not args:
+        if lang == "ru":
+            await message.answer(
+                "✦ <b>МОДУЛЬ 3: WEBSITE & INSTAGRAM TEARDOWN (50 Cr)</b> ✦\n\n"
+                "Глубокий эстетический аудит витрины или соцсетей в канонах Quiet Luxury:\n"
+                "1. 🏆 <b>Aesthetic Prestige Score: X/10</b>\n"
+                "2. 🔬 <b>Фотометрия, свет и колористика</b> (анализ фона, бликов и композиции)\n"
+                "3. ⚠️ <b>Точки потери статуса (Prestige Leaks)</b> (что сейчас удешевляет визуал)\n"
+                "4. 🎬 <b>Directorial Shot-List</b> (3 готовых киносценария для кардинального поднятия ценности)\n\n"
+                "<i>Чтобы запустить разбор, отправьте команду со ссылкой:</i>\n"
+                "<code>/audit https://yourbrand.com</code> или <code>/audit @your_instagram</code>",
+                parse_mode="HTML"
+            )
+        else:
+            await message.answer(
+                "✦ <b>MODULE 3: WEBSITE & INSTAGRAM TEARDOWN (50 Cr)</b> ✦\n\n"
+                "Comprehensive aesthetic audit of your digital storefront or social presence:\n"
+                "1. 🏆 <b>Aesthetic Prestige Score: X/10</b>\n"
+                "2. 🔬 <b>Photometry, Lighting & Palette</b> (shadows, background noise, product composition)\n"
+                "3. ⚠️ <b>Prestige Leaks</b> (visual pitfalls undermining luxury pricing power)\n"
+                "4. 🎬 <b>Directorial Shot-List</b> (3 turnkey cinematic treatments to elevate brand stature)\n\n"
+                "<i>To trigger, send the command with your link:</i>\n"
+                "<code>/audit https://yourbrand.com</code> or <code>/audit @your_instagram</code>",
+                parse_mode="HTML"
+            )
+        return
+
+    urls = re.findall(r'(https?://[^\s]+)', args)
+    url_to_audit = urls[0] if urls else args
+    audit_instruction = (
+        f"[ДИРЕКТОРСКИЙ ЗАПРОС /audit (50 Credits)]:\n"
+        f"Проведи глубокий эстетический аудит ресурса: {url_to_audit}\n"
+        f"Структурируй отчет СТРОГО по 4 зонам:\n"
+        f"1. 🏆 Aesthetic Prestige Score: [Оценка от 1 до 10]/10 — вердикт соответствия кодам Haute Luxury.\n"
+        f"2. 🔬 Фотометрия, свет и предметная композиция — анализ бликов, цветовой чистоты и фона.\n"
+        f"3. ⚠️ Точки потери статуса (Prestige Leaks) — что сейчас визуально обесценивает продукт.\n"
+        f"4. 🎬 Directorial Shot-List — 3 готовых кинематографических сценария с промптами для исправления визуала."
+    )
+    await execute_llm_module_request(message, user_id, user_data, audit_instruction, cost=cost, action_name="audit", url=url_to_audit if urls else None)
+
+
+@router.message(Command("muse", "ambassador"))
+async def cmd_muse(message: Message):
+    """Модуль 4: Virtual Muse Architecture (100 Cr)."""
+    user_id = message.from_user.id
+    lang = await detect_user_dialogue_language(user_id, message)
+    args = message.text.partition(' ')[2].strip()
+
+    cost = await config.get_token_cost(action='muse')
+    user_data = await check_user_and_balance(user_id, message, cost=cost)
+    if not user_data:
+        return
+
+    if not args:
+        if lang == "ru":
+            await message.answer(
+                "✦ <b>МОДУЛЬ 4: VIRTUAL MUSE ARCHITECTURE (100 Cr)</b> ✦\n\n"
+                "Синтез персонального паспорта цифрового амбассадора Дома:\n"
+                "• Фенотип, костная структура лица, взгляд и стать\n"
+                "• <b>Hasselblad Dermal Micro-Texture:</b> поры, естественный микрорельеф кожи\n"
+                "• Гардеробная палитра и силуэты Quiet Luxury\n"
+                "• <b>Multi-angle Seeds:</b> готовые промпты для съемки в разных ракурсах с сохранением лица\n\n"
+                "<i>Чтобы запустить архитектуру музы, укажите бриф:</i>\n"
+                "<code>/muse Француженка 28 лет, парижский минимализм, теплый подтон кожи, высокие скулы, сдержанная элегантность</code>",
+                parse_mode="HTML"
+            )
+        else:
+            await message.answer(
+                "✦ <b>MODULE 4: VIRTUAL MUSE ARCHITECTURE (100 Cr)</b> ✦\n\n"
+                "Synthesis of a dedicated digital brand ambassador blueprint:\n"
+                "• Phenotype, facial bone architecture, eye profile and posture\n"
+                "• <b>Hasselblad Dermal Micro-Texture:</b> authentic pores, specular response, zero plastic smoothing\n"
+                "• Wardrobe palette and silhouettes in Quiet Luxury codes\n"
+                "• <b>Multi-angle Seeds:</b> turnkey production prompts for consistent multi-shot continuity\n\n"
+                "<i>To trigger, provide your muse brief:</i>\n"
+                "<code>/muse French female 28yo, Parisian minimalism, warm golden undertone, high cheekbones, understated elegance</code>",
+                parse_mode="HTML"
+            )
+        return
+
+    muse_instruction = (
+        f"[ДИРЕКТОРСКИЙ ЗАПРОС /muse (100 Credits)]:\n"
+        f"Разработай исчерпывающий архитектурный паспорт цифровой музы бренда по брифу:\n"
+        f"\"{args}\"\n\n"
+        f"Структура паспорта:\n"
+        f"1. Фенотип, геометрия лица, мимический характер и стать.\n"
+        f"2. Hasselblad Dermal Micro-Texture (физика пор, микрорельеф кожи, естественный себумный отклик на свет).\n"
+        f"3. Гардеробная капсула, текстуры тканей (шелк, кашемир, лен) и световая схема (Kelvin).\n"
+        f"4. Набор из 3 готовых мастер-промптов на английском в блоках кода (```code block```) для генерации лица крупным планом, поясного портрета с флаконом и кинематографического движения в интерьере."
+    )
+    await execute_llm_module_request(message, user_id, user_data, muse_instruction, cost=cost, action_name="muse")
+
+
+@router.message(Command("dna", "vault"))
+async def cmd_dna(message: Message):
+    """Модуль 5: Living Brand DNA Memory (0 Cr • Включено)."""
+    user_id = message.from_user.id
+    lang = await detect_user_dialogue_language(user_id, message)
+    args = message.text.partition(' ')[2].strip()
+
+    if args:
+        current_facts = await db.get_facts(user_id)
+        current_facts["brand_dna"] = args
+        await memory.update_facts(user_id, json.dumps(current_facts, ensure_ascii=False))
+        
+        if lang == "ru":
+            await message.answer(
+                "✦ <b>LIVING BRAND DNA | СЕЙФ ОБНОВЛЕН (0 Cr)</b> ✦\n\n"
+                "Параметры вашего бренда успешно запечатаны в суверенном хранилище Дома:\n"
+                f"<i>«{args}»</i>\n\n"
+                "Элина будет автоматически учитывать эти коды, материалы и палитру во всех последующих генерациях (Zero-Rebriefing).",
+                parse_mode="HTML"
+            )
+        else:
+            await message.answer(
+                "✦ <b>LIVING BRAND DNA | SOVEREIGN VAULT UPDATED (0 Cr)</b> ✦\n\n"
+                "Your brand DNA has been permanently sealed in your private studio archive:\n"
+                f"<i>\"{args}\"</i>\n\n"
+                "Elina will automatically respect these packaging materials, pantones, and codes across all future prompts (Zero-Rebriefing).",
+                parse_mode="HTML"
+            )
+        return
+
+    current_facts = await db.get_facts(user_id)
+    dna_val = current_facts.get("brand_dna")
+
+    if lang == "ru":
+        current_display = f"<b>Текущая запись в сейфе:</b>\n<i>«{dna_val}»</i>" if dna_val else "<i>Сейф пока пуст. Зафиксируйте коды вашего Дома.</i>"
+        await message.answer(
+            f"✦ <b>МОДУЛЬ 5: LIVING BRAND DNA MEMORY (0 Cr)</b> ✦\n\n"
+            f"{current_display}\n\n"
+            "Суверенный сейф бренда позволяет зафиксировать ДНК Дома раз и навсегда:\n"
+            "• Название бренда и философия\n"
+            "• Материалы флакона/упаковки (толстое стекло, пробка, шелкография)\n"
+            "• Фирменные пантоны и текстуры\n"
+            "• Ароматические или косметические ноты\n"
+            "• Стоп-слова и запрещенные элементы\n\n"
+            "<i>Чтобы обновить сейф, отправьте команду с описанием:</i>\n"
+            "<code>/dna Бренд: Maison Lumier. Флакон: тяжелое прозрачное стекло 100мл, крышка черный матовый металл. Пантоны: #F4F1EA и #111111. Ноты: белый кедр, ирис, бергамот. Запрещено: неон, глянцевый пластик</code>",
+            parse_mode="HTML"
+        )
+    else:
+        current_display = f"<b>Current Vault Archive:</b>\n<i>\"{dna_val}\"</i>" if dna_val else "<i>Vault is currently uninitialized. Archive your brand DNA.</i>"
+        await message.answer(
+            f"✦ <b>MODULE 5: LIVING BRAND DNA MEMORY (0 Cr)</b> ✦\n\n"
+            f"{current_display}\n\n"
+            "The Sovereign Brand Vault permanently anchors your House codes:\n"
+            "• Brand identity & aesthetic manifesto\n"
+            "• Packaging micro-physics (heavy crystal glass, wood cap, embossed paper)\n"
+            "• Palette hex codes & tactile finishes\n"
+            "• Hero botanical & olfactory notes\n"
+            "• Negative space & forbidden tropes\n\n"
+            "<i>To update your vault, submit with your details:</i>\n"
+            "<code>/dna Brand: Maison Lumier. Bottle: 100ml heavy flint glass, matte noir cap. Palette: #F4F1EA, #111111. Notes: White cedar, iris, bergamot. Forbidden: neon, high-gloss plastic</code>",
+            parse_mode="HTML"
+        )
+
+
+@router.message(Command("help", "guide"))
+async def cmd_help(message: Message):
+    """Гид по 5 директорским модулям Элины."""
+    user_id = message.from_user.id
+    lang = await detect_user_dialogue_language(user_id, message)
+    if lang == "ru":
+        text = (
+            "✦ <b>ATELIER VEO | 5 ДИРЕКТОРСКИХ МОДУЛЕЙ ЭЛИНЫ</b> ✦\n\n"
+            "<b>1. /prompt — Dual-Layer Cinematic Prompt (20 Cr)</b>\n"
+            "   Режиссерский тритмент + 5-компонентный промпт для Veo 2 / Kling / Sora в блоке кода.\n\n"
+            "<b>2. /qa — Visual QA & Prompt Doctor (25 Cr)</b>\n"
+            "   Покадровый аудит видеофайла до 2 ГБ: оценка /10, проверка 4 зон + корректирующий патч.\n\n"
+            "<b>3. /audit — Website & Instagram Teardown (50 Cr)</b>\n"
+            "   Aesthetic Prestige Score (/10), фотометрия, точки потери статуса + 3 готовых киносценария.\n\n"
+            "<b>4. /muse — Virtual Muse Architecture (100 Cr)</b>\n"
+            "   Паспорт цифрового амбассадора: семена, текстура кожи Hasselblad, палитра гардероба.\n\n"
+            "<b>5. /dna — Living Brand DNA Memory (0 Cr • Включено)</b>\n"
+            "   Суверенный сейф бренда: сохранение кодов Дома для генераций без повторных брифов.\n\n"
+            "<b>Служебные команды:</b>\n"
+            "• /status — Проверка баланса Atelier Credits и срока резидентуры\n"
+            "• /topup — Докупка пакетов кредитов (+300 Cr, +700 Cr, +1500 Cr)\n"
+            "• /club — Условия резидентуры и квота 20 мест\n"
+            "• /clear — Сброс памяти текущей сессии"
+        )
+    else:
+        text = (
+            "✦ <b>ATELIER VEO | 5 DIRECTORIAL MODULES</b> ✦\n\n"
+            "<b>1. /prompt — Dual-Layer Cinematic Prompt (20 Cr)</b>\n"
+            "   Directorial treatment + 5-component optical formula code block for Veo 2 / Kling / Sora.\n\n"
+            "<b>2. /qa — Visual QA & Prompt Doctor (25 Cr)</b>\n"
+            "   Frame-by-frame video audit (up to 2 GB): /10 score, 4-zone diagnostics + prompt patch.\n\n"
+            "<b>3. /audit — Website & Instagram Teardown (50 Cr)</b>\n"
+            "   Aesthetic Prestige Score (/10), photometry analysis, prestige leaks + 3 bespoke shot-lists.\n\n"
+            "<b>4. /muse — Virtual Muse Architecture (100 Cr)</b>\n"
+            "   Digital ambassador passport: multi-angle seeds, Hasselblad dermal texture, wardrobe.\n\n"
+            "<b>5. /dna — Living Brand DNA Memory (0 Cr • Included)</b>\n"
+            "   Sovereign Vault: anchor your House codes for seamless Zero-Rebriefing generations.\n\n"
+            "<b>Studio Management Commands:</b>\n"
+            "• /status — Check Atelier Credits balance & residency validity\n"
+            "• /topup — Booster top-up packs (+300 Cr, +700 Cr, +1500 Cr)\n"
+            "• /club — Residency terms & 20-seat global quota\n"
+            "• /clear — Clear session dialogue memory"
+        )
+    await message.answer(text, parse_mode="HTML")
 
 
 @router.message(F.photo)

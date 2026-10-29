@@ -281,7 +281,7 @@ class Database:
             await db.commit()
             return True
 
-    async def add_subscription_credits(self, user_id: int, months: int = 1, credits: int = 1000):
+    async def add_subscription_credits(self, user_id: int, months: int = 1, credits: int = 1000, tier: str = "founding"):
         """Продление или активация членства Atelier VEO Club с начислением Atelier Credits и поддержкой Rollover."""
         from datetime import datetime, timedelta
         
@@ -315,6 +315,8 @@ class Database:
                 WHERE user_id = ?
             """, (new_expiry.isoformat(), credits, user_id))
             await db.commit()
+
+        await self.set_setting(f"user_tier_{user_id}", tier)
 
     async def add_subscription(self, user_id: int, months: int):
         """Продление или активация подписки с начислением токенов."""
