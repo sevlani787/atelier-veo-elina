@@ -430,26 +430,35 @@ def get_start_content(user_id: int, user_data: dict, lang: str = "en"):
         return welcome_text, None
 
     if lang == "ru":
-        if is_resident:
-            welcome_text = (
-                "✦ <b>ATELIER VEO | PRIVATE RESIDENCY</b> ✦\n\n"
-                "Приветствую. Я — Элина, ваш креативный директор в резиденции Atelier VEO.\n\n"
-                "Пространство студии и вычислительные мощности подготовлены для ваших задач. "
-                "К какому проекту мы приступим сегодня: создание ольфакторного фильма, кинематографическая реклама или синтез виртуального амбассадора Дома? 🎬"
-            )
-        else:
-            welcome_text = (
-                "✦ <b>ATELIER VEO | BESPOKE AI CINEMA</b> ✦\n\n"
-                "Приветствую. Я — Элина, креативный директор Atelier VEO.\n\n"
-                "Наше Ателье создает кинематографические кампании и оптический сторителлинг для брендов высокой парфюмерии, косметики и осознанной роскоши (Quiet Luxury).\n\n"
-                "Вам открыт дегустационный доступ — <b>Tasting Pass (20 Atelier Credits)</b>, чтобы оценить режиссуру и оптическую точность наших моделей на вашей первой сцене.\n\n"
-                "Опишите концепцию вашего продукта, сформулируйте бриф на сцену или отправьте тестовое видео для аудита — и мы сформируем безупречный визуальный ряд.\n\n"
-                "<i>✦ Квота резидентуры Atelier VEO строго ограничена 20 Домами по всему миру. Заявки: veocreative.agency</i>"
-            )
+        status_badge = "PRIVATE RESIDENCY • 20 SEATS" if is_resident else "TASTING PASS • 20 CREDITS"
+        welcome_text = (
+            f"✦ <b>ATELIER VEO | {status_badge}</b> ✦\n\n"
+            "Приветствую. Я — <b>Элина</b>, Главный Креативный Директор и Архитектор Визуальных Кампаний Дома Atelier VEO.\n\n"
+            "Наше Ателье создает кинематографические кампании и оптический сторителлинг для брендов высокой парфюмерии, косметики и осознанной роскоши (Quiet Luxury).\n\n"
+            "Вам открыт дегустационный доступ — <b>Tasting Pass (20 Atelier Credits)</b>.\n\n"
+            "🏛 <b>РЕЕСТР 5 ДИРЕКТОРСКИХ МОДУЛЕЙ АТЕЛЬЕ:</b>\n\n"
+            "1. 🎬 <b>Dual-Layer Cinematic Prompt (/prompt • 20 Cr)</b>\n"
+            "   Режиссерский тритмент (свет Kelvin, каустика, оптика) + 5-компонентная формула VEO на английском в блоке кода для Veo 2 / Kling / Sora.\n\n"
+            "2. 🔬 <b>Visual QA & Prompt Doctor (/qa • 25 Cr)</b>\n"
+            "   Покадровый аудит вашего видеофайла (до 2 ГБ) или ссылки: оценка /10, проверка 4 зон + готовый корректирующий патч.\n\n"
+            "3. 🏛 <b>Website & Instagram Teardown (/audit • 50 Cr)</b>\n"
+            "   Aesthetic Prestige Score (/10), фотометрия, точки потери статуса + 3 готовых киносценария для роста ценности бренда.\n\n"
+            "4. 👤 <b>Virtual Muse Architecture (/muse • 100 Cr)</b>\n"
+            "   Паспорт цифрового амбассадора Дома: фенотип, текстура кожи Hasselblad без мыла, гардеробная капсула + multi-angle семена.\n\n"
+            "5. 💎 <b>Living Brand DNA Memory (/dna • 0 Cr • Включено)</b>\n"
+            "   Суверенный сейф бренда: материалы флакона, пантоны, ноты аромата с постоянным авто-учетом (Zero-Rebriefing).\n\n"
+            "✦ <b>РЕЖИССЕРСКИЙ ПРОТОКОЛ СКОУПИНГА:</b>\n"
+            "Чтобы приступить к работе, пожалуйста, уточните, <b>какой конкретно модуль</b> вас интересует, и предоставьте всю необходимую вводную информацию (концепцию продукта, ссылку на сайт, фото флакона или видеоряд).\n\n"
+            "<i>✦ Правило Дома: Я приступаю к генерации и расходованию кредитов строго после вашего подтверждения и получения полных данных.</i>"
+        )
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [
                 InlineKeyboardButton(text="💎 Условия резидентуры & Тарифы", callback_data="buy_premium_menu_ru"),
-                InlineKeyboardButton(text="📜 Меню услуг & Кредиты", callback_data="view_rates_menu_ru")
+                InlineKeyboardButton(text="📜 Сетка услуг & Кредиты", callback_data="view_rates_menu_ru")
+            ],
+            [
+                InlineKeyboardButton(text="⚡️ Докупить кредиты", callback_data="open_topup_menu_ru"),
+                InlineKeyboardButton(text="📖 Гид по модулям", callback_data="help_menu_ru")
             ],
             [
                 InlineKeyboardButton(text="🏛 Сайт: veocreative.agency", url="https://veocreative.agency/club"),
@@ -460,27 +469,36 @@ def get_start_content(user_id: int, user_data: dict, lang: str = "en"):
             ]
         ])
     else:
-        # English default for international luxury houses
-        if is_resident:
-            welcome_text = (
-                "✦ <b>ATELIER VEO | PRIVATE RESIDENCY</b> ✦\n\n"
-                "Welcome. I am Elina, your Creative Director in residence at Atelier VEO.\n\n"
-                "Our studio space and compute architecture are dedicated to your vision for this cycle. "
-                "Which project shall we bring to life: an olfactory perfume film, a tactile cosmetic commercial, or a bespoke virtual ambassador for your House? 🎬"
-            )
-        else:
-            welcome_text = (
-                "✦ <b>ATELIER VEO | BESPOKE AI CINEMA</b> ✦\n\n"
-                "Welcome. I am Elina, Creative Director of Atelier VEO.\n\n"
-                "Here, we craft heritage-grade AI commercials and tactile visual universes dedicated exclusively to luxury beauty, artisanal fragrance, and high craftsmanship houses.\n\n"
-                "You have been granted a complimentary <b>Tasting Pass with 20 Atelier Credits</b> to experience our directorial craft on a single hero scene.\n\n"
-                "Share your product concept, a fragrance brief, or send a draft video for QA audit, and let us shape light together.\n\n"
-                "<i>✦ Strictly capped at 20 global brand residencies worldwide. Admissions: veocreative.agency</i>"
-            )
+        # English default for international luxury founders upon first contact
+        status_badge = "PRIVATE RESIDENCY • 20 SEATS" if is_resident else "TASTING PASS • 20 CREDITS"
+        welcome_text = (
+            f"✦ <b>ATELIER VEO | {status_badge}</b> ✦\n\n"
+            "Welcome. I am <b>Elina</b>, Creative Director & Principal Visual Architect at Atelier VEO.\n\n"
+            "Our sanctuary crafts heritage-grade botanical cinema, photometric commercial campaigns, and tactile visual universes dedicated exclusively to luxury beauty, artisanal fragrance, and high craftsmanship houses.\n\n"
+            "You have been granted a complimentary <b>Tasting Pass with 20 Atelier Credits</b>.\n\n"
+            "🏛 <b>REGISTRY OF THE 5 DIRECTORIAL MODULES:</b>\n\n"
+            "1. 🎬 <b>Dual-Layer Cinematic Prompt (/prompt • 20 Cr)</b>\n"
+            "   Directorial treatment (Kelvin lighting, caustics, optics) + English 5-component VEO mathematical code block for Veo 2, Kling 1.5, or Sora.\n\n"
+            "2. 🔬 <b>Visual QA & Prompt Doctor (/qa • 25 Cr)</b>\n"
+            "   Frame-by-frame 4-zone diagnostic audit of your video file (up to 2 GB) or cloud link: anatomy, label stability, lighting + prompt patch.\n\n"
+            "3. 🏛 <b>Website & Instagram Teardown (/audit • 50 Cr)</b>\n"
+            "   Aesthetic Prestige Score (/10), photometry & color analysis, prestige leaks + 3 bespoke cinematic shot-lists.\n\n"
+            "4. 👤 <b>Virtual Muse Architecture (/muse • 100 Cr)</b>\n"
+            "   Digital brand ambassador blueprint: facial bone structure, Hasselblad dermal micro-texture (zero plastic smoothing), wardrobe + seeds.\n\n"
+            "5. 💎 <b>Living Brand DNA Memory (/dna • 0 Cr • Included)</b>\n"
+            "   Your private Sovereign Vault: packaging materials, pantones, and olfactory notes permanently archived with Zero-Rebriefing.\n\n"
+            "✦ <b>DIRECTORIAL SCOPING PROTOCOL:</b>\n"
+            "To begin our collaboration, please specify <b>which specific service</b> interests you today and provide the necessary details (your brand website, product concept, flacon photos, or footage).\n\n"
+            "<i>✦ Directorial Invariant: I strictly clarify your requirements and wait for your explicit confirmation before initiating compute or credit spending.</i>"
+        )
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [
                 InlineKeyboardButton(text="💎 Residency Tiers & Pricing", callback_data="buy_premium_menu_en"),
                 InlineKeyboardButton(text="📜 Production Rates & Credits", callback_data="view_rates_menu_en")
+            ],
+            [
+                InlineKeyboardButton(text="⚡️ Top-Up Booster Packs", callback_data="open_topup_menu_en"),
+                InlineKeyboardButton(text="📖 Directorial Guide", callback_data="help_menu_en")
             ],
             [
                 InlineKeyboardButton(text="🏛 Website: veocreative.agency", url="https://veocreative.agency/club"),
@@ -528,8 +546,15 @@ async def cmd_start(message: Message):
         except Exception as e:
             print(f"[ONBOARDING ALERT] Failed to notify admin: {e}")
 
-    # Автоматически определяем язык диалога или Telegram-клиента
-    lang = await detect_user_dialogue_language(user_id, message)
+    # Язык первого приветственного сообщения строго английский по умолчанию (международный luxury-стандарт)
+    saved_lang = await db.get_setting(f"user_lang_{user_id}")
+    if user_id == config.admin_id:
+        lang = "ru"
+    elif saved_lang:
+        lang = saved_lang
+    else:
+        lang = "en"  # Международный стандарт по умолчанию при первом контакте
+
     welcome_text, start_kb = get_start_content(user_id, user_data, lang=lang)
     if start_kb:
         await message.answer(welcome_text, reply_markup=start_kb, parse_mode="HTML")
@@ -2264,3 +2289,12 @@ async def handle_message(message: Message):
                 err_text = await get_system_error_message(user_id, target_message, 'llm')
                 await target_message.answer(err_text)
                 print(f'LLM Error: {e}')
+@router.callback_query(F.data.in_(["help_menu", "help_menu_en"]))
+async def cb_help_menu_en(callback: CallbackQuery):
+    await cmd_help(callback.message)
+    await callback.answer()
+
+@router.callback_query(F.data == "help_menu_ru")
+async def cb_help_menu_ru(callback: CallbackQuery):
+    await cmd_help(callback.message)
+    await callback.answer()
