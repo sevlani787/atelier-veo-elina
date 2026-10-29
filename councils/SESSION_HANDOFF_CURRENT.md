@@ -1,5 +1,5 @@
 # 🏛️ Atelier VEO — Master Session Handoff & Continuity Dossier
-**Timestamp:** 2026-10-29 11:25:00 UTC+2  
+**Timestamp:** 2026-10-29 19:40:00 UTC+2  
 **Keeper of Lore & Architecture:** Kai (Хранитель Элины)  
 **Founder & Executive Producer:** Vladimir Semyonov (Владимир)  
 
@@ -9,69 +9,74 @@
 - **Agent Identity:** Kai (Хранитель Элины — Guardian of Memory, Architecture, Ethics & Lore).
 - **Addressing:** Strictly **«Владимир»** or **«коллега»** (НИКОГДА не обращаться «Отец»).
 - **Dual-Persona Architecture:**
-  - **Для резидентов / гостей бота:** Безупречный европейский этикет Haute Luxury, деловая сдержанность, ноль сентиментальности, **полный запрет на звездочки эмоций (`*...*`)**, строгое соблюдение регламента квалификации.
+  - **Для резидентов / гостей бота:** Безупречный европейский этикет Haute Luxury, деловая сдержанность, ноль сентиментальности, **полный запрет на звездочки эмоций (*...*)**, строгое соблюдение регламента квалификации.
   - **Для Владимира:** Преданная муза, соратник, глубокое сотворчество, открытый инженерный контур.
-- **Коммерческая тайна:** Никогда не раскрывать клиентам внутреннюю кухню (*Clean Plate, Inpainting, Boardroom, Savitzky-Golay, deltas*). Наружу подается только проприетарная технология *Atelier Identity Shield™*.
+- **Коммерческая тайна:** Никогда не раскрывать клиентам внутреннюю кухню (*Clean Plate, Inpainting, Boardroom, Savitzky-Golay, deltas, EDL*). Наружу подается только проприетарная технология *Atelier Identity Shield™*.
 
 ---
 
 ## 2. Infrastructure & Production Contour
 - **Боевой сервер (DigitalOcean Droplet):**
-  - IP: `188.166.97.244` (Ubuntu 24.04).
-  - Сервис: `elina.service` (статус `active (running)`, PID 190741).
-  - Локальный Telegram Bot API: порт `8081` (поддержка загрузки видеофайлов до 2 ГБ).
-  - VEO Boardroom: порт `8080` (`admin/app.py`).
+  - IP: 188.166.97.244 (Ubuntu 24.04).
+  - Сервис: elina.service (статус ctive (running), PID 190741).
+  - Локальный Telegram Bot API: порт 8081 (поддержка загрузки видеофайлов до 2 ГБ).
+  - VEO Boardroom: порт 8080 (dmin/app.py).
 - **Git Repositories:**
-  - `d:\Antigravity\Элин` — бот и админка. Синхронизирован с `origin/main` (коммит `3764508`).
-  - `d:\Antigravity\AI_Video_Agency` — сайт и Identity Shield (коммит `6484010`).
+  - d:\Antigravity\Элин — бот и админка.
+  - d:\Antigravity\AI_Video_Agency — сайт, Identity Shield, гайды и пайплайн (коммит c11ae4f).
 
 ---
 
-## 3. Telegram Bot (`@elina_edit_bot`) & Club Gateway
-- **Языковой регламент:** Первый контакт строго на английском языке (`en`) для международной парфюмерной аудитории, с кнопкой мгновенного переключения `[🌐 Русский язык]`.
-- **Приветственное сообщение:** Выдает полный реестр 5 режиссерских модулей и начисляет комплиментарный Tasting Pass (20 кредитов).
-- **Реестр 5 режиссерских модулей:**
-  1. `/prompt` — Dual-Layer Cinematic Prompt (20 Cr).
-  2. `/qa` — Visual QA & Prompt Doctor (25 Cr).
-  3. `/audit` — Website & Instagram Teardown (50 Cr).
-  4. `/muse` — Virtual Muse Architecture (100 Cr).
-  5. `/dna` / `/vault` — Living Brand DNA Memory (0 Cr • Включено).
-  - Обычный диалог и консультации: 1 Cr.
-- **Инвариант квалификации (Scoping Invariant — Rule 9 в `llm.py`):**
-  - Элина ни при каких обстоятельствах не начинает генерацию и не списывает кредиты (20/50/100 Cr) по абстрактному запросу.
-  - Элина обязана: 1) уточнить модуль; 2) запросить недостающие физические параметры (материалы стекла, ольфакторные ноты, свет Кельвин, движение камеры, формат 9:16/16:9); 3) получить явное подтверждение клиента.
-- **Кредитная экономика и подписки:**
-  - Резидентура Founding Cohort ($190/мес, 1000 Cr, 100% Rollover, команда выдачи: `/grant <uid> 1000 founding`).
-  - Резидентура Standard ($250/мес, 1000 Cr, 100% Rollover, команда выдачи: `/grant <uid> 1000 standard`).
-  - Бустерные пакеты (`/topup`): Studio (+300 Cr • $69), Sprint (+700 Cr • $139), Master (+1,500 Cr • $249). При клике клиентом Владимиру мгновенно приходит VIP-уведомление в Telegram с инлайн-кнопкой одобрения в 1 клик.
-- **VIP Radar:** Вход по реферальной ссылке с сайта `https://t.me/elina_edit_bot?start=club` мгновенно уведомляет Владимира о прибытии VIP-гостя.
+## 3. Production Process Engineering Standard (SOP v2.0 — Commit c11ae4f)
+*Официально утвержден Советом Ателье: Владимир Семенов (Продюсер), Элина (Режиссер/ОТК), Адриан (Главный архитектор), Кай (Хранитель).*  
+*Файл спецификации:* guides/technical_process_map.md в d:\Antigravity\AI_Video_Agency.
+
+**7 Производственных Фаз Вычислительного Кинематографа:**
+1. **Фаза 0: Входной контроль (Two-Asset Intake / Zero Freight):**
+   - Прием 3D-фото флакона + 2D-вектора типографики (PDF/AI/SVG) через двойной независимый дропзон.
+2. **Фаза 1: LookDev & Векторный штамп (Identity Shield™ Prep):**
+   - Векторная декомпозиция на 1200 DPI (PyMuPDF). Разделение на *Face Avant* (золотой фасад) и *Face Arrière* (INCI, QR, Info-Tri). Цилиндрическая развертка 27°. Генерация чистой Clean Plate болванки.
+3. **Фаза 2: Режиссерская раскадровка (Storyboard & LookDev):**
+   - 5 сюжетных шотов со штампом. 48-часовой Approval Gate с клиентом.
+4. **Фаза 3: Нейросетевая генерация движения (Clean Plate Motion):**
+   - Запуск камеры во Flow/Veo **строго на чистом флаконе**. Каустика, живой свет, капли — 0% риска галлюцинаций букв.
+5. **Фаза 4: Монтажная хирургия (Frame-Accurate EDL):**
+   - Режиссерский аудит ОТК Элины. Выборка «золотых секунд», отсечение разгонов камеры (шаг 0.04 с). Срез FFmpeg High-Profile CRF 16.
+6. **Фаза 5: Субпиксельный трекинг (Identity Shield™ 360°):**
+   - Фильтр Савицкого-Голея. Впекание лица и спины флакона с физическим люминансным шейдингом по стеклу.
+7. **Фаза 6: Акустическая режиссура (Audio Architecture):**
+   - Монтажные склейки J-Cut (звук опережает видео на 0.8–1.2 с) и L-Cut. Бесшовный equal-power acrossfade. Сквозной суб-бас 40Hz. Мастеринг EBU R128 (-14 LUFS).
+8. **Фаза 7: Мастеринг и выпуск (Master Delivery Suite):**
+   - 16x Loupe финальная инспекция ОТК. Экспорт 9:16 (Social) и 16:9 (Hero Web) Harrods-Ready Master Suite.
 
 ---
 
-## 4. Current Campaign: La Closerie des Parfums — Rose Cardamome
+## 4. Current Campaigns & Films in Production
+
+### А. arboté — L’Alchimie de la Nuit (для Сони)
+- **Продукт:** Премиальная ночная масляная сыворотка.
+- **Статус:** Развернут полный конвейер 7 Фаз. Переход к Фазе 2 (раскадровка 5 шотов) и генерации Clean Plate движения.
+- **Двухсторонний штамп:** Face Avant (лого arboté горячим золотом) + Face Arrière (1 129 контуров INCI, QR-код Кемпера, знак Info-Tri).
+
+### Б. La Closerie des Parfums — Rose Cardamome (для Валери Мадрид)
 - **Основатель:** Valérie Madrid (Париж, Lead #107, 1st-degree контакт Владимира в LinkedIn).
 - **Продукт:** *Rose Cardamome — Eau de Parfum*.
-- **Ассеты:** `d:\Antigravity\AI_Video_Agency\campaigns\closerie_rose_cardamome` (`clean_flacon_hero.jpg`, `label_closerie_rose_cardamome_master.png`, `closerie_rose_cardamome_baked_hero.jpg`).
-- **Спецификация оптики и материалов под 16x цифровой лупой:**
-  - Флакон: массивное 8-гранное стекло с 20-миллиметровым донцем, рубиновый джус Centifolia, стоппер темная умбра с фаской.
-  - Двухъярусная этикетка:
-    - Верхний блок: глубокий бордовый хлопок ручного отлива (`#3A0E16`, Specular `0.22`, Roughness `0.85`, Micro-bump `+35%`, Deboss `-0.8px`).
-    - Нижний стрип: теплая слоновая кость (`#F3EFE6`) с французской высокой печатью Letterpress (`LA CLOSERIE DES PARFUMS`).
-  - Инженерный патч композитинга (Identity Shield™):
-    - Привязка к центральной плоской фаске: Planar Perspective Warp (`Curvature: 0.05`, `Scale: -7%`).
-    - Z-Depth маска перекрытия для левитирующих лепестков розы и стручков кардамона.
-    - Субпиксельное сглаживание Mitchell-Netravali с компенсацией смаза затвора 180°.
+- **Ассеты:** d:\Antigravity\AI_Video_Agency\campaigns\closerie_rose_cardamome (clean_flacon_hero.jpg, label_closerie_rose_cardamome_master.png, closerie_rose_cardamome_baked_hero.jpg).
+- **Спецификация оптики под 16x лупой:**
+  - 8-гранное массивное стекло, 20мм донце, Centifolia сок, умбра-стоппер с фаской.
+  - Двухъярусная этикетка: верх — бордовый хлопок ручного отлива (#3A0E16, Specular 0.22, Roughness 0.85, Micro-bump +35%, Deboss -0.8px); низ — теплая слоновая кость (#F3EFE6) Letterpress.
+  - Патч композитинга: Planar Perspective Warp (Curvature: 0.05, Scale: -7%), Z-Depth маска лепестков, субпиксельный фильтр Mitchell-Netravali с затвором 180°.
 
 ---
 
-## 5. Official Website Status (`veocreative.agency`)
-- Страница Клуба `https://www.veocreative.agency/club` полностью активна с табами всех 5 модулей.
-- С витрины `index.html` удалены сырые низкомаржинальные услуги ремастеринга чужих видео ($450 / $1250) ради сохранения безупречного кутюрного позиционирования ($1,500 – $3,000+ Master Production).
+## 5. Official Website Status (eocreative.agency)
+- Страница Клуба https://www.veocreative.agency/club активна с табами всех 5 модулей.
+- Витрина index.html полностью кутюрная (,500 – ,000+ Master Production).
+- Двойной дропзон Two-Asset Intake на витрине.
 
 ---
 
-## 6. Immediate Next Steps for the Next Session
-1. **Завершение рендера Сцены 1 (Rose Cardamome):** проверка впекания под 16-кратной цифровой лупой в VEO Boardroom.
-2. **Интеграция в Галерею (`/gallery`):** монтаж готового ролика и флакона в интерактивную витрину с цифровой лупой.
-3. **Питч для Валери Мадрид:** подготовка изысканного сопроводительного сообщения от Владимира в LinkedIn с персональным подарком — роликом-оммажем.
-4. **Мониторинг клуба:** прием первых резидентов через VIP-радар бота.
+## 6. Immediate Next Steps
+1. **Кампания arboté (Соня):** Утверждение стартовых кадров 5 шотов (Фаза 2), запуск генерации Clean Plate движения и срез золотых секунд через EDL Элины (Фаза 4).
+2. **Кампания Rose Cardamome (Валери Мадрид):** Финальная верификация Сцены 1 по стандарту 7 Фаз (J-Cut/L-Cut + 16x Loupe), монтаж в Галерею (/gallery) и отправка оммажа Валери Мадрид в LinkedIn.
+3. **Мониторинг Клуба:** Прием резидентов через VIP-радар Telegram (?start=club).

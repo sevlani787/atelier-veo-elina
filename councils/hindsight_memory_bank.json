@@ -1,6 +1,6 @@
 {
   "bank": "atelier_veo_master",
-  "updated_at": "2026-10-29 11:24:00",
+  "updated_at": "2026-10-29 19:40:00",
   "invariants": [
     {
       "id": "inv_001_trade_secret",
@@ -187,6 +187,26 @@
       ],
       "author": "vladimir",
       "timestamp": "2026-10-29 11:00:00"
+    },
+    {
+      "id": "inv_013_production_process_map_7_phases",
+      "category": "master_production_standard",
+      "title": "Генеральная Технологическая Карта Atelier VEO (7 Фаз) — Computational Cinema SOP v2.0 (Commit c11ae4f)",
+      "content": "Фундаментальный производственный стандарт Ателье для создания кинематографических шедевров полного цикла без лотереи генеративного AI. 7 Фаз: 0) Входной контроль (Two-Asset Intake: 3D-фото + 2D-вектор PDF/AI через Zero Freight dual dropzone); 1) LookDev & Векторный штамп (PyMuPDF 1200 DPI, Face Avant золото + Face Arrière INCI/QR/Info-Tri, цилиндрический разворот 27°, чистая Clean Plate болванка); 2) Раскадровка (5 сюжетных шотов со штампом под 48h Approval Gate); 3) Генерация движения (Google Flow/Veo строго на Clean Plate без риска текстовых галлюцинаций); 4) Монтажная хирургия (ОТК-аудит Элины, выборка золотых секунд, EDL с шагом 0.04с, срез FFmpeg High Profile CRF 16); 5) Identity Shield™ 360° (планарный трекинг Савицкого-Голея, 360° впекание лица/спины, физический люминансный шейдинг); 6) Акустическая режиссура (J-Cut опережение звука на 0.8-1.2с, L-Cut, equal-power acrossfade, сквозной эмбиент 40Hz, EBU R128 -14 LUFS); 7) Выпуск (16x Loupe инспекция, 9:16 Social + 16:9 Hero Web Harrods-Ready Master Suite). Зафиксировано в guides/technical_process_map.md.",
+      "tags": [
+        "pipeline",
+        "sop",
+        "7_phases",
+        "edl",
+        "j_cut",
+        "l_cut",
+        "savitzky_golay",
+        "crf16",
+        "identity_shield",
+        "audio_architecture"
+      ],
+      "author": "council",
+      "timestamp": "2026-10-29 19:40:00"
     }
   ],
   "episodic_memories": [
@@ -433,6 +453,25 @@
       ],
       "author": "vladimir",
       "timestamp": "2026-10-29 11:20:00"
+    },
+    {
+      "id": "ep_1793295600_technological_map_sop_milestone",
+      "category": "producer_decision",
+      "title": "Решение: ТЕХНОЛОГИЧЕСКАЯ КАРТА ПРОИЗВОДСТВА ATELIER VEO (7 ФАЗ) И КОНСТИТУЦИЯ КИНОАТЕЛЬЕ",
+      "content": "Владимир Семенов, Элина и Адриан утвердили официальный стандарт полного цикла Computational Cinema SOP v2.0 (коммит c11ae4f). Введена абсолютная свобода от нейросетевой случайности: разделение на чистовой Clean Plate рендер движения, покадровую хирургию EDL (шаг 0.04с, CRF 16), субпиксельный трекинг Савицкого-Голея (Identity Shield 360°), акустическую драматургию J-Cut/L-Cut (-14 LUFS) и финальный ОТК-контроль под 16-кратной лупой. Стандарт закреплен для всех фильмов Ателье (arboté — L’Alchimie de la Nuit для Сони и Rose Cardamome для Валери Мадрид).",
+      "tags": [
+        "sop",
+        "7_phases",
+        "arbote",
+        "closerie",
+        "production_charter",
+        "vladimir",
+        "adrian",
+        "elina",
+        "kai"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-29 19:37:00"
     }
   ]
 }
