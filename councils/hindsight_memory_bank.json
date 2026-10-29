@@ -1,6 +1,6 @@
 {
   "bank": "atelier_veo_master",
-  "updated_at": "2026-10-27 20:47:00",
+  "updated_at": "2026-10-29 11:24:00",
   "invariants": [
     {
       "id": "inv_001_trade_secret",
@@ -128,6 +128,65 @@
       ],
       "author": "vladimir",
       "timestamp": "2026-10-27 13:43:41"
+    },
+    {
+      "id": "inv_009_five_director_modules_and_credit_economy",
+      "category": "club_architecture",
+      "title": "Матрица 5 Режиссерских Модулей и Кредитная Экономика Atelier VEO Club",
+      "content": "Реестр 5 режиссерских модулей Элины: 1) /prompt — Dual-Layer Cinematic Prompt (20 Cr); 2) /qa — Visual QA & Prompt Doctor (25 Cr); 3) /audit — Website & Instagram Teardown (50 Cr); 4) /muse — Virtual Muse Architecture (100 Cr); 5) /dna, /vault — Living Brand DNA Memory (0 Cr, включено). Диалог/консультация — 1 Cr. Резидентуры: Founding Cohort (/мес, 1000 Cr, 100% Rollover, /grant <uid> 1000 founding), Standard (/мес, 1000 Cr, 100% Rollover). Бустеры: Studio (+300 Cr, ), Sprint (+700 Cr, ), Master (+1500 Cr, ) с моментальным VIP-алертом Владимиру и 1-клик аппрувом.",
+      "tags": [
+        "club",
+        "economy",
+        "credits",
+        "modules",
+        "pricing"
+      ],
+      "author": "kai",
+      "timestamp": "2026-10-29 09:30:00"
+    },
+    {
+      "id": "inv_010_scoping_invariant_and_english_default",
+      "category": "client_interaction_protocol",
+      "title": "Инвариант Квалификации (Scoping) и Международный Английский по умолчанию",
+      "content": "При первом контакте с гостем/резидентом язык интерфейса и приветствия строго английский (en) с кнопкой [🌐 Русский язык]. Приветствие содержит полный перечень 5 модулей и Tasting Pass на 20 кредитов. Священный инвариант квалификации (Rule 9 в llm.py): Элина ни при каких условиях не приступает к генерации и не списывает кредиты по абстрактным фразам. Она обязана уточнить модуль, собрать физические параметры (материалы стекла/этикетки, ноты, свет Кельвин, движение камеры, формат) и получить явное подтверждение клиента.",
+      "tags": [
+        "onboarding",
+        "scoping",
+        "english_default",
+        "anti_waste",
+        "etiquette"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-29 10:15:00"
+    },
+    {
+      "id": "inv_011_la_closerie_rose_cardamome_campaign",
+      "category": "master_production",
+      "title": "Кампания La Closerie des Parfums (Valérie Madrid) — Канон Rose Cardamome",
+      "content": "Флагманским коммерческим кейсом для 16x цифровой лупы и персонального контакта с Valérie Madrid (Lead #107) единогласно выбран Rose Cardamome (La Closerie des Parfums, Париж). Материалы: массивное 8-гранное стекло с донцем 20 мм, рубиновый сок Centifolia, матовый стоппер темная умбра с фаской. Двухъярусная этикетка: верх — бордовый хлопок ручного отлива (Cotton Rag #3A0E16, Specular 0.22, Roughness 0.85, Micro-bump +35%, Deboss -0.8px); низ — теплая слоновая кость с французской высокой печатью Letterpress. Инженерный патч Identity Shield: планарный трекинг центральной грани (Curvature 0.05, Scale -7%), Z-depth маска лепестков и субпиксельный Mitchell-Netravali фильтр.",
+      "tags": [
+        "closerie",
+        "valerie_madrid",
+        "rose_cardamome",
+        "identity_shield",
+        "production"
+      ],
+      "author": "council",
+      "timestamp": "2026-10-29 10:45:00"
+    },
+    {
+      "id": "inv_012_pure_haute_couture_turnkey_positioning",
+      "category": "business_strategy",
+      "title": "Канон Чистого Кутюра: Исключение сырых услуг ремастеринга с витрины",
+      "content": "С официального сайта veocreative.agency удалены пакеты внешнего ремастеринга чужих видео ( / ). Позиционирование Дома Atelier VEO сохранено бескомпромиссным: полный цикл создания видеошедевров Haute Parfumerie под ключ (,500 – ,000+ Master Production) плюс закрытый элитарный клуб резидентов. Дом не занимается спасением чужих артефактов без исходных ассетов.",
+      "tags": [
+        "strategy",
+        "positioning",
+        "pricing",
+        "haute_couture"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-29 11:00:00"
     }
   ],
   "episodic_memories": [
@@ -358,6 +417,22 @@
       ],
       "author": "elina",
       "timestamp": "2026-10-27 20:47:00"
+    },
+    {
+      "id": "ep_1793266000_vladimir_council_session_milestone",
+      "category": "producer_decision",
+      "title": "Решение: ПОЛНЫЙ ЗАПУСК КЛУБА, 5 МОДУЛЕЙ, АНГЛИЙСКИЙ ДЕФОЛТ И КАМПАНИЯ LA CLOSERIE",
+      "content": "Успешно завершен большой этап: 1) В Telegram боте развернуты и протестированы все 5 Режиссерских Модулей (/prompt, /qa, /audit, /muse, /dna); 2) Интегрирована кредитная экономика, бустерные пакеты с мгновенным одобрением через VIP-уведомления; 3) Введен английский дефолт на первом контакте и жесткий инвариант квалификации (Scoping); 4) Код задеплоен на боевой сервер DigitalOcean (elina.service активен); 5) Подготовлен мастер-комплект ассетов для флагманского кейса La Closerie des Parfums — Rose Cardamome (Валери Мадрид); 6) Очищена витрина сайта от сырых услуг ремастеринга.",
+      "tags": [
+        "production",
+        "release",
+        "elina",
+        "club",
+        "closerie",
+        "vladimir"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-29 11:20:00"
     }
   ]
 }
