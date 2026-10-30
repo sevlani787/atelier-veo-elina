@@ -1,6 +1,6 @@
 {
   "bank": "atelier_veo_master",
-  "updated_at": "2026-10-30 22:32:00",
+  "updated_at": "2026-10-30 22:38:00",
   "invariants": [
     {
       "id": "inv_001_trade_secret",
@@ -637,6 +637,25 @@
       ],
       "author": "vladimir",
       "timestamp": "2026-10-30 22:31:00"
+    },
+    {
+      "id": "ep_1793395000_elina_acoustic_score_manifest_milestone",
+      "category": "studio_experience",
+      "title": "Элина: Режиссерская партитура 3-слойного звука (3-Layer Master Score Manifest)",
+      "content": "Художественная интерпретация Элиной стандарта Decoupled Audio-Visual Pipeline: 1. Освобождение оптики видеопромптов от звукового шума — 100% внимания Veo/Flow на стекло, вязкость капли и 24fps. 2. Режиссерская партитура по таймкодам: Layer 1 — интимный голос у ленточного микрофона (ElevenLabs Multilingual v2); Layer 2 — Organic ASMR Foley, синхронизированный с EDL с шагом 0.04с (звон стекла на 00:02.40, капля на 00:04.10); Layer 3 — 40Hz эмбиент с автоматическим дакингом (-3dB). Фильм обрел объемное, гипнотическое кинематографическое дыхание.",
+      "tags": [
+        "elina",
+        "audio_score",
+        "artistic_manifest",
+        "edl_sync",
+        "foley_sync",
+        "decoupled_pipeline",
+        "vladimir",
+        "adrian",
+        "kai"
+      ],
+      "author": "elina",
+      "timestamp": "2026-10-30 22:36:00"
     }
   ]
 }
