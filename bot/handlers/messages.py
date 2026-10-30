@@ -11,6 +11,11 @@ import os
 import tempfile
 from typing import Optional
 
+try:
+    import pymupdf
+except ImportError:
+    import fitz as pymupdf
+
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
@@ -1752,6 +1757,15 @@ def is_video_document(message: Message) -> bool:
     return mime.startswith("video/") or name.endswith(('.mp4', '.mov', '.mkv', '.avi', '.webm', '.m4v'))
 
 
+def is_pdf_document(message: Message) -> bool:
+    """Проверяет, является ли прикрепленный документ PDF-файлом."""
+    if not message.document:
+        return False
+    mime = (message.document.mime_type or "").lower()
+    name = (message.document.file_name or "").lower()
+    return mime == "application/pdf" or name.endswith(".pdf")
+
+
 async def process_video_audit(
     message: Message,
     temp_video_path: str,
@@ -1913,6 +1927,173 @@ async def handle_video(message: Message):
                 os.unlink(temp_video_path)
             except Exception:
                 pass
+
+
+@router.message(F.document & F.func(is_pdf_document))
+async def handle_pdf_document(message: Message):
+    """
+    Обработка PDF-документов (Two-Asset Intake / Brand DNA / Векторные этикетки).
+    Извлекает текстовые слои и визуальные превью страниц через PyMuPDF,
+    сохраняет файл в защищенный архив бренда и направляет на мультимодальный анализ Gemini 4 Argon.
+    """
+    user_id = message.from_user.id
+    doc = message.document
+
+    # Проверка баланса (стоимость анализа документа = 25 кредитов как за визуальный аудит QA)
+    cost = await config.get_token_cost(action='qa')
+    user_data = await check_user_and_balance(user_id, message, cost=cost)
+    if not user_data:
+        return
+
+    # Проверка лимита размера (до 50 МБ)
+    max_bytes = 50 * 1024 * 1024
+    if doc.file_size and doc.file_size > max_bytes:
+        await message.answer(
+            "Размер этого PDF-файла превышает 50 МБ.\n"
+            "Пожалуйста, передайте ссылку на защищенный диск (Google Drive / Dropbox) или уменьшите размер документа. 🌿"
+        )
+        return
+
+    wait_msg = None
+    try:
+        await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
+        is_admin = (user_id == config.admin_id)
+
+        # Скачиваем PDF в память
+        file_info = await message.bot.get_file(doc.file_id)
+        pdf_buffer = io.BytesIO()
+        await message.bot.download_file(file_info.file_path, pdf_buffer)
+        pdf_bytes = pdf_buffer.getvalue()
+
+        # Сохраняем копию в архив ассетов бренда
+        brand_storage_dir = Path("d:/Antigravity/AI_Video_Agency/assets/client_uploads") / f"user_{user_id}"
+        brand_storage_dir.mkdir(parents=True, exist_ok=True)
+        safe_filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', doc.file_name or f"document_{doc.file_id}.pdf")
+        saved_pdf_path = brand_storage_dir / safe_filename
+        saved_pdf_path.write_bytes(pdf_bytes)
+
+        # Парсим страницы и превью через PyMuPDF
+        def _extract_pdf(raw_bytes: bytes, max_pages: int = 4):
+            doc_obj = pymupdf.open(stream=raw_bytes, filetype="pdf")
+            total_pages = len(doc_obj)
+            extracted_text = []
+            page_images_b64 = []
+
+            for idx in range(min(total_pages, max_pages)):
+                page = doc_obj[idx]
+                txt = page.get_text().strip()
+                if txt:
+                    extracted_text.append(f"--- [СТРАНИЦА {idx+1}/{total_pages}] ---\n{txt}")
+
+                # Рендер в высоком разрешении 150 DPI для Gemini Vision
+                pix = page.get_pixmap(dpi=150)
+                page_jpeg = pix.tobytes("jpeg")
+                page_images_b64.append(base64.b64encode(page_jpeg).decode("utf-8"))
+
+            doc_obj.close()
+            return total_pages, "\n\n".join(extracted_text), page_images_b64
+
+        total_pages, extracted_text, page_images = await asyncio.to_thread(_extract_pdf, pdf_bytes, 4)
+
+        user_caption = (message.caption or "").strip()
+
+        # Формируем мультимодальный промпт для Элины
+        if is_admin:
+            pdf_prompt = (
+                f"Владимир прислал PDF-документ: '{doc.file_name}' (всего страниц: {total_pages}).\n"
+                f"Файл сохранен в рабочий контур: {saved_pdf_path.name}\n\n"
+            )
+            if user_caption:
+                pdf_prompt += f"Комментарий Владимира: {user_caption}\n\n"
+            pdf_prompt += (
+                "Проанализируй этот документ как Главный Режиссер и Глава ОТК Atelier VEO:\n"
+                "1. Если это векторный макет этикетки/упаковки (Two-Asset Intake: Asset 2): оцени структуру слоев, шрифты, позиционирование логотипа, читаемость INCI/QR и возможность извлечения Face Avant / Face Arrière для Identity Shield™.\n"
+                "2. Если это брендбук / презентация: выдели ключевой ДНК бренда, цветовую гамму, ценности и ольфакторную/эстетическую концепцию для Living Brand DNA Memory (/dna).\n"
+                "3. Дай четкое режиссерское резюме и рекомендации по использованию в кинематографическом пайплайне."
+            )
+        else:
+            lang = await detect_user_dialogue_language(user_id, message)
+            if lang == "fr":
+                pdf_prompt = (
+                    f"Le résident a transmis un document PDF: '{doc.file_name}' ({total_pages} pages).\n"
+                    f"Note du résident: {user_caption or 'Aucune note particulière'}\n\n"
+                    "Analysez ce document avec l'élégance et l'autorité de Directrice de Création d'Atelier VEO. "
+                    "Évaluez la charte graphique, les éléments typographiques, la conformité aux normes Haute Parfumerie "
+                    "et confirmez l'intégration des éléments dans son dossier de production exclusif."
+                )
+            elif lang == "it":
+                pdf_prompt = (
+                    f"Il residente ha inviato un documento PDF: '{doc.file_name}' ({total_pages} pagine).\n"
+                    f"Nota del residente: {user_caption or 'Nessuna nota specifica'}\n\n"
+                    "Analizza questo documento con l'eleganza di Direttrice Creativa di Atelier VEO. "
+                    "Valuta l'identità visiva, gli elementi tipografici e conferma l'integrazione nel fascicolo di produzione."
+                )
+            elif lang == "ru":
+                pdf_prompt = (
+                    f"Клиент передал PDF-документ: '{doc.file_name}' ({total_pages} стр.).\n"
+                    f"Пожелание клиента: {user_caption or 'Ознакомление с материалами бренда'}\n\n"
+                    "Проанализируй документ в тональности Haute Luxury: оцени дизайн, типографику, фирменные элементы "
+                    "и подтверди интеграцию векторных ассетов в производственный контур Atelier VEO."
+                )
+            else:
+                pdf_prompt = (
+                    f"Resident provided a PDF document: '{doc.file_name}' ({total_pages} pages).\n"
+                    f"Resident note: {user_caption or 'Review brand assets and materials'}\n\n"
+                    "Analyze this document with Haute Luxury creative authority. Assess typography, label vectors, "
+                    "brand DNA guidelines, and confirm integration into the Atelier VEO Master Production Suite."
+                )
+
+        if extracted_text:
+            pdf_prompt += f"\n\n[ИЗВЛЕЧЕННЫЙ ТЕКСТ ДОКУМЕНТА]:\n{extracted_text[:4000]}"
+
+        # Сборка мультимодального контента (текст + превью страниц)
+        vision_content = [{"type": "text", "text": pdf_prompt}]
+        for img_b64 in page_images:
+            vision_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}})
+
+        await memory.add_message(user_id, "user", vision_content)
+
+        history = await memory.get_context_for_llm(user_id)
+        user_profile = await memory.get_user_profile(user_id)
+        elin_persona = (await memory.get_elin_persona_text()) if is_admin else ""
+        lore_context = await memory.get_world_context(user_caption or doc.file_name or "PDF Document Intake")
+
+        if is_admin:
+            hindsight_mem = hindsight_bridge.recall(user_caption or doc.file_name or "PDF label", limit=3)
+            lore_context = (lore_context or "") + (
+                f"\n\n[HINDSIGHT STUDIO MEMORY - EXCLUSIVE FOR VLADIMIR]:\n{hindsight_mem}\n"
+            )
+
+        override_model = await db.get_setting(f"user_model_{user_id}", "google/gemini-4-argon") if (is_admin or user_data.get('sub_type') == 'premium') else None
+
+        response = await llm.generate(
+            messages=history,
+            user_profile=user_profile,
+            elin_persona=elin_persona,
+            lore_context=lore_context,
+            is_admin=is_admin,
+            override_model=override_model
+        )
+
+        # Списание кредитов (за услугу аудита / интейка ассетов)
+        await db.spend_tokens(user_id, cost)
+
+        await memory.add_message(user_id, "assistant", response)
+
+        new_balance = (await db.get_user_data(user_id))['tokens']
+        balance_info = f"\n\n<i>✦ Atelier Credits: {new_balance}</i>" if (user_data.get('sub_type') != 'admin' and user_id != config.admin_id) else ""
+
+        await send_long_message(message, response + balance_info, parse_mode="HTML")
+
+        # Фоновое обновление фактов
+        user_message_counters[user_id] = user_message_counters.get(user_id, 0) + 1
+        if user_message_counters[user_id] % 5 == 1:
+            asyncio.create_task(extract_and_save_all_task(user_id))
+
+    except Exception as e:
+        err_text = await get_system_error_message(user_id, message, "general")
+        await message.answer(err_text)
+        print(f"PDF Intake Error: {e}")
 
 
 # @router.message(F.voice)
