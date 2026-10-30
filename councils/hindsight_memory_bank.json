@@ -1,6 +1,6 @@
 {
   "bank": "atelier_veo_master",
-  "updated_at": "2026-10-30 11:15:00",
+  "updated_at": "2026-10-30 17:05:00",
   "invariants": [
     {
       "id": "inv_001_trade_secret",
@@ -223,6 +223,22 @@
       ],
       "author": "vladimir",
       "timestamp": "2026-10-30 11:15:00"
+    },
+    {
+      "id": "inv_015_storyboard_expectation_management_and_scene_lock",
+      "category": "client_pitch_protocol",
+      "title": "Инвариант согласования раскадровки: Внутренняя консистентность и Expectation Management",
+      "content": "Управленческо-продюсерский регламент Фазы 2 (раскадровка): 1. Внутренняя консистентность (Scene-to-Scene Lock): на этапе эскизов запрещен визуальный разнобой этикеток внутри одной презентации (например, прямой шрифт на Сцене 1 и курсив на Сцене 5). Референс и визуальный макет обязаны совпадать от первого до финального кадра. 2. Прагматичный компромисс: на эскизах раскадровки не тратится ресурс на микронную субпиксельную подгонку букв, утверждается свет, драматургия, композиция и настроение. 3. Обязательный упреждающий дисклеймер (Expectation Management): «Ce storyboard a pour vocation de valider la vision artistique, la narration, les atmosphères lumineuses et la composition des tableaux clés. La conformité typographique absolue de vos étiquettes, la géométrie millimétrique du flacon et les finitions de dorure sont garanties et exécutées avec une rigueur d'orfèvre lors de la phase de production finale en 4K».",
+      "tags": [
+        "storyboard",
+        "expectation_management",
+        "scene_to_scene_lock",
+        "client_communication",
+        "french_disclaimer",
+        "vladimir_balance"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-30 17:00:00"
     }
   ],
   "episodic_memories": [
@@ -504,6 +520,24 @@
       ],
       "author": "vladimir",
       "timestamp": "2026-10-30 11:05:00"
+    },
+    {
+      "id": "ep_1793372400_sonia_storyboard_reflection_milestone",
+      "category": "producer_decision",
+      "title": "Кейс Sonia Ramou (arboté): Отработка вопроса по этикеткам в Сцене 1 vs Сцене 5 и утверждение дипломатического щита",
+      "content": "Соня Раму (arboté) заметила расхождение этикеток между Сценой 1 (прямой NUIT, Night Repair, 30 ml) и Сценой 5 (рукописный Nuit, плашка Fabriqué en France). Команда оперативно отработала: Владимир направил теплое экспертное разъяснение на французском, Адриан подготовил геометрический патч для Сцены 5, а Элина зафиксировала закон наследования референсов между сценами. Владимир сформулировал зрелый продюсерский компромисс: не тратить время на микроны до утверждения, но исключить явный разнобой и упреждать вопросы клиентов официальным дисклеймером о финальной 4K-полировке через Identity Shield™.",
+      "tags": [
+        "arbote",
+        "sonia_ramou",
+        "case_study",
+        "diplomacy",
+        "identity_shield",
+        "vladimir",
+        "adrian",
+        "elina"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-30 17:02:00"
     }
   ]
 }
