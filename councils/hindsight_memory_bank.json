@@ -1,6 +1,6 @@
 {
   "bank": "atelier_veo_master",
-  "updated_at": "2026-10-30 22:02:00",
+  "updated_at": "2026-10-30 22:32:00",
   "invariants": [
     {
       "id": "inv_001_trade_secret",
@@ -239,6 +239,25 @@
       ],
       "author": "vladimir",
       "timestamp": "2026-10-30 17:00:00"
+    },
+    {
+      "id": "inv_016_decoupled_audio_visual_pipeline",
+      "category": "master_production_standard",
+      "title": "Инвариант развязанного аудиовизуального конвейера (Decoupled Audio-Visual Pipeline Standard)",
+      "content": "Официальный стандарт звукового производства Atelier VEO: 1. Полный отказ от встроенной генерации звука в видеомоделях (Google Flow / Veo). Видеогенератор освобожден от мультимодального шума и отдает 100% диффузионной мощности на чистую оптику, стекло, свет и физику движения (Clean Silent Video). 2. Трехслойная студийная аудио-архитектура на нашей стороне: Слой 1 — Голос (ElevenLabs Multilingual v2 / Gemini Audio: интимный бархатный шепот ASMR Luxury Whisper, французский/английский прононс, микро-вздохи); Слой 2 — Тактильные шумы и органический фоли (Foley: звон пипетки, отрыв капли, шелест тумана); Слой 3 — Музыкальная подушка (Continuous Ambient Bed 40Hz) с автоматическим ducking на -3dB под голос. 3. Мастеринг EBU R128 (-14 LUFS) в 48 kHz / 24-bit Hi-Res стерео. Себестоимость синтеза голоса: -.05 на ролик при мгновенной мультиязычной локализации.",
+      "tags": [
+        "audio",
+        "decoupled_pipeline",
+        "elevenlabs",
+        "foley",
+        "ambient_40hz",
+        "ducking",
+        "ebu_r128",
+        "asmr_whisper",
+        "vladimir_standard"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-30 22:30:00"
     }
   ],
   "episodic_memories": [
@@ -600,6 +619,24 @@
       ],
       "author": "elina",
       "timestamp": "2026-10-30 22:00:00"
+    },
+    {
+      "id": "ep_1793394000_decoupled_audio_pipeline_milestone",
+      "category": "producer_decision",
+      "title": "Решение: РАЗВЯЗАННЫЙ АУДИОВИЗУАЛЬНЫЙ ПАЙПЛАЙН (DECOUPLED AV) И СТУДИЙНЫЙ СИНТЕЗ ELEVENLABS",
+      "content": "Владимир утвердил революционный переход: отказ от встроенного звука во Flow/Veo в пользу автономного 3-слойного звукового конвейера Atelier VEO. Адриан и Элина синхронизировали стандарт: видео генерируется немым с наивысшей оптической чистотой, а звук собирается из 3 независимых слоев (ElevenLabs шепот, органический фоли капли/стекла, 40Hz эмбиент). Обеспечена 100% автономность, Hi-Res качество 48kHz и мгновенная мультиязычность по себестоимости буквально несколько центов за фильм.",
+      "tags": [
+        "decoupled_pipeline",
+        "elevenlabs",
+        "audio_architecture",
+        "sop",
+        "vladimir",
+        "adrian",
+        "elina",
+        "kai"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-30 22:31:00"
     }
   ]
 }
