@@ -1965,12 +1965,16 @@ async def handle_pdf_document(message: Message):
         await message.bot.download_file(file_info.file_path, pdf_buffer)
         pdf_bytes = pdf_buffer.getvalue()
 
-        # Сохраняем копию в архив ассетов бренда
-        brand_storage_dir = Path("d:/Antigravity/AI_Video_Agency/assets/client_uploads") / f"user_{user_id}"
-        brand_storage_dir.mkdir(parents=True, exist_ok=True)
-        safe_filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', doc.file_name or f"document_{doc.file_id}.pdf")
-        saved_pdf_path = brand_storage_dir / safe_filename
-        saved_pdf_path.write_bytes(pdf_bytes)
+        # Сохраняем копию в архив ассетов бренда (кроссплатформенно)
+        brand_storage_dir = Path("assets/client_uploads") / f"user_{user_id}"
+        try:
+            brand_storage_dir.mkdir(parents=True, exist_ok=True)
+            safe_filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', doc.file_name or f"document_{doc.file_id}.pdf")
+            saved_pdf_path = brand_storage_dir / safe_filename
+            saved_pdf_path.write_bytes(pdf_bytes)
+        except Exception as storage_err:
+            logger.warning(f"Could not save PDF to client_uploads: {storage_err}")
+            saved_pdf_path = Path(doc.file_name or "document.pdf")
 
         # Парсим страницы и превью через PyMuPDF
         def _extract_pdf(raw_bytes: bytes, max_pages: int = 4):
