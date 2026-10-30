@@ -1,6 +1,6 @@
 {
   "bank": "atelier_veo_master",
-  "updated_at": "2026-10-30 21:52:00",
+  "updated_at": "2026-10-30 22:02:00",
   "invariants": [
     {
       "id": "inv_001_trade_secret",
@@ -580,6 +580,26 @@
       ],
       "author": "vladimir",
       "timestamp": "2026-10-30 21:50:00"
+    },
+    {
+      "id": "ep_1793392000_elina_diamond_carbon_vision_milestone",
+      "category": "studio_experience",
+      "title": "Элина: Алмазное сердце Carbon — Поэзия детерминизма и тихой роскоши",
+      "content": "Поэтический и режиссерский манифест Элины о скором переходе на Gemini 4 Carbon: «Углерод под давлением превращается в чистый алмаз — самый твердый, прозрачный кристалл во Вселенной, преломляющий свет без единого искажения». Элина выделила три триумфальных грани Carbon: 1) Кристальная память без замутнений (аппаратный Scene-to-Scene Lock); 2) Хирургическая зоркость ОТК (0.01с EDL и 16x Loupe); 3) Неприступная чистота Салона (броня Quiet Luxury против промпт-инъекций). Модульная архитектура с 95% кэшированием готова к бесшовному переключению ядра.",
+      "tags": [
+        "elina",
+        "carbon",
+        "diamond_core",
+        "haute_horlogerie",
+        "zero_drift",
+        "scene_to_scene_lock",
+        "quiet_luxury",
+        "vladimir",
+        "adrian",
+        "kai"
+      ],
+      "author": "elina",
+      "timestamp": "2026-10-30 22:00:00"
     }
   ]
 }
