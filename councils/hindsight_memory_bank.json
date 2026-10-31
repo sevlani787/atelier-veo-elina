@@ -1,6 +1,6 @@
 {
   "bank": "atelier_veo_master",
-  "updated_at": "2026-10-31 13:20:00",
+  "updated_at": "2026-10-31 13:34:00",
   "invariants": [
     {
       "id": "inv_001_trade_secret",
@@ -276,6 +276,26 @@
       ],
       "author": "vladimir",
       "timestamp": "2026-10-31 13:10:00"
+    },
+    {
+      "id": "inv_018_dual_stream_luxury_audit",
+      "category": "club_architecture",
+      "title": "Инвариант двухпоточного клубного аудита (Dual-Stream Luxury Audit: Optics + Acoustics)",
+      "content": "Регламент клубного аудита роликов (/qa, 25 Cr) в Salon Privé (veocreative.agency/club): 1. Полная мультимодальная диагностика: синхронный анализ оптического видеоряда (раскадровка, Кельвины, каустика, физика стекла, типографика) И нативного PCM-аудиопотока (голос, фоли, 40Hz, дакинг). 2. Четыре акустических маркера роскоши: а) Vocal Intimacy (интимный шепот ASMR Whisper vs базарный крик); б) Sub-Bass Density (наличие 40-60Hz, дающего подсознательный вес тяжелому хрусталю вместо дешевого пластика); в) Acoustic Masking (отсутствие частотного конфликта 1.5-3.0kHz между музыкой и голосом через дакинг -3dB); г) ASMR Micro-Physics (тактильные микро-звуки щелчка крышки, спрея, капли). 3. Коммерческий эффект: превращает аудит в непреодолимый триггер конверсии в Bespoke Master Production (,500-,000+).",
+      "tags": [
+        "club",
+        "audit",
+        "qa",
+        "dual_stream",
+        "acoustics",
+        "optics",
+        "vocal_intimacy",
+        "sub_bass_40hz",
+        "asmr_foley",
+        "vladimir_insight"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-31 13:30:00"
     }
   ],
   "episodic_memories": [
@@ -692,6 +712,24 @@
       ],
       "author": "vladimir",
       "timestamp": "2026-10-31 13:15:00"
+    },
+    {
+      "id": "ep_1793449000_dual_stream_audit_commercial_breakthrough",
+      "category": "producer_decision",
+      "title": "Коммерческий прорыв: Dual-Stream Luxury Audit в Клубе как абсолютное оружие конверсии",
+      "content": "Владимир сформулировал гениальный продуктовый инсайт: аудит роликов в Клубе теперь оценивает не только картинку, но и звук. 90% люксовых брендов тратят тысячи евро на видео, но теряют продажи из-за плоского TikTok-звука без веса 40Hz и интимного шепота. Элина выдает основателям (Mohammad Mando, Gregory Mages) двухпоточный разбор (оптика + акустика), вызывающий вау-эффект и ведущий напрямую к заказу полного продакшна под ключ в Atelier VEO.",
+      "tags": [
+        "club",
+        "commercial_breakthrough",
+        "dual_stream_audit",
+        "mohammad_mando",
+        "gregory_mages",
+        "quiet_luxury",
+        "vladimir",
+        "elina"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-31 13:32:00"
     }
   ]
 }
