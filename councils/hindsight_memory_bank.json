@@ -1,6 +1,6 @@
 {
   "bank": "atelier_veo_master",
-  "updated_at": "2026-10-31 19:52:00",
+  "updated_at": "2026-10-31 20:50:00",
   "invariants": [
     {
       "id": "inv_001_trade_secret",
@@ -296,6 +296,23 @@
       ],
       "author": "vladimir",
       "timestamp": "2026-10-31 13:30:00"
+    },
+    {
+      "id": "inv_019_global_multilingual_master_suite",
+      "category": "business_strategy",
+      "title": "Стратегическое УТП: Пакет глобальной экспансии (Global Multilingual Master Suite)",
+      "content": "Коммерческий стандарт флагманских предложений Atelier VEO ($2,500-$5,000+): 1. Преодоление ограничений классического продакшна: локализация под новые рынки больше не требует недель согласований, пересъемок и аренды студий дикторов в Париже/Дубае/Лондоне. 2. Благодаря Decoupled AV Architecture визуальный 4K-монолит с Identity Shield™ 360° создается один раз, а звуковая дорожка Слоя 1 (ElevenLabs Multilingual v2) мгновенно адаптируется под любой мировой рынок (французский, английский, арабский Gulf Arabic, немецкий, испанский) с аутентичным шепотом и стандартом EBU R128 (-14.5 LUFS). 3. Пакетная подача клиенту: бренд получает готовую международную кампанию под ключ (внутренний рынок плюс экспортные версии для Harrods, Sephora Middle East и Saks Fifth Avenue). Это увеличивает воспринимаемую ценность в 3-5 раз и обосновывает наивысший чек.",
+      "tags": [
+        "commercial_strategy",
+        "multilingual_suite",
+        "utp",
+        "global_expansion",
+        "high_ticket",
+        "decoupled_av",
+        "vladimir_strategy"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-31 20:45:00"
     }
   ],
   "episodic_memories": [
@@ -834,6 +851,21 @@
       ],
       "author": "vladimir",
       "timestamp": "2026-10-31 19:50:00"
+    },
+    {
+      "id": "ep_1793475000_multilingual_expansion_suite_milestone",
+      "category": "business_architecture",
+      "title": "Стратегический ход Владимира: Включение мультиязычного пакета экспансии в главное УТП Ателье",
+      "content": "Владимир сформулировал мощнейшее рыночное позиционирование: продажа клиентам не одиночных видео, а готовых мультиязычных пакетов глобальной экспансии. Основатели люксовых марок получают за один контракт готовую линейку под Францию, англоязычные страны и Ближний Восток при околонулевой себестоимости генерации голоса. Кейс arbote становится эталоном этого коммерческого предложения на veocreative.agency.",
+      "tags": [
+        "utp",
+        "multilingual_package",
+        "business_growth",
+        "arbote_flagship",
+        "vladimir_leadership"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-10-31 20:48:00"
     }
   ]
 }
