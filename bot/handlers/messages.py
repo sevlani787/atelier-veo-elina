@@ -25,7 +25,7 @@ from bot.services.llm import llm
 from bot.services.memory import memory
 from bot.services.hindsight_bridge import hindsight_bridge
 from bot.services.database import db
-from bot.utils import send_long_message, extract_keyframes_from_video, get_video_duration, extract_video_url_from_text, download_cloud_video
+from bot.utils import send_long_message, extract_keyframes_from_video, get_video_duration, extract_video_url_from_text, download_cloud_video, extract_audio_from_media
 
 router = Router()
 
@@ -1782,6 +1782,9 @@ async def process_video_audit(
         # Извлекаем раскадровку в отдельном потоке (до 6 ключевых кадров)
         frames = await asyncio.to_thread(extract_keyframes_from_video, temp_video_path, float(duration), 6)
 
+        # Извлекаем живую звуковую дорожку сцены (PCM / WAV 16kHz)
+        audio_b64 = await asyncio.to_thread(extract_audio_from_media, temp_video_path, min(float(duration or 60.0), 90.0))
+
         if not frames:
             err_text = await get_system_error_message(user_id, message, "video_frames")
             if wait_msg:
@@ -1816,6 +1819,19 @@ async def process_video_audit(
                 'type': 'image_url',
                 'image_url': {
                     'url': f'data:image/jpeg;base64,{b64_frame}'
+                }
+            })
+
+        if audio_b64:
+            video_content.append({
+                'type': 'text',
+                'text': "\n[ЖИВАЯ АУДИОДОРОЖКА СЦЕНЫ (PCM Audio Track)]:\nПрослушай эту реальную звуковую дорожку видео: оцени тембр голоса, органику фоли (звук стекла/капли), наличие подушки 40Hz и синхронизацию J-Cut/L-Cut по таймкодам."
+            })
+            video_content.append({
+                'type': 'input_audio',
+                'input_audio': {
+                    'data': audio_b64,
+                    'format': 'wav'
                 }
             })
 
@@ -2100,9 +2116,109 @@ async def handle_pdf_document(message: Message):
         print(f"PDF Intake Error: {e}")
 
 
-# @router.message(F.voice)
-# async def handle_voice(message: Message):
-#     """Обработка голосовых сообщений через Speech-to-Text."""
+@router.message(F.voice | F.audio)
+async def handle_audio_stream(message: Message):
+    """
+    Прямой режиссерский аудит звуковой дорожки сцены / дикторской начитки (ElevenLabs, voiceover, foley).
+    Принимает голосовые сообщения и аудиофайлы (MP3, WAV, AAC, OGG),
+    конвертирует в 16kHz PCM WAV и подает в Gemini Multimodal Audio для глубокого анализа
+    (тембр, ASMR Luxury Whisper, паузы, фоли, соответствие стандарту Quiet Luxury).
+    """
+    user_id = message.from_user.id
+    audio_obj = message.voice or message.audio
+
+    cost = await config.get_token_cost(action='qa')
+    user_data = await check_user_and_balance(user_id, message, cost=cost)
+    if not user_data:
+        return
+
+    wait_msg = None
+    temp_audio_path = None
+    try:
+        await message.bot.send_chat_action(chat_id=message.chat.id, action="record_voice")
+        is_admin = (user_id == config.admin_id)
+
+        file = await message.bot.get_file(audio_obj.file_id)
+        with tempfile.NamedTemporaryFile(suffix=".audio", delete=False) as tmp_file:
+            temp_audio_path = tmp_file.name
+
+        await message.bot.download_file(file.file_path, temp_audio_path, timeout=120)
+
+        duration = getattr(audio_obj, 'duration', 0) or 0
+        audio_b64 = await asyncio.to_thread(extract_audio_from_media, temp_audio_path, 90.0)
+
+        if not audio_b64:
+            await message.answer("Не удалось извлечь звуковой поток из этого аудиофайла. Пожалуйста, передайте файл в формате WAV или MP3.")
+            return
+
+        user_caption = (message.caption or "").strip()
+
+        if is_admin:
+            audio_instruction = (
+                "Ты — Элина, Главный Режиссер и Мастер Акустической Архитектуры Atelier VEO.\n"
+                f"Владимир прислал звуковую дорожку сцены / дикторскую начитку (длительность: ~{duration}с).\n"
+            )
+            if user_caption:
+                audio_instruction += f"Комментарий Владимира: {user_caption}\n\n"
+            audio_instruction += (
+                "Прослушай аудиодорожку напрямую через нативный аудио-контур Gemini и проведи покадровый акустический аудит:\n"
+                "1. **Голос и дикция (Layer 1):** оцени бархатистость тембра, парижский/международный прононс, интимный шепот (ASMR Luxury Whisper), дыхание и естественные микропаузы у ленточного микрофона.\n"
+                "2. **Органика фоли и шумы (Layer 2):** слышны ли тактильные акценты (звон хрустальной пипетки, отрыв капли масла, шелест тумана)?\n"
+                "3. **Атмосфера и частота 40Hz (Layer 3):** оценить баланс фона, отсутствие грязи/компрессионных артефактов и дакинг (-3dB под голос).\n"
+                "4. **Режиссерский вердикт и таймкоды монтажа:** дай точные рекомендации для сведения в CapCut / FFmpeg по стандарту EBU R128 (-14 LUFS)."
+            )
+        else:
+            lang = await detect_user_dialogue_language(user_id, message)
+            audio_instruction = (
+                "You are Elina, Creative Director & Master Sound Designer at Atelier VEO. "
+                "The resident has submitted an audio track / voiceover for a luxury perfume/beauty commercial. "
+                "Listen to the audio track and evaluate its acoustic luxury, intimate whispering timbre, cadence, pauses, "
+                "and sound staging in accordance with Haute Parfumerie Quiet Luxury standards."
+            )
+
+        audio_content = [
+            {'type': 'text', 'text': audio_instruction},
+            {
+                'type': 'input_audio',
+                'input_audio': {
+                    'data': audio_b64,
+                    'format': 'wav'
+                }
+            }
+        ]
+
+        await memory.add_message(user_id, 'user', audio_content)
+
+        history = await memory.get_context_for_llm(user_id)
+        user_profile = await memory.get_user_profile(user_id)
+        elin_persona = (await memory.get_elin_persona_text()) if is_admin else ""
+        lore_context = await memory.get_world_context(user_caption or "Audio Score Track")
+        override_model = await db.get_setting(f"user_model_{user_id}", "google/gemini-4-argon") if (is_admin or user_data.get('sub_type') == 'premium') else None
+
+        response = await llm.generate(history, user_profile, elin_persona, lore_context, is_admin=is_admin, override_model=override_model)
+
+        await db.spend_tokens(user_id, cost)
+        await memory.add_message(user_id, 'assistant', response)
+
+        new_balance = (await db.get_user_data(user_id))['tokens']
+        balance_info = f"\n\n<i>✦ Atelier Credits: {new_balance}</i>" if (user_data.get('sub_type') != 'admin' and user_id != config.admin_id) else ""
+
+        await send_long_message(message, response + balance_info, parse_mode="HTML")
+
+        user_message_counters[user_id] = user_message_counters.get(user_id, 0) + 1
+        if user_message_counters[user_id] % 5 == 1:
+            asyncio.create_task(extract_and_save_all_task(user_id))
+
+    except Exception as e:
+        err_text = await get_system_error_message(user_id, message, "general")
+        await message.answer(err_text)
+        print(f"Audio Track Audit Error: {e}")
+    finally:
+        if temp_audio_path and os.path.exists(temp_audio_path):
+            try:
+                os.unlink(temp_audio_path)
+            except Exception:
+                pass
 #     user_id = message.from_user.id
 #     voice = message.voice
 # 

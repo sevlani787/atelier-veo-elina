@@ -57,19 +57,19 @@ class LLMService:
                 text_parts = [item.get('text', '') for item in m['content'] if item.get('type') == 'text']
                 combined_text = " ".join(text_parts).strip()
                 
-                # Проверяем наличие изображений
-                has_img = any(item.get('type') == 'image_url' for item in m['content'])
+                # Проверяем наличие медиа (изображения или аудио)
+                has_media = any(item.get('type') in ('image_url', 'input_audio') for item in m['content'])
                 
-                if has_img:
+                if has_media:
                     if is_last:
-                        # В последнем сообщении оставляем всё как есть (для обработки нового фото)
+                        # В последнем сообщении оставляем всё как есть (для обработки нового медиа)
                         optimized_messages.append(m)
                     else:
                         # В истории заменяем на текст-заглушку, чтобы не слать мегабайты base64
-                        desc = f"[Фотография: {combined_text}]" if combined_text else "[Фотография без описания]"
+                        desc = f"[Медиа-ассет: {combined_text}]" if combined_text else "[Медиа-ассет без описания]"
                         optimized_messages.append({'role': m['role'], 'content': desc})
                 else:
-                    # Если картинок не было, просто схлопываем список в текст для экономии
+                    # Если медиа не было, просто схлопываем список в текст для экономии
                     optimized_messages.append({'role': m['role'], 'content': combined_text or ""})
             else:
                 optimized_messages.append(m)

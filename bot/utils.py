@@ -119,6 +119,39 @@ def extract_keyframes_from_video(video_path: str, duration: float = 0.0, max_fra
     return frames
 
 
+def extract_audio_from_media(media_path: str, max_duration: float = 90.0) -> str | None:
+    """
+    Извлекает аудиодорожку из видео или аудиофайла и конвертирует в 16kHz mono WAV (base64)
+    для прямой подачи в Gemini Multimodal Audio API.
+    """
+    import tempfile
+    with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_wav:
+        wav_path = tmp_wav.name
+    try:
+        cmd = [
+            'ffmpeg', '-y', '-i', media_path,
+            '-t', str(max_duration),
+            '-vn',
+            '-ar', '16000',
+            '-ac', '1',
+            '-sample_fmt', 's16',
+            wav_path
+        ]
+        res = subprocess.run(cmd, capture_output=True)
+        if res.returncode == 0 and os.path.exists(wav_path) and os.path.getsize(wav_path) > 500:
+            with open(wav_path, 'rb') as f:
+                return base64.b64encode(f.read()).decode('utf-8')
+    except Exception as e:
+        print(f"[FFMPEG AUDIO] Extraction error: {e}")
+    finally:
+        if os.path.exists(wav_path):
+            try:
+                os.unlink(wav_path)
+            except Exception:
+                pass
+    return None
+
+
 def extract_video_url_from_text(text: str) -> str | None:
     """
     Ищет в тексте ссылку на Google Drive, Dropbox или прямой видеофайл.
