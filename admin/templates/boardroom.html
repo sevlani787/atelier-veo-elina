@@ -2115,7 +2115,7 @@
 
                     <div class="card-heading">
 
-                        <span>🛡️</span> Калибровка и наложение айдентики
+                        <span>✨</span> Впечатывание текстового слепка (Typography Inprint)
 
                     </div>
 
@@ -2249,233 +2249,84 @@
 
 
 
-                    <!-- Оптика и геометрия флакона -->
-
-                    <div class="param-row">
-
-                        <span class="param-label"><span>Оптика и геометрия флакона:</span></span>
-
-                        <select id="shield-geometry" onchange="runShieldPreview()">
-
-                            <option value="spherical">💧 Капля / Сфера (2 оси)</option>
-
-                            <option value="cylinder">🏛 Классический цилиндр (1 ось)</option>
-
-                            <option value="flat">💎 Плоская грань / Кристалл</option>
-
-                        </select>
-
-                    </div>
-
-
-
-                    <!-- Микро-калибровка посадки -->
-
-                    <div style="background: rgba(0,0,0,0.35); border-radius: 6px; padding: 0.6rem; margin: 0.5rem 0; border: 1px solid rgba(197, 160, 89, 0.2);">
-
-                        <div style="font-size: 0.7rem; color: #dfba73; font-weight: 700; text-transform: uppercase; margin-bottom: 0.4rem;">
-
-                            Микро-калибровка посадки:
-
-                        </div>
-
-
-
-                        <!-- Y Offset -->
-
-                        <div class="param-row">
-
-                            <span class="param-label">
-
-                                <span>Высота на флаконе (Y-Смещение):</span>
-
-                                <span id="lbl-y" style="color: #dfba73; font-weight: 600;">48%</span>
-
-                            </span>
-
-                            <input type="range" id="shield-y" min="15" max="85" value="48" oninput="updateParamLabel('lbl-y', this.value + '%'); scheduleLiveShieldPreview();" onchange="runShieldPreview(true);">
-
-                        </div>
-
-
-
-                        <!-- X Offset -->
-
-                        <div class="param-row">
-
-                            <span class="param-label">
-
-                                <span>Центровка по горизонтали (X-Смещение):</span>
-
-                                <span id="lbl-x" style="color: #dfba73; font-weight: 600;">0%</span>
-
-                            </span>
-
-                            <input type="range" id="shield-x" min="-30" max="30" value="0" oninput="updateParamLabel('lbl-x', (this.value > 0 ? '+' : '') + this.value + '%'); scheduleLiveShieldPreview();" onchange="runShieldPreview(true);">
-
-                        </div>
-
-
-
-                        <!-- Scale -->
-
-                        <div class="param-row">
-
-                            <span class="param-label">
-
-                                <span>Масштаб этикетки (Размер):</span>
-
-                                <span id="lbl-scale" style="color: #dfba73; font-weight: 600;">1.00x</span>
-
-                            </span>
-
-                            <input type="range" id="shield-scale" min="40" max="180" value="100" oninput="updateParamLabel('lbl-scale', (this.value/100).toFixed(2) + 'x'); scheduleLiveShieldPreview();" onchange="runShieldPreview(true);">
-
-                        </div>
-
-
-
-                        <!-- Angle -->
-
-                        <div class="param-row">
-
-                            <span class="param-label">
-
-                                <span>Угол наклона (Поворот):</span>
-
-                                <span id="lbl-angle" style="color: #dfba73; font-weight: 600;">0°</span>
-
-                            </span>
-
-                            <input type="range" id="shield-angle" min="-25" max="25" value="0" oninput="updateParamLabel('lbl-angle', (this.value > 0 ? '+' : '') + this.value + '°'); scheduleLiveShieldPreview();" onchange="runShieldPreview(true);">
-
-                        </div>
-
-
-
-                        <!-- Defringe / Bottom Trim -->
-
-                        <div class="param-row">
-
-                            <span class="param-label">
-
-                                <span>Подрезка ореола снизу (Чистка донца):</span>
-
-                                <span id="lbl-defringe" style="color: #dfba73; font-weight: 600;">2 px</span>
-
-                            </span>
-
-                            <input type="range" id="shield-defringe" min="0" max="20" value="2" oninput="updateParamLabel('lbl-defringe', this.value + ' px')">
-
-                        </div>
-
-
-
-                        <!-- Luminance Specular Blend -->
-
-                        <div class="param-row">
-
-                            <span class="param-label"><span>Светотеневой блик стекла (Luminance Specular):</span></span>
-
-                            <select id="shield-blend" onchange="runShieldPreview()">
-
-                                <option value="0.75">75% (Естественный блик)</option>
-
-                                <option value="0.90">90% (Глянцевый луч)</option>
-
-                                <option value="0.50">50% (Матовое стекло)</option>
-
-                                <option value="1.00">100% (Зеркальный блик)</option>
-
-                            </select>
-
-                        </div>
-
-                    </div>
-
-
-
-                    
-                    <!-- Автономный замкнутый контур ОТК (Identity Shield™ Auto-QA) -->
-                    <div style="margin: 0.8rem 0; padding: 0.75rem; border-radius: 8px; background: linear-gradient(145deg, rgba(16, 185, 129, 0.08), rgba(20, 20, 28, 0.6)); border: 1px solid rgba(16, 185, 129, 0.35); box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                    <!-- Скрытые канонические параметры (математика 4 углов) -->
+                    <input type="hidden" id="shield-geometry" value="cylinder">
+                    <input type="hidden" id="shield-defringe" value="0">
+                    <input type="hidden" id="shield-scale" value="100">
+                    <input type="hidden" id="shield-y" value="0">
+                    <input type="hidden" id="shield-x" value="0">
+                    <input type="hidden" id="shield-angle" value="0">
+                    <input type="hidden" id="shield-curvature" value="0">
+
+                    <!-- Модуль математического запекания (Zero Sliders) -->
+                    <div style="background: rgba(0,0,0,0.4); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 8px; padding: 0.75rem; margin: 0.6rem 0;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-                            <span style="font-size: 0.72rem; color: #34d399; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.3rem;">
-                                <span>⚡</span> Автономный контур ОТК
+                            <span style="font-size: 0.72rem; color: #34d399; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">
+                                <span>📐</span> Привязка 4 углов:
                             </span>
-                            <span id="auto-qa-badge" style="font-size: 0.62rem; color: #9ca3af; padding: 2px 7px; border-radius: 4px; background: rgba(255,255,255,0.06); font-weight: 600;">
-                                ГОТОВ К ЗАПУСКУ
+                            <span style="font-size: 0.62rem; color: #6ee7b7; padding: 2px 7px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 700;">
+                                ЭТАЛОН (0.01 px)
                             </span>
                         </div>
-                        <p style="font-size: 0.68rem; color: var(--text-dim); margin-bottom: 0.5rem; line-height: 1.35;">
-                            Двухфазный цикл: пристрелка на статике 0.8с (демпфер 0.85) → Master Lock (0.4%) → Финальный 4K-прогон.
-                        </p>
-                        
-                        <button id="btn-auto-qa" class="stage-btn" style="width: 100%; justify-content: center; border-color: rgba(16, 185, 129, 0.6); background: rgba(16, 185, 129, 0.16); color: #6ee7b7; font-weight: 600; padding: 0.45rem 0.8rem; transition: all 0.25s ease;" onclick="toggleAutoQALoop()">
-                            ⚡ Запустить автономный контур ОТК
-                        </button>
+                        <div style="font-size: 0.63rem; color: #cbd5e1; line-height: 1.4;">
+                            Планарная гомография: текстовый слепок намертво проецируется по внешним углам чистой этикетки. Ручные смещения исключены для сохранения единого эталона во всех сценах.
+                        </div>
+                    </div>
 
-                        <!-- Живая телеметрия (Telemetry HUD) -->
-                        <div id="auto-qa-telemetry-hud" style="display: none; margin-top: 0.6rem; padding: 0.55rem; border-radius: 6px; background: rgba(0,0,0,0.5); border: 1px solid rgba(197, 160, 89, 0.25);">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
-                                <span id="auto-qa-hud-step" style="font-size: 0.68rem; color: #dfba73; font-weight: 700;">Итерация 1/3 (Статика 0.8с)</span>
-                                <span id="auto-qa-hud-eps" style="font-size: 0.62rem; color: #a3b899; font-weight: 600;">ΔY: 0.0% | ΔScale: 0.0</span>
-                            </div>
-                            <div id="auto-qa-hud-status" style="font-size: 0.68rem; color: #e5e5e5; line-height: 1.35;">Оптический аудит Элины...</div>
-                            <div id="auto-qa-criticism" style="display: none; font-size: 0.65rem; color: #dfba73; font-style: italic; margin-top: 0.35rem; border-top: 1px dashed rgba(255,255,255,0.12); padding-top: 0.3rem; line-height: 1.3;"></div>
-                            
-                            <!-- Кнопка среза Dual-Canvas -->
-                            <div id="auto-qa-dual-link-wrap" style="display: none; margin-top: 0.4rem; text-align: right;">
-                                <a id="auto-qa-dual-link" href="#" target="_blank" style="font-size: 0.62rem; color: #c5a059; text-decoration: none; border-bottom: 1px dotted #c5a059;">
-                                    🔍 Открыть двухъярусный срез ОТК (2048x1536)
-                                </a>
-                            </div>
+                    <!-- Светотеневая директива Элины (Specular Pass) -->
+                    <div style="background: linear-gradient(145deg, rgba(197, 160, 89, 0.08), rgba(15, 15, 22, 0.6)); border: 1px solid rgba(197, 160, 89, 0.35); border-radius: 8px; padding: 0.75rem; margin: 0.6rem 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem;">
+                            <span style="font-size: 0.72rem; color: #dfba73; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">
+                                <span>☀️</span> Директива Элины по свету:
+                            </span>
+                            <span style="font-size: 0.6rem; color: #dfba73; padding: 2px 6px; border-radius: 4px; background: rgba(223, 186, 115, 0.12); border: 1px solid rgba(223, 186, 115, 0.3); font-weight: 700;">
+                                SPECULAR PASS
+                            </span>
+                        </div>
+
+                        <div class="param-row" style="margin-bottom: 0.35rem;">
+                            <span class="param-label" style="font-size: 0.68rem; color: var(--text-dim);"><span>Блик золота на стекле:</span></span>
+                            <select id="shield-blend" onchange="runShieldPreview()" style="width: 100%; font-size: 0.72rem; padding: 0.35rem 0.5rem; background: rgba(0,0,0,0.65); border: 1px solid rgba(197, 160, 89, 0.45); color: #fff; border-radius: 5px;">
+                                <option value="0.75" selected>75% — Директива Элины (Мягкий рассеянный свет 5200K)</option>
+                                <option value="0.88">88% — Директива Элины (Скользящий золотой луч на камнях)</option>
+                                <option value="0.95">95% — Директива Элины (Зеркальное золото / прямой фокус)</option>
+                                <option value="0.50">50% — Директива Элины (Матовая шелкография / полумрак)</option>
+                            </select>
+                        </div>
+                        <div style="font-size: 0.6rem; color: var(--text-dim); line-height: 1.35;">
+                            Точный параметр рассчитывается Режиссером на Gemini 4 Argon под угол обтюратора 180° и физику сцены.
                         </div>
                     </div>
 
                     <!-- Action Buttons -->
-
-                    <div style="display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.6rem;">
-
-                        <button class="stage-btn btn-smoky-sage" style="width: 100%; justify-content: center; border: 1px solid rgba(116, 140, 124, 0.5); background: rgba(116, 140, 124, 0.12); color: #c8d6cb; font-weight: 600; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(116,140,124,0.22)'; this.style.borderColor='rgba(116,140,124,0.85)'" onmouseout="this.style.background='rgba(116,140,124,0.12)'; this.style.borderColor='rgba(116,140,124,0.5)'" onclick="runShieldPreview()">
-
-                            ⚡ Быстрый предпросмотр (<1 сек)
-
+                    <div style="display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.7rem;">
+                        <button class="stage-btn btn-smoky-sage" style="width: 100%; justify-content: center; border: 1px solid rgba(116, 140, 124, 0.5); background: rgba(116, 140, 124, 0.14); color: #c8d6cb; font-weight: 600; padding: 0.5rem 0.8rem; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(116,140,124,0.25)'; this.style.borderColor='rgba(116,140,124,0.85)'" onmouseout="this.style.background='rgba(116,140,124,0.14)'; this.style.borderColor='rgba(116,140,124,0.5)'" onclick="runShieldPreview()">
+                            ⚡ Быстрая проекция (<0.5 сек)
                         </button>
 
-                        <button class="stage-btn" style="width: 100%; justify-content: center; border-color: rgba(197, 160, 89, 0.4); background: rgba(197, 160, 89, 0.15); color: var(--primary-light); font-weight: 600;" onclick="runShieldAction()">
-
-                            🛡️ Финальный мастер-рендер с трекингом
-
+                        <button class="stage-btn" style="width: 100%; justify-content: center; border-color: rgba(197, 160, 89, 0.5); background: rgba(197, 160, 89, 0.18); color: var(--primary-light); font-weight: 600; padding: 0.5rem 0.8rem;" onclick="runShieldAction()">
+                            🛡️ Финальное запекание в 4K Master
                         </button>
-
                     </div>
 
                 </div>
 
-
-
-                <!-- Extract Label -->
-
-                <div class="action-card">
-
+                <!-- Паспорт эталона плоской этикетки от Заказчика -->
+                <div class="action-card" id="card-master-flat-label">
                     <div class="card-heading">
-
-                        <span>✂️</span> Извлечение альфа-этикетки
-
+                        <span>📜</span> Паспорт плоского эталона (от Заказчика)
                     </div>
-
                     <p style="font-size: 0.725rem; color: var(--text-dim); margin-bottom: 0.5rem; line-height: 1.4;">
-
-                        Загрузите фото оригинального флакона в LookDev и нажмите кнопку для чистой вырезки монограммы и логотипа без фона.
-
+                        Загрузите оригинальный плоский макет от бренда (PDF / PNG). Извлечение единого прозрачного альфа-слепка без фона и фиксация базовых координат.
                     </p>
-
-                    <button class="stage-btn" style="width: 100%; justify-content: center; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.08); color: #38bdf8;" onclick="extractLabelFromCurrentStage()">
-
-                        ✂️ Извлечь чистую альфу из текущего фото
-
+                    <div style="display: flex; gap: 0.4rem; margin-bottom: 0.45rem;">
+                        <button class="stage-btn" style="flex: 1; justify-content: center; font-size: 0.68rem; padding: 5px 8px; border-color: rgba(197, 160, 89, 0.4); background: rgba(197, 160, 89, 0.12); color: #dfba73;" onclick="document.getElementById('custom-label-file-input').click()">
+                            📂 Выбрать плоский макет этикетки (PNG)
+                        </button>
+                    </div>
+                    <button class="stage-btn" style="width: 100%; justify-content: center; font-size: 0.68rem; padding: 5px 8px; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.08); color: #38bdf8;" onclick="extractLabelFromCurrentStage()">
+                        ✨ Снять прозрачный альфа-слепок (Alpha Monolith)
                     </button>
-
                 </div>
 
 
@@ -3452,7 +3303,7 @@
 
 
 
-        if (type === 'video') {
+        if (type === 'video' || type === 'audio') {
 
             stageImage.style.display = 'none';
 
@@ -3464,7 +3315,7 @@
 
             stageVideo.play().catch(() => {});
 
-            document.getElementById('timeline-cues').style.display = 'flex';
+            document.getElementById('timeline-cues').style.display = (type === 'video' ? 'flex' : 'none');
 
         } else {
 
@@ -3694,19 +3545,15 @@
 
 
 
-        const yOffset = parseFloat(document.getElementById('shield-y').value) / 100.0;
-
-        const xOffset = 0.50 + (parseFloat(document.getElementById('shield-x').value) / 100.0);
-
+        const ySlider = parseFloat(document.getElementById('shield-y').value);
+        const yOffset = (ySlider > 15 ? ySlider / 100.0 : 0.48 + (ySlider / 100.0));
+        const xSlider = parseFloat(document.getElementById('shield-x').value);
+        const xOffset = 0.50 + (xSlider / 100.0);
         const scale = parseFloat(document.getElementById('shield-scale').value) / 100.0;
-
         const angle = parseFloat(document.getElementById('shield-angle').value);
-
-        const defringe = parseInt(document.getElementById('shield-defringe').value);
-
+        const defringe = parseInt(document.getElementById('shield-defringe') ? document.getElementById('shield-defringe').value : 0);
         const spec = parseFloat(document.getElementById('shield-blend').value);
-
-        const geometry = document.getElementById('shield-geometry').value;
+        const geometry = document.getElementById('shield-geometry') ? document.getElementById('shield-geometry').value : 'cylinder';
 
         const btnPreview = document.querySelector('button[onclick*="runShieldPreview"]');
         const originalBtnText = btnPreview ? btnPreview.innerHTML : '';
@@ -3831,19 +3678,15 @@
 
 
 
-        const yOffset = parseFloat(document.getElementById('shield-y').value) / 100.0;
-
-        const xOffset = 0.50 + (parseFloat(document.getElementById('shield-x').value) / 100.0);
-
+        const ySlider = parseFloat(document.getElementById('shield-y').value);
+        const yOffset = (ySlider > 15 ? ySlider / 100.0 : 0.48 + (ySlider / 100.0));
+        const xSlider = parseFloat(document.getElementById('shield-x').value);
+        const xOffset = 0.50 + (xSlider / 100.0);
         const scale = parseFloat(document.getElementById('shield-scale').value) / 100.0;
-
         const angle = parseFloat(document.getElementById('shield-angle').value);
-
-        const defringe = parseInt(document.getElementById('shield-defringe').value);
-
+        const defringe = parseInt(document.getElementById('shield-defringe') ? document.getElementById('shield-defringe').value : 0);
         const spec = parseFloat(document.getElementById('shield-blend').value);
-
-        const geometry = document.getElementById('shield-geometry').value;
+        const geometry = document.getElementById('shield-geometry') ? document.getElementById('shield-geometry').value : 'cylinder';
 
 
 

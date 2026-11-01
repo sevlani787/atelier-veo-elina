@@ -801,10 +801,12 @@ async def boardroom_campaign_folders(username: str = Depends(get_current_usernam
     seen = set()
     
     pinned = [
-        "D:/campaigns/Отработка/Выбрано",
-        "d:/Antigravity/AI_Video_Agency/campaigns/closerie_rose_cardamome",
-        "D:/campaigns/Отработка",
-        "D:/campaigns/заказ/выбрано/3"
+        "D:/campaigns/Соня_Arbote/07_МАСТЕР_ГОТОВО",
+        "D:/campaigns/Соня_Arbote/04_Видео_Чистые_Футажи",
+        "D:/campaigns/Соня/отобрано/видео/сборка",
+        "D:/campaigns/Соня_Arbote/02_Эталон_и_Паспорт_Этикетки",
+        "D:/campaigns/Соня_Arbote/05_Звук_и_Озвучка",
+        "D:/campaigns/Соня_Arbote"
     ]
     for p_str in pinned:
         p_obj = Path(p_str)

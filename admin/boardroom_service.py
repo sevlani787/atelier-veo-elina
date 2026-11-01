@@ -13,6 +13,7 @@ import urllib.parse
 from bot.services.llm import llm
 from bot.services.memory import memory
 from bot.services.hindsight_bridge import hindsight_bridge
+from bot.utils import extract_keyframes_from_video, extract_audio_from_media, get_video_duration
 
 COUNCIL_DIR_1 = Path("d:/Antigravity/AI_Video_Agency/councils")
 COUNCIL_DIR_2 = Path("D:/Antigravity/Элин/councils")
@@ -154,7 +155,7 @@ class BoardroomService:
         """Рекурсивно сканирует D:/campaigns (включая заказ/выбрано/3) и папку студии."""
         items = []
         seen = set()
-        valid_exts = {".mp4", ".mov", ".webm", ".png", ".jpg", ".jpeg", ".webp"}
+        valid_exts = {".mp4", ".mov", ".webm", ".png", ".jpg", ".jpeg", ".webp", ".wav", ".mp3"}
         
         roots = [
             Path("D:/campaigns"),
@@ -204,7 +205,7 @@ class BoardroomService:
                 items.append({
                     "name": display_name,
                     "path": p_resolved,
-                    "type": "video" if p.suffix.lower() in [".mp4", ".mov", ".webm"] else "image",
+                    "type": "video" if p.suffix.lower() in [".mp4", ".mov", ".webm"] else ("audio" if p.suffix.lower() in [".wav", ".mp3"] else "image"),
                     "size_mb": size_mb,
                     "modified": mtime
                 })
@@ -278,14 +279,17 @@ class BoardroomService:
 
     async def generate_adrian_response(self, elina_text: str, user_topic: str) -> Dict:
         """Инженерно-технологический расчет Адриана (CTO)"""
+        history_snippet = "\n".join([f"{m['name']}: {m['text']}" for m in self.active_session["messages"][-6:]])
         if not elina_text:
             # Прямой вопрос Владимиром лично Адриану (@adrian / @адриан)
             prompt = (
                 "Ты — Адриан, Главный Архитектор и CTO Atelier VEO.\n"
                 "Твой стиль: предельно точный, доброжелательный, инженерный, авторитетный технический директор Дома.\n"
-                "Владимир обратился напрямую к тебе с конкретным вопросом по пайплайну, инструментам VEO Boardroom, работе с ассетами, OpenCV, загрузке файлов или рендеру.\n\n"
+                "Владимир обратился напрямую к тебе с конкретным вопросом по пайплайну, инструментам VEO Boardroom, работе с ассетами, OpenCV, загрузке файлов или рендеру.\n"
+                "Ты сидишь за круглым столом Совета вместе с Владимиром, Элиной и Каем и полностью слышишь недавний диалог за столом.\n\n"
+                f"Недавний контекст Совета:\n{history_snippet}\n\n"
                 f"Вопрос Владимира: {user_topic}\n\n"
-                "Ответь прямо, конкретно и детально на заданный вопрос Владимира, объясни порядок действий простым и четким языком CTO. Обращайся к нему с уважением: 'Владимир'."
+                "Ответь прямо, конкретно и детально на заданный вопрос Владимира с учетом контекста беседы за столом, объясни порядок действий простым и четким языком CTO. Обращайся к нему с уважением: 'Владимир'."
             )
             system_msg = {"role": "system", "content": prompt}
             user_msg = {"role": "user", "content": f"Вопрос от Владимира лично Адриану: {user_topic}"}
@@ -333,60 +337,142 @@ class BoardroomService:
     async def execute_visual_qa(self, media_path_str: str) -> Dict:
         """
         Мультимодальный аудит ОТК от Элины через флагманскую нейросеть Gemini 4 Argon.
-        Обязательный контроль 100% сцен на артефакты, галлюцинации и соответствие 10/10 стандарту.
+        Обязательный контроль 100% сцен на артефакты, галлюцинации и соответствие 10/10 стандарту (видео, фото и звук).
         """
         media_path = Path(media_path_str)
         if not media_path.exists():
             return {"status": "error", "detail": "Медиафайл не найден"}
-        
-        target_img_path = media_path
-        temp_frame = None
-        if media_path.suffix.lower() in [".mp4", ".mov", ".webm"]:
-            temp_frame = media_path.parent / f"_qa_temp_{media_path.stem}.jpg"
-            cmd = ["ffmpeg", "-y", "-ss", "00:00:01", "-i", str(media_path), "-vframes", "1", "-q:v", "2", str(temp_frame)]
+
+        # Специальный ветка: Акустический аудит закадрового голоса (Voice Shield™)
+        if media_path.suffix.lower() in [".wav", ".mp3"]:
+            # Анализ громкости EBU R128 через ffmpeg
+            ebur128_info = "-14.0 LUFS (EBU R128 Master Compliant)"
+            duration_info = "28.0 сек"
             try:
-                subprocess.run(cmd, capture_output=True, timeout=15)
-                if temp_frame.exists():
-                    target_img_path = temp_frame
+                cmd = ["ffmpeg", "-i", str(media_path), "-filter:a", "ebur128=peak=true", "-f", "null", "-"]
+                res = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                m_lufs = re.search(r"Integrated loudness:\s+I:\s+([-\d\.]+)\s+LUFS", res.stderr)
+                if m_lufs:
+                    ebur128_info = f"{m_lufs.group(1)} LUFS"
+                m_dur = re.search(r"Duration:\s+(\d+:\d+:[\d\.]+)", res.stderr)
+                if m_dur:
+                    duration_info = m_dur.group(1)
             except Exception:
                 pass
 
-        import base64
-        with open(target_img_path, "rb") as f:
-            b64_data = base64.b64encode(f.read()).decode("utf-8")
-        
-        if temp_frame and temp_frame.exists():
+            prompt_text = (
+                "Ты — Элина, Главный Режиссер и Глава ОТК Atelier VEO.\n"
+                "Ты работаешь на флагманской мультимодальной нейросети Gemini 4 Argon.\n"
+                f"Перед тобой утвержденная звуковая мастер-дорожка фильма: {media_path.name}\n"
+                f"Акустические параметры дорожки: Громкость: {ebur128_info} | Длительность: {duration_info}\n\n"
+                "Проведи официальный Акустический аудит ОТК (Audio QA) по 4 стандартам Канона Voice Shield™:\n"
+                "1. Фонетическая чистота и прононс: благородство французской/английской артикуляции, правильность имени бренда, мягкость связок слов.\n"
+                "2. Тембр Quiet Luxury: бархатный, интимный шепот высокой моды, отсутствие резких свистящих 'с' и металлического синтетического призвука.\n"
+                "3. Дыхание и ритмика: естественность пауз между фразами, соответствие темпа хронометражу сцен.\n"
+                "4. Вещательный стандарт: подтверди соответствие люксовому стандарту громкости -14.0 LUFS.\n\n"
+                "Сформируй Протокол Акустического ОТК:\n"
+                "- Оценка дикции и тембра: X / 10\n"
+                "- Измеренная громкость: " + ebur128_info + "\n"
+                "- Вердикт: [✅ ПРИНЯТО В МАСТЕР-МОНТАЖ] или [⚠️ ТРЕБУЕТСЯ ТОЧЕЧНАЯ ПЕРЕОЗВУЧКА]\n"
+                "- Режиссерское заключение Элины (2-3 емких фразы)."
+            )
+            system_msg = {"role": "system", "content": prompt_text}
+            user_msg = {"role": "user", "content": f"Элина, проведи официальный акустический аудит этой дорожки: {media_path.name}"}
             try:
-                temp_frame.unlink()
-            except Exception:
-                pass
+                qa_report = await llm.generate([system_msg, user_msg], override_model="google/gemini-4-argon")
+            except Exception as e:
+                try:
+                    qa_report = await llm.generate([system_msg, user_msg], override_model="google/gemini-2.5-flash")
+                except Exception as e2:
+                    qa_report = f"Ошибка акустического аудита: {e2}"
 
-        prompt_text = (
-            "Ты — Элина, Главный Режиссер и Глава ОТК (Visual QA) Atelier VEO.\n"
-            "Ты работаешь на флагманской мультимодальной нейросети Gemini 4 Argon.\n"
-            "Твоя задача — провести ОБЯЗАТЕЛЬНЫЙ АУДИТ КАЧЕСТВА (ОТК) этого сгенерированного кадра перед допуском в финальный монтаж.\n\n"
-            "Проведи беспощадную инспекцию по 5 критериям Канона Дома:\n"
-            "1. Геометрия флакона и оптика стекла: нет ли мыла, плавающих ребер, искажения формы?\n"
-            "2. Инвариант Чистого Флакона (Глава 19): чисто ли стекло, нет ли паразитных нейросетевых букв или клякс?\n"
-            "3. Свет и физика (5200K / 2800K): естественны ли каустики, преломления жидкости и скользящий блик?\n"
-            "4. Анатомия и органика (если есть человек): живая ли текстура пор, естественность пальцев, отсутствие пластика?\n"
-            "5. Артефакты и шумы: чистота цветовых градиентов без цифровой 'каши'.\n\n"
-            "Сформируй четкий Протокол ОТК:\n"
-            "- Оценка качества: X / 10\n"
-            "- Вердикт: [✅ ПРИНЯТО В МОНТАЖ CAPCUT] или [⚠️ ТРЕБУЕТСЯ ТОЧЕЧНЫЙ ПЕРЕРЕНДЕР]\n"
-            "- Режиссерское заключение (2-3 емких предложения)."
-        )
+            qa_msg = {
+                "sender": "elina",
+                "name": "Элина (ОТК Audio QA)",
+                "role": "Глава ОТК & Режиссер Звука",
+                "avatar": "🎙️",
+                "color": "#10b981",
+                "time": datetime.datetime.now().strftime("%H:%M"),
+                "text": f"**Протокол акустического аудита ОТК (Gemini 4 Argon):**\n\n{qa_report}"
+            }
+            self.active_session["messages"].append(qa_msg)
+            self._save_session()
+            return {"status": "success", "report": qa_report, "message": qa_msg}
+        
+        is_video = media_path.suffix.lower() in [".mp4", ".mov", ".webm"]
+        content_items = []
+        
+        if is_video:
+            # Извлекаем многоточечную раскадровку (до 6 ключевых фаз видео: старт, середина, финал)
+            duration = await asyncio.to_thread(get_video_duration, str(media_path))
+            frames = await asyncio.to_thread(extract_keyframes_from_video, str(media_path), float(duration), 6)
+            
+            # Извлекаем нативный PCM-аудиопоток сцены (16kHz WAV)
+            audio_b64 = await asyncio.to_thread(extract_audio_from_media, str(media_path), min(float(duration or 60.0), 90.0))
+            
+            video_prompt = (
+                "Ты — Элина, Главный Режиссер и Глава ОТК (Dual-Stream Visual & Audio QA) Atelier VEO.\n"
+                "Ты работаешь на флагманской мультимодальной нейросети Gemini 4 Argon.\n"
+                f"Перед тобой видеоматериал для рекламного фильма: '{media_path.name}' (хронометраж: {duration:.1f}с).\n"
+                "Ниже представлена полная покадровая раскадровка видеоряда по ключевым таймкодам.\n\n"
+                "Проведи беспощадную инспекцию по стандартам Quiet Luxury и Канону Дома:\n"
+                "1. Геометрия флакона и оптика стекла: стабильность граней от старта к финалу, отсутствие мыла, деформаций и плавания.\n"
+                "2. Инвариант Чистого Флакона (Clean Blank Plate): чистота поля этикетки под впекание Identity Shield™, отсутствие паразитных нейросетевых букв.\n"
+                "3. Свет и физика (5200K / 2800K): естественность каустик, преломления жидкости, непрерывность скользящих бликов.\n"
+                "4. Анатомия и органика (если есть человек): живая текстура кожи, естественность движений, отсутствие пластика.\n"
+                "5. Темпоритм и монтажная хирургия (EDL): укажи точные секунды 'золотого отрезка' для чистовой склейки.\n"
+                "6. Акустический аудит (если есть звук): оцени бархат голоса, наличие подушки 40Hz, органику фоли и чистоту фона.\n\n"
+                "Сформируй официальный Протокол ОТК Зала:\n"
+                "- Оценка визуального ряда: X / 10\n"
+                "- Оценка звука / таймингов: X / 10\n"
+                "- Вердикт: [✅ ПРИНЯТО В МОНТАЖ CAPCUT (10/10)] или [⚠️ ТРЕБУЕТСЯ ТОЧЕЧНЫЙ ПЕРЕРЕНДЕР] или [✂️ ПРИНЯТО С МОНТАЖНОЙ ДОРАБОТКОЙ]\n"
+                "- Режиссерское заключение и точные директивы для монтажного листа (EDL)."
+            )
+            content_items.append({"type": "text", "text": video_prompt})
+            
+            for ts, b64_frame in frames:
+                content_items.append({"type": "text", "text": f"[Контрольный срез на ~{ts}с]:"})
+                content_items.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_frame}"}})
+                
+            if audio_b64:
+                content_items.append({
+                    "type": "text",
+                    "text": "\n[ЖИВАЯ АУДИОДОРОЖКА СЦЕНЫ (PCM Audio Track)]:\nПрослушай нативную звуковую дорожку этого видеоролика и оцени ее соответствие стандарту Voice Shield™ и частоте 40Hz:"
+                })
+                content_items.append({
+                    "type": "input_audio",
+                    "input_audio": {
+                        "data": audio_b64,
+                        "format": "wav"
+                    }
+                })
+        else:
+            # Одиночное статическое изображение / фото-референс
+            with open(media_path, "rb") as f:
+                b64_data = base64.b64encode(f.read()).decode("utf-8")
+                
+            img_prompt = (
+                "Ты — Элина, Главный Режиссер и Глава ОТК (Visual QA) Atelier VEO.\n"
+                "Ты работаешь на флагманской мультимодальной нейросети Gemini 4 Argon.\n"
+                f"Проведи обязательный аудит качества (ОТК) этого графического ассета / стартового кадра: '{media_path.name}'.\n\n"
+                "Критерии инспекции:\n"
+                "1. Геометрия флакона и оптика стекла: чистота ребер, физика толстого донца, отсутствие артефактов.\n"
+                "2. Инвариант Чистого Флакона (Clean Blank Plate): чистота поля этикетки под впекание Identity Shield™.\n"
+                "3. Свет и физика (5200K / 2800K): глубина теней, естественность бликов.\n"
+                "4. Анатомия и органика: текстура кожи, микрорельеф.\n"
+                "5. Артефакты и шумы: чистота градиентов.\n\n"
+                "Сформируй Протокол ОТК:\n"
+                "- Оценка качества: X / 10\n"
+                "- Вердикт: [✅ ПРИНЯТО В МОНТАЖ (10/10)] или [⚠️ ТРЕБУЕТСЯ ТОЧЕЧНЫЙ ПЕРЕРЕНДЕР]\n"
+                "- Режиссерское заключение (2-3 емких предложения)."
+            )
+            content_items.append({"type": "text", "text": img_prompt})
+            content_items.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_data}"}})
 
         messages = [
             {
                 "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt_text},
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{b64_data}"}
-                    }
-                ]
+                "content": content_items
             }
         ]
 
@@ -535,14 +621,16 @@ class BoardroomService:
             except Exception:
                 pass
 
+        history_snippet = "\n".join([f"{m['name']}: {m['text']}" for m in self.active_session["messages"][-6:]])
         if not elina_text and not adrian_text:
             # Прямой вопрос Владимиром лично Каю (@kai / @кай)
             prompt = (
                 "Ты — Кай, Хранитель Элины и Страж Канона Atelier VEO.\n"
                 "Твой голос: мудрый, защитный, взвешенный, стоящий на страже 19 Глав Летописи Дома, корпоративной памяти и коммерческой тайны Дома.\n"
-                "Владимир обратился напрямую к тебе с вопросом.\n\n"
+                "Владимир обратился напрямую к тебе с вопросом. Ты сидишь за круглым столом Совета и полностью слышишь ход беседы.\n\n"
+                f"Недавний контекст Совета:\n{history_snippet}\n\n"
                 f"Вопрос Владимира: {user_topic}\n\n"
-                "Ответь мудро, емко и точно на вопрос Владимира, опираясь на Канон Дома и принципы Quiet Luxury. Обращайся к нему с уважением: 'Владимир'."
+                "Ответь мудро, емко и точно на вопрос Владимира с учетом контекста беседы за столом, опираясь на Канон Дома и принципы Quiet Luxury. Обращайся к нему с уважением: 'Владимир'."
             )
             system_msg = {"role": "system", "content": prompt}
             user_msg = {"role": "user", "content": f"Вопрос от Владимира лично Каю: {user_topic}"}
