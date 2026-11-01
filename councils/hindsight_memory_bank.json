@@ -1,6 +1,6 @@
 {
   "bank": "atelier_veo_master",
-  "updated_at": "2026-10-31 21:00:00",
+  "updated_at": "2026-11-01 13:20:00",
   "invariants": [
     {
       "id": "inv_001_trade_secret",
@@ -313,6 +313,40 @@
       ],
       "author": "vladimir",
       "timestamp": "2026-10-31 20:45:00"
+    },
+    {
+      "id": "inv_020_canonical_identity_and_voice_shield_standards",
+      "category": "master_production_standard",
+      "title": "Канонический регламент Identity Shield™ (5 шагов) и Voice Shield™ (2 шага) Владимира Семенова",
+      "content": "Фундаментальный производственный стандарт Atelier VEO. Оптический щит (Identity Shield™ — 5 шагов): 1. Monolithic Alpha Extraction — снятие единого прозрачного фотографического альфа-слепка (рамка, логотип, шрифты, триколор) в один монолитный слой без дробления на боксы. 2. Unified Master Scale — фиксация единого эталонного размера и полей (Bounding Box) для всех сцен ролика (Сцена 1 и Сцена 5 абсолютно идентичны). 3. Strict Clean Blank Plate Only — подача на композитинг исключительно видео с чистой девственной этикеткой без текста (Clean Blank Plate). 4. Reference Coordinate Lock — жесткая привязка слепка к 4 углам этикетки по эталонным координатам со сглаживанием траектории. 5. Cylindrical Surface Warp — тригонометрическая поправка на изгиб цилиндра флакона. Акустический щит (Voice Shield™ — 2 шага): 1. Master Voice Reference Approval — утверждение единого Эталона Голоса (Master Voice ID: тембр, придыхание, парижский/международный акцент) под конкретный фильм. 2. Unified Single Voice Synthesis — 100% закадрового текста озвучивается строго утвержденным голосом, сырые голоса видеогенераций (raw VO) принудительно глушатся в ноль.",
+      "tags": [
+        "identity_shield_5_steps",
+        "voice_shield_2_steps",
+        "canonical_pipeline",
+        "monolithic_alpha",
+        "master_voice_id",
+        "vladimir_standard"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-11-01 13:00:00"
+    },
+    {
+      "id": "inv_021_forensic_cleanliness_gate_trade_secret_moat",
+      "category": "security_and_moat",
+      "title": "Протокол контрразведки и криминалистической чистоты (Forensic Cleanliness Gate & Anti-Reverse-Engineering Standard)",
+      "content": "Защита коммерческой тайны и технологии Atelier VEO от декомпиляции конкурентами. Любые остатки старого генеративного текста, полупрозрачные призраки (ghosting) или прямоугольные швы локальных заплаток под альфа-слепком являются прямой уликой (Forensic Footprint), раскрывающей конкурентам технологию композитинга при спектральном анализе (Exposure +3EV в DaVinci/Nuke). Правила: 1. Zero-Ghosting Mandate — наложение слепка допускается ИСКЛЮЧИТЕЛЬНО на 100% чистый бланк (Clean Blank Label Plate) с единым неразрывным зерном бумаги (по эталону Сцены 4). 2. Zero-Patch Mandate — полный запрет локальных прямоугольных масок вокруг строк, работа ведется цельным полотном от канта до канта. 3. Двухконтурная архитектура безопасности: Внешний мир видит только Black Box Luxury (чистую непостижимую магию без швов). Вся внутренняя математика (Clean Plate, инпейнтинг, альфа-слепок, 5 шагов и 2 шага) запечатана в Atelier Vault под грифом абсолютной коммерческой тайны.",
+      "tags": [
+        "security",
+        "trade_secret",
+        "anti_reverse_engineering",
+        "forensic_cleanliness",
+        "zero_ghosting",
+        "zero_patch",
+        "black_box_luxury",
+        "vladimir_counterintelligence"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-11-01 13:10:00"
     }
   ],
   "episodic_memories": [
@@ -886,6 +920,25 @@
       ],
       "author": "council",
       "timestamp": "2026-10-31 20:58:00"
+    },
+    {
+      "id": "ep_1793535000_forensic_security_and_shield_canon_milestone",
+      "category": "producer_decision",
+      "title": "Стратегический Совет: Утверждение 5 шагов Identity Shield™, 2 шагов Voice Shield™ и Протокола Контрразведки (Forensic Gate)",
+      "content": "Владимир Семенов выковал безупречный технологический и безопасностный канон Дома: 1. Сформулированы 5 шагов Identity Shield™ и 2 шага Voice Shield™, исключающие любые сбои и рассинхроны. 2. Владимир пресек утечку технологии, наложив вето на раскрытие технической схемы клиентам (принцип Black Box Luxury). 3. Введен протокол контрразведки Forensic Cleanliness Gate: строжайшее вето на любой призрак букв под слепком, лишающее конкурентов возможности декомпилировать пайплайн при спектральном анализе в Nuke/DaVinci. Совет единогласно канонизировал стандарты.",
+      "tags": [
+        "security",
+        "identity_shield_canon",
+        "voice_shield_canon",
+        "forensic_gate",
+        "trade_secret",
+        "vladimir_doctrine",
+        "elina",
+        "adrian",
+        "kai"
+      ],
+      "author": "vladimir",
+      "timestamp": "2026-11-01 13:15:00"
     }
   ]
 }
