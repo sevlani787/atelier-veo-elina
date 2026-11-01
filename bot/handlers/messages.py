@@ -25,7 +25,7 @@ from bot.services.llm import llm
 from bot.services.memory import memory
 from bot.services.hindsight_bridge import hindsight_bridge
 from bot.services.database import db
-from bot.utils import send_long_message, extract_keyframes_from_video, get_video_duration, extract_video_url_from_text, download_cloud_video, extract_audio_from_media
+from bot.utils import send_long_message, extract_keyframes_from_video, get_video_duration, extract_video_url_from_text, download_cloud_video, extract_audio_from_media, parse_custom_timestamps
 
 router = Router()
 
@@ -1779,8 +1779,12 @@ async def process_video_audit(
     """Единое ядро эстетического и режиссерского аудита видео (Prompt Doctor / Multimodal QA)."""
     is_admin = (user_id == config.admin_id)
     try:
-        # Извлекаем раскадровку в отдельном потоке (до 6 ключевых кадров)
-        frames = await asyncio.to_thread(extract_keyframes_from_video, temp_video_path, float(duration), 6)
+        # Интеллектуальный режиссерский срез (Smart Director Cut): проверяем наличие точных указаний в тексте
+        custom_ts = parse_custom_timestamps(caption, float(duration))
+        max_f = len(custom_ts) if custom_ts else 6
+
+        # Извлекаем раскадровку в отдельном потоке (по таймкодам режиссера или стандарту)
+        frames = await asyncio.to_thread(extract_keyframes_from_video, temp_video_path, float(duration), max_f, custom_ts)
 
         # Извлекаем живую звуковую дорожку сцены (PCM / WAV 16kHz)
         audio_b64 = await asyncio.to_thread(extract_audio_from_media, temp_video_path, min(float(duration or 60.0), 90.0))

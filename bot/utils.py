@@ -79,15 +79,78 @@ def get_video_duration(video_path: str) -> float:
     return 10.0
 
 
-def extract_keyframes_from_video(video_path: str, duration: float = 0.0, max_frames: int = 6) -> List[Tuple[float, str]]:
+def parse_custom_timestamps(caption: str, duration: float) -> Optional[List[float]]:
     """
-    Извлекает до max_frames ключевых кадров из видеофайла с помощью ffmpeg.
+    Умный парсер режиссерских таймкодов из подписи к видео (Smart Director Cut).
+    Распознает:
+    - Диапазоны: 'от 2.5 до 4.2с', '2.0 - 4.5s', '1.5..3.5' -> плотная гребенка кадров.
+    - Списки секунд: 'на 1.2, 3.0 и 4.5с', '0.8s, 2.4s'.
+    - Количество кадров: '8 кадров', '10 frames'.
+    """
+    if not caption or duration <= 0:
+        return None
+
+    caption_clean = caption.strip()
+
+    # 1. Диапазон: 'от 2.5 до 4.5' или '2.0-4.0с'
+    range_match = re.search(r'(?:от\s*)?([0-9]+(?:[.,][0-9]+)?)\s*(?:до|-|–|\.\.)\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:с|сек|s)?', caption_clean, re.IGNORECASE)
+    if range_match:
+        try:
+            t_start = float(range_match.group(1).replace(',', '.'))
+            t_end = float(range_match.group(2).replace(',', '.'))
+            if 0 <= t_start < t_end:
+                t_end = min(t_end, duration)
+                count = 6
+                step = (t_end - t_start) / (count - 1)
+                return [round(t_start + i * step, 2) for i in range(count)]
+        except Exception:
+            pass
+
+    # 2. Явный список секунд: '1.2, 3.4 и 5.1с'
+    nums = re.findall(r'\b([0-9]+(?:[.,][0-9]+)?)\s*(?:с|сек|s)?\b', caption_clean, re.IGNORECASE)
+    valid_pts = []
+    for n in nums:
+        try:
+            val = float(n.replace(',', '.'))
+            if 0.1 <= val <= duration and val not in valid_pts:
+                valid_pts.append(val)
+        except ValueError:
+            pass
+    if len(valid_pts) >= 2:
+        return sorted(valid_pts)[:10]
+
+    # 3. Запрос количества кадров: '8 кадров', '10 frames'
+    count_match = re.search(r'([0-9]+)\s*(?:кадр|кадров|frames|shots)', caption_clean, re.IGNORECASE)
+    if count_match:
+        try:
+            c = int(count_match.group(1))
+            c = max(3, min(c, 12))
+            step = (duration * 0.8) / (c - 1) if c > 1 else 0
+            return [round(duration * 0.1 + i * step, 2) for i in range(c)]
+        except Exception:
+            pass
+
+    return None
+
+
+def extract_keyframes_from_video(
+    video_path: str,
+    duration: float = 0.0,
+    max_frames: int = 6,
+    custom_timestamps: Optional[List[float]] = None
+) -> List[Tuple[float, str]]:
+    """
+    Извлекает ключевые кадры из видеофайла с помощью ffmpeg.
+    Если переданы custom_timestamps (режиссерский выбор Элины или продюсера),
+    вырезает строго указанные секунды. Иначе использует стандартную разметку.
     Возвращает список кортежей (timestamp_sec, base64_jpeg).
     """
     if duration <= 0:
         duration = get_video_duration(video_path)
 
-    if duration <= 3.0:
+    if custom_timestamps and len(custom_timestamps) > 0:
+        timestamps = [round(ts, 2) for ts in custom_timestamps if 0.0 <= ts <= duration]
+    elif duration <= 3.0:
         timestamps = [round(duration / 2, 2)]
     else:
         count = min(max_frames, max(3, int(duration // 3)))
