@@ -3,7 +3,7 @@ import os
 import re
 import subprocess
 import tempfile
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from urllib.parse import parse_qs, urlparse
 
 from aiogram.types import Message
