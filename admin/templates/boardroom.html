@@ -63,6 +63,26 @@
 {% block head %}
 
 <style>
+    /* Custom Luxury Dark Scrollbars */
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #0b0c0e;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #2a2d35;
+        border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #c5a059;
+    }
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: #2a2d35 #0b0c0e;
+    }
+
 
     /* Fullscreen Boardroom layout - Hide admin sidebar */
 
@@ -1953,19 +1973,19 @@
 
                 <span style="color: var(--text-dim); font-weight: 600;">Монтажные и саунд-маркеры:</span>
 
-                <button class="cue-btn" onclick="seekToTime(0.8)" title="Перейти на 0.8 сек (Точка старта движения / 40Hz sub-bass)">
+                <button class="cue-btn" id="cue-btn-1" onclick="seekToTime(0.8)" title="Точка старта движения / 40Hz sub-bass">
 
                     ⏱ 0.8с (Старт / Бас)
 
                 </button>
 
-                <button class="cue-btn" onclick="seekToTime(4.0)" title="Перейти на 4.0 сек (Скользящий блик / Шепот)">
+                <button class="cue-btn" id="cue-btn-2" onclick="seekToTime(4.0)" title="Скользящий блик / Шепот">
 
                     ⏱ 4.0с (Блик / Шепот)
 
                 </button>
 
-                <button class="cue-btn" onclick="seekToTime(7.2)" title="Перейти на 7.2 сек (Финальный мениск / Пэкшот)">
+                <button class="cue-btn" id="cue-btn-3" onclick="seekToTime(7.2)" title="Финальный мениск / Пэкшот">
 
                     ⏱ 7.2с (Финал / Мениск)
 
@@ -2243,6 +2263,14 @@
 
                             <input type="file" id="custom-label-file-input" accept="image/png,image/jpeg" style="display: none;" onchange="handleCustomLabelUpload(event)" />
 
+                        </div>
+
+                        <div id="mini-reference-dock" style="display: none; align-items: center; gap: 0.6rem; margin-top: 0.45rem; padding: 5px 8px; background: rgba(197, 160, 89, 0.06); border: 1px solid rgba(197, 160, 89, 0.25); border-radius: 4px;">
+                            <img id="mini-reference-img" src="" style="width: 44px; height: 44px; object-fit: contain; border-radius: 3px; background: rgba(0,0,0,0.6);" />
+                            <div style="font-size: 0.65rem; color: #dfba73; line-height: 1.25;">
+                                <div style="font-weight: 600;">💎 Эталон в памяти 1:1</div>
+                                <div id="mini-reference-name" style="color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; max-width: 140px; white-space: nowrap;">эталон.png</div>
+                            </div>
                         </div>
 
 </div>
@@ -2545,6 +2573,30 @@
 
 
 
+    function updateTimelineCues(dur) {
+        if (!dur || !isFinite(dur)) return;
+        const t1 = Math.max(0.5, dur * 0.1).toFixed(1);
+        const t2 = (dur * 0.5).toFixed(1);
+        const t3 = (dur * 0.9).toFixed(1);
+
+        const b1 = document.getElementById('cue-btn-1');
+        const b2 = document.getElementById('cue-btn-2');
+        const b3 = document.getElementById('cue-btn-3');
+
+        if (b1) {
+            b1.textContent = `⏱ ${t1}с (Старт / Бас)`;
+            b1.onclick = () => seekToTime(parseFloat(t1));
+        }
+        if (b2) {
+            b2.textContent = `⏱ ${t2}с (Блик / Шепот)`;
+            b2.onclick = () => seekToTime(parseFloat(t2));
+        }
+        if (b3) {
+            b3.textContent = `⏱ ${t3}с (Финал / Мениск)`;
+            b3.onclick = () => seekToTime(parseFloat(t3));
+        }
+    }
+
     function initLayout() {
 
         const textarea = document.getElementById('tablet-textarea');
@@ -2596,6 +2648,25 @@
         });
 
 
+
+        const stageViewport = document.getElementById('viewport-stage');
+        if (stageViewport) {
+            stageViewport.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                stageViewport.style.outline = '2px dashed #c5a059';
+            });
+            stageViewport.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                stageViewport.style.outline = 'none';
+            });
+            stageViewport.addEventListener('drop', (e) => {
+                e.preventDefault();
+                stageViewport.style.outline = 'none';
+                if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    uploadFilesQueue(Array.from(e.dataTransfer.files));
+                }
+            });
+        }
 
         const input = document.getElementById('council-input');
 
@@ -3105,13 +3176,18 @@
 
         try {
 
+            const activeMedia = document.getElementById('media-selector')?.value || '';
+
             const resp = await fetch('/api/boardroom/send', {
 
                 method: 'POST',
 
                 headers: { 'Content-Type': 'application/json' },
 
-                body: JSON.stringify({ text: text })
+                body: JSON.stringify({ 
+                    text: text,
+                    active_media: activeMedia
+                })
 
             });
 
@@ -3312,6 +3388,13 @@
             stageVideo.src = streamUrl;
 
             stageVideo.load();
+
+            stageVideo.onloadedmetadata = function() {
+                const dur = stageVideo.duration;
+                if (dur && isFinite(dur)) {
+                    updateTimelineCues(dur);
+                }
+            };
 
             stageVideo.play().catch(() => {});
 
@@ -5037,6 +5120,15 @@
                     activeBadge.style.background = 'rgba(110, 231, 183, 0.12)';
 
                     activeBadge.style.borderColor = 'rgba(110, 231, 183, 0.35)';
+
+                    const miniDock = document.getElementById('mini-reference-dock');
+                    const miniImg = document.getElementById('mini-reference-img');
+                    const miniName = document.getElementById('mini-reference-name');
+                    if (miniDock && miniImg && miniName) {
+                        miniDock.style.display = 'flex';
+                        miniImg.src = '/media_stream?path=' + encodeURIComponent(res.path);
+                        miniName.textContent = file.name || 'Мастер-этикетка';
+                    }
 
                 }
 

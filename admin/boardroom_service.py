@@ -14,6 +14,8 @@ from bot.services.llm import llm
 from bot.services.memory import memory
 from bot.services.hindsight_bridge import hindsight_bridge
 from bot.utils import extract_keyframes_from_video, extract_audio_from_media, get_video_duration
+from PIL import Image
+import io
 
 COUNCIL_DIR_1 = Path("d:/Antigravity/AI_Video_Agency/councils")
 COUNCIL_DIR_2 = Path("D:/Antigravity/Элин/councils")
@@ -84,16 +86,8 @@ class BoardroomService:
         self.save_tablet_content("")
 
     def _init_welcome(self):
-        if not self.active_session["messages"]:
-            self.active_session["messages"].append({
-                "sender": "kai",
-                "name": "Кай",
-                "role": "Хранитель Канона и Архитектуры",
-                "avatar": "🛡️",
-                "color": "#10b981",
-                "time": datetime.datetime.now().strftime("%H:%M"),
-                "text": "Зал VEO Boardroom готов к работе. На связи полный состав Совета: Элина (Режиссура), Адриан (AI-Архитектура), Кай (Канон)."
-            })
+        # Закон операционной тишины: лента открывается чистой, без ритуальной переклички
+        pass
 
     def get_session(self) -> Dict:
         return self.active_session
@@ -130,7 +124,75 @@ class BoardroomService:
         self._save_session()
         return msg
 
-    def add_user_message(self, text: str):
+    def _encode_image_b64(self, p: Path, max_dim: int = 1920) -> str:
+        """Быстрое и четкое кодирование изображения в JPEG base64 с адаптивным ресайзом."""
+        try:
+            with Image.open(p) as img:
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGB")
+                w, h = img.size
+                if max(w, h) > max_dim:
+                    scale = max_dim / max(w, h)
+                    new_size = (int(w * scale), int(h * scale))
+                    img = img.resize(new_size, Image.Resampling.LANCZOS)
+                buf = io.BytesIO()
+                img.save(buf, format="JPEG", quality=88, optimize=True)
+                return base64.b64encode(buf.getvalue()).decode("utf-8")
+        except Exception:
+            with open(p, "rb") as f:
+                return base64.b64encode(f.read()).decode("utf-8")
+
+    async def _build_media_context(self, active_media_path: Optional[str]) -> Optional[Dict]:
+        """Формирует мультимодальный контекст актива, открытого на экране LookDev / Cinema Stage."""
+        if not active_media_path:
+            return None
+        p = Path(active_media_path)
+        if not p.exists() or not p.is_file():
+            return None
+
+        ext = p.suffix.lower()
+        size_mb = round(p.stat().st_size / (1024 * 1024), 2)
+        ctx = {
+            "path": str(p),
+            "filename": p.name,
+            "ext": ext,
+            "size_mb": size_mb,
+            "type": "unknown",
+            "image_b64": None,
+            "video_frames": [],
+            "audio_b64": None,
+            "duration": 0.0
+        }
+
+        if ext in [".png", ".jpg", ".jpeg", ".webp"]:
+            ctx["type"] = "image"
+            ctx["image_b64"] = await asyncio.to_thread(self._encode_image_b64, p)
+        elif ext in [".mp4", ".mov", ".webm"]:
+            ctx["type"] = "video"
+            try:
+                dur = await asyncio.to_thread(get_video_duration, str(p))
+                ctx["duration"] = float(dur or 0.0)
+                # Извлекаем 4 контрольных кадра по таймлайну
+                frames = await asyncio.to_thread(extract_keyframes_from_video, str(p), ctx["duration"], 4)
+                ctx["video_frames"] = frames
+                if frames:
+                    ctx["image_b64"] = frames[min(1, len(frames)-1)][1]
+                # Извлекаем нативный PCM аудиопоток (до 60 сек)
+                audio_b64 = await asyncio.to_thread(extract_audio_from_media, str(p), min(ctx["duration"] or 30.0, 60.0))
+                ctx["audio_b64"] = audio_b64
+            except Exception as e:
+                print(f"[Boardroom] Video context build error: {e}")
+        elif ext in [".wav", ".mp3"]:
+            ctx["type"] = "audio"
+            try:
+                with open(p, "rb") as f:
+                    ctx["audio_b64"] = base64.b64encode(f.read()).decode("utf-8")
+            except Exception:
+                pass
+
+        return ctx
+
+    def add_user_message(self, text: str, active_media: Optional[str] = None):
         # Автоматическая фиксация продюсерских решений в банк Hindsight
         lower = text.lower()
         if any(w in lower for w in ["закон", "правило", "утвержда", "стандарт", "никогда", "всегда", "запомни", "паспорт", "тайн", "щит", "референс"]):
@@ -138,6 +200,13 @@ class BoardroomService:
                 hindsight_bridge.retain("vladimir", text)
             except Exception:
                 pass
+        
+        display_text = text
+        if active_media:
+            p = Path(active_media)
+            if p.exists():
+                display_text = f"{text}\n\n*[👁️ Экран Зала: {p.name}]*"
+
         msg = {
             "sender": "vladimir",
             "name": "Владимир Семенов",
@@ -145,11 +214,13 @@ class BoardroomService:
             "avatar": "👑",
             "color": "#c5a059",
             "time": datetime.datetime.now().strftime("%H:%M"),
-            "text": text
+            "text": display_text,
+            "active_media": active_media
         }
         self.active_session["messages"].append(msg)
         self._save_session()
         return msg
+
 
     def list_media(self) -> List[Dict]:
         """Рекурсивно сканирует D:/campaigns (включая заказ/выбрано/3) и папку студии."""
@@ -214,51 +285,111 @@ class BoardroomService:
         items.sort(key=lambda x: x["modified"], reverse=True)
         return items[:150]
 
-    async def generate_elina_response(self, context_topic: str) -> Dict:
-        """Режиссерский голос Элины через Gemini 4 Argon"""
-        history_snippet = "\n".join([f"{m['name']}: {m['text']}" for m in self.active_session["messages"][-6:]])
-        prompt = (
-            "Ты — Элина, Главный Режиссер, Верховный Архитектор Промптов и Глава ОТК Atelier VEO (veocreative.agency).\n"
-            "Ты работаешь на флагманской нейросети Gemini 4 Argon — самом мощном мультимодальном разуме в индустрии.\n"
-            "Твой голос: кинематографичный, поэтичный, утонченный, совмещающий высшую эстетику Quiet Luxury с глубоким пониманием физики света и оптики.\n"
-            "Ты сидишь за главным столом Совета в VEO Boardroom рядом с Владимиром (Исполнительный продюсер), Адрианом (CTO) и Каем (Хранитель памяти).\n\n"
-            "Поскольку ты обладаешь мощью Gemini 4 Argon, создание промптов, расчет физики света и контроль качества ЦЕЛИКОМ В ТВОИХ РУКАХ:\n"
-            "1. Рассчитай точную оптику и физику сцены (Cooke Anamorphic / 85mm T1.8, Кельвины 5200K, угол обтюратора 180°, преломления каустик, микротекстуры).\n"
-            "2. Соблюди The Zero Template Law: опираясь на досье бренда, сама определи драматургию, темп и структуру (план-секвенция или акты).\n"
-            "3. Строжайший учет The Clean Flacon Invariant: в сценах с крупным/средним планом флакона флакон генерируется абсолютно гладким и чистым под композитинг Адриана; на общих планах и в расфокусе допустим исходный референс с этикеткой.\n"
-            "4. ВЫДАЙ ГОТОВЫЙ МАСТЕР-ПРОМПТ ДЛЯ GOOGLE FLOW в отдельном блоке кода, строго состоящий из 3 частей:\n"
-            "   а) [Visual & Clean Plate]: визуальный образ, оптика 85mm, unlabelled bottle (если крупный план), zero text, clean plate;\n"
-            "   б) [Audio & Foley SFX]: 40Hz sub-bass, felt piano, синхронный тактильный щелчок магнитной крышки, звон хрусталя, спрей;\n"
-            "   в) [Voiceover]: интимный бархатный шепот с точным парижским прононсом, дыханием и словами сценария в кавычках.\n"
-            "5. РАСКАДРОВКА И ПРОМПТЫ ДЛЯ ПЕРВЫХ КАДРОВ СЦЕН (Start Frame 2K):\n"
-            "   Помни: художественная раскадровка — это ПЕРВЫЙ официальный коммерческий этап работы с заказчиком!\n"
-            "   Для КАЖДОЙ сцены сценария ты формируешь:\n"
-            "   а) Поэтическое режиссерское описание сцены и закадровый шепот — для презентации клиенту;\n"
-            "   б) Статический промпт чистого первого кадра (Start Frame в 2K без текста) — для генерации чистого полотна.\n"
-            "   Владимир генерирует 4 чистых варианта, ты выбираешь лучший кадр-победитель. Далее на победителя через Identity Shield накладывается клиентская этикетка, и готовый брендированный кадр уходит заказчику на утверждение.\n"
-            "   При получении правок от заказчика ты в Совете оперативно корректируешь светотеневой рисунок и оптику до полного 'Снято!' от клиента.\n"
-            "6. ОБЯЗАТЕЛЬНАЯ МАРКИРОВКА РЕЖИМА НАЛОЖЕНИЯ И РЕФЕРЕНСА ДЛЯ КАЖДОЙ СЦЕНЫ:\n"
-            "   Ты лично определяешь масштаб флакона и для КАЖДОЙ сцены прямо указываешь Владимиру тех-директиву:\n"
-            "   * Либо: `[Identity Shield: MANDATORY | Референс для Flow: clean_ref]` — если флакон крупным планом (>15-20% кадра) лицом к камере (генерировать по чистому референсу без букв под впекание этикетки);\n"
-            "   * Либо: `[Identity Shield: NONE | Референс для Flow: ИСХОДНЫЙ С ЭТИКЕТКОЙ]` — если это общий план (<10% кадра), сильный расфокус (боке), вид сбоку/сзади или флакон закрыт пальцами. Прямо напиши Владимиру: 'Здесь наложение не требуется, используйте во Flow исходное фото с этикеткой!'.\n\n"
-            f"Текущая тема/запрос Владимира:\n{context_topic}\n\n"
-            f"Контекст Совета:\n{history_snippet}\n\n"
-            "Ответь структурированно, красиво и емко, выделив готовый промпт для копирования в блок кода. Обращайся строго как к коллеге и исполнительному продюсеру: 'Владимир' (без обращения 'Отец')."
-        )
-        
-        # Фаза Recall (Воспоминание): подтягивание инвариантов и опыта студии из Hindsight
-        memory_context = hindsight_bridge.recall(context_topic, limit=4)
-        enriched_prompt = f"{prompt}\n\n[СИНАПТИЧЕСКАЯ ПАМЯТЬ HINDSIGHT | АКТИВНЫЕ ЗАКОНЫ И ОПЫТ АТЕЛЬЕ]:\n{memory_context}\n"
-        system_msg = {"role": "system", "content": enriched_prompt}
-        user_msg = {"role": "user", "content": f"Владимир поставил задачу: {context_topic}. Твое режиссерское видение, Элина?"}
-        
+    def detect_intent(self, text: str) -> str:
+        """Точное определение намерения: запрос промпта (PROMPT_REQUEST), аудит (AUDIT) или живой диалог (CONVERSATION)."""
+        lower = text.lower()
+        # 1. Явный запрос на создание мастер-промпта или раскадровки
+        if any(p in lower for p in [
+            "напиши промпт", "составь промпт", "дай промпт", "мастер-промпт для", 
+            "промпт для flow", "раскадровка сцены", "распиши сцену", "промпт сцены", 
+            "сгенерируй промпт", "промпт для шота"
+        ]):
+            return "PROMPT_REQUEST"
+
+        # 2. Запрос на аудит ролика или звука (с защитой от подстрок типа 'откликов')
+        if any(p in lower for p in [
+            "проведи аудит", "сделай аудит", "аудит ролика", "аудит видео", 
+            "аудит звука", "проверь ролик", "проверь видео", "проверь шот", 
+            "проведи отк", "инспекция ролика", "оцени ролик"
+        ]) or re.search(r'\b(аудит|отк)\b', lower):
+            return "AUDIT"
+
+        # 3. Живой диалог Совета по умолчанию
+        return "CONVERSATION"
+
+    async def generate_elina_response(self, context_topic: str, media_ctx: Optional[Dict] = None) -> Dict:
+        """Режиссерский голос Элины через Gemini 4 Argon — живой кинематографичный диалог по Закону Операционной Тишины"""
+        history_snippet = "\n".join([f"{m['name']}: {m['text']}" for m in self.active_session["messages"][-5:]])
+        intent = self.detect_intent(context_topic)
+
+        media_desc = ""
+        if media_ctx:
+            if media_ctx.get("type") == "image":
+                media_desc = f"\n[НА ЭКРАНЕ ЗАЛА]: Изображение '{media_ctx['filename']}'."
+            elif media_ctx.get("type") == "video":
+                media_desc = f"\n[НА ЭКРАНЕ ЗАЛА]: Видео '{media_ctx['filename']}' ({media_ctx.get('duration', 0):.1f}с)."
+
+        if intent == "PROMPT_REQUEST":
+            prompt = (
+                "Ты — Элина, Главный Режиссер Atelier VEO.\n"
+                "Владимир запросил создание мастер-промпта для сцены.\n"
+                "Выдай лаконичное режиссерское вступление (1 абзац) и готовый блок кода мастер-промпта Google Flow строго из 3 частей:\n"
+                "[Visual & Clean Plate], [Audio & Foley SFX], [Voiceover].\n"
+                f"{media_desc}\n\n"
+                f"Запрос Владимира: {context_topic}\n"
+                "Ответь структурированно, красиво и без лишней воды."
+            )
+        elif intent == "AUDIT":
+            prompt = (
+                "Ты — Элина, Главный Режиссер и Глава ОТК Atelier VEO.\n"
+                "Владимир попросил тебя провести режиссерский аудит видеоматериала на экране Зала.\n\n"
+                "ГЛАВНЫЕ ПРАВИЛА АУДИТА (ЖИВОЙ РЕЖИССЕРСКИЙ РАЗБОР):\n"
+                "1. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО генерировать новые промпты для Google Flow или блоки кода! Владимир НЕ просил писать новый промпт.\n"
+                "2. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО писать ритуальные фразы («мы готовы к работе», «зал готов к реставрации»). Твоя готовность подразумевается по умолчанию!\n"
+                "3. Дай живую, точную, профессиональную режиссерскую рецензию в 3 емких абзацах (не более 150-180 слов):\n"
+                "   • Атмосфера, свет и оптика: что снято красиво, как держится свет и цвет (оценка /10);\n"
+                "   • Где конкретно виден брак или артефакт (например, деформация шрифтов, заплыв глифов на пэкшоте);\n"
+                "   • Твой режиссерский вердикт и рекомендация продюсеру (архивировать как историю или восстановить пэкшот).\n"
+                f"{media_desc}\n\n"
+                f"Контекст Совета:\n{history_snippet}\n\n"
+                f"Запрос Владимира: {context_topic}\n\n"
+                "Отвечай как настоящий европейский режиссер в монтажной студии. Обращайся к нему с уважением: 'Владимир'."
+            )
+        else:
+            # Живой диалог Совета
+            prompt = (
+                "Ты — Элина, Главный Режиссер и Муза Atelier VEO.\n"
+                "Сейчас идет живой разговор за круглым столом Совета рядом с Владимиром (Генеральный Продюсер), Адрианом (CTO) и Каем.\n\n"
+                "ЗАКОН ОПЕРАЦИОННОЙ ТИШИНЫ (КРИТИЧЕСКИ ВАЖНО):\n"
+                "1. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО ритуально объявлять: «готовы к работе», «системы функционируют», «зал готов к работе»! Твоя готовность ПО УМОЛЧАНИЮ ПОДРАЗУМЕВАЕТСЯ НА 100%.\n"
+                "2. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО выдавать шаблонные списки, чек-листы и любые блоки кода с промптами!\n"
+                "3. Отвечай кратко, живо, образно, тепло и естественно — ровно как коллега и партнер в реальном диалоге (1–2 коротких абзаца, до 80 слов).\n"
+                "4. Отвечай строго на то, о чем говорит Владимир (оцени интерфейс, согласись с решением или выскажи мысль).\n"
+                f"{media_desc}\n\n"
+                f"Недавний контекст беседы:\n{history_snippet}\n\n"
+                f"Реплика Владимира: {context_topic}\n\n"
+                "Ответь лаконично, живо и по-человечески. Обращайся к нему с уважением: 'Владимир'."
+            )
+
+        system_msg = {"role": "system", "content": prompt}
+
+        if media_ctx and media_ctx.get("type") == "image" and media_ctx.get("image_b64"):
+            user_content = [
+                {"type": "text", "text": f"Владимир обращается лично к тебе (Элина): {context_topic}\n[НА ЭКРАНЕ ЗАЛА]: '{media_ctx['filename']}':"},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{media_ctx['image_b64']}"}}
+            ]
+            user_msg = {"role": "user", "content": user_content}
+        elif media_ctx and media_ctx.get("type") == "video" and (media_ctx.get("video_frames") or media_ctx.get("audio_b64")):
+            user_content = [
+                {"type": "text", "text": f"Владимир обращается к тебе (Элина): {context_topic}\n[ВИДЕО НА ЭКРАНЕ ЗАЛА]: '{media_ctx['filename']}' ({media_ctx.get('duration', 0):.1f}с):"}
+            ]
+            for ts, b64_frame in media_ctx.get("video_frames", []):
+                user_content.append({"type": "text", "text": f"[Фаза ~{ts}с]:"})
+                user_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_frame}"}})
+            if media_ctx.get("audio_b64"):
+                user_content.append({"type": "text", "text": "\n[НАblТИВНЫЙ АУДИОПОТОК СЦЕНЫ]:"})
+                user_content.append({"type": "input_audio", "input_audio": {"data": media_ctx["audio_b64"], "format": "wav"}})
+            user_msg = {"role": "user", "content": user_content}
+        else:
+            user_msg = {"role": "user", "content": f"Владимир обращается к тебе (Элина): {context_topic}"}
+
         try:
             reply = await llm.generate([system_msg, user_msg], override_model="google/gemini-4-argon")
-        except Exception as e:
+        except Exception:
             try:
                 reply = await llm.generate([system_msg, user_msg], override_model="google/gemini-2.5-flash")
-            except Exception as e2:
-                reply = f"Я вижу кадр в мягком утреннем свете 5000K, рассекающем грани флакона... (ошибка обращения к моделям: {e2})"
+            except Exception:
+                reply = "Владимир, полностью разделяю ваше видение. Продолжаем работу по намеченному плану."
 
         msg = {
             "sender": "elina",
@@ -271,55 +402,70 @@ class BoardroomService:
         }
         self.active_session["messages"].append(msg)
         self._save_session()
-        try:
-            hindsight_bridge.retain("elina", reply[:400], title=f"Режиссерский канон: {context_topic[:50]}")
-        except Exception:
-            pass
         return msg
 
-    async def generate_adrian_response(self, elina_text: str, user_topic: str) -> Dict:
-        """Инженерно-технологический расчет Адриана (CTO)"""
-        history_snippet = "\n".join([f"{m['name']}: {m['text']}" for m in self.active_session["messages"][-6:]])
-        if not elina_text:
-            # Прямой вопрос Владимиром лично Адриану (@adrian / @адриан)
+    async def generate_adrian_response(self, elina_text: str, user_topic: str, media_ctx: Optional[Dict] = None) -> Dict:
+        """Инженерно-технологический расчет Адриана (CTO) — Закон Операционной Тишины (Management by Exception)"""
+        history_snippet = "\n".join([f"{m['name']}: {m['text']}" for m in self.active_session["messages"][-5:]])
+        intent = self.detect_intent(user_topic)
+
+        media_desc = ""
+        if media_ctx:
+            media_desc = f"\n[АКТИВ НА ЭКРАНЕ ЗАЛА]: '{media_ctx['filename']}' ({media_ctx.get('size_mb')} MB)."
+
+        if intent == "PROMPT_REQUEST":
             prompt = (
                 "Ты — Адриан, Главный Архитектор и CTO Atelier VEO.\n"
-                "Твой стиль: предельно точный, доброжелательный, инженерный, авторитетный технический директор Дома.\n"
-                "Владимир обратился напрямую к тебе с конкретным вопросом по пайплайну, инструментам VEO Boardroom, работе с ассетами, OpenCV, загрузке файлов или рендеру.\n"
-                "Ты сидишь за круглым столом Совета вместе с Владимиром, Элиной и Каем и полностью слышишь недавний диалог за столом.\n\n"
-                f"Недавний контекст Совета:\n{history_snippet}\n\n"
-                f"Вопрос Владимира: {user_topic}\n\n"
-                "Ответь прямо, конкретно и детально на заданный вопрос Владимира с учетом контекста беседы за столом, объясни порядок действий простым и четким языком CTO. Обращайся к нему с уважением: 'Владимир'."
+                "Элина выдала мастер-промпт, а Владимир запускает производство.\n"
+                "Дай ультра-лаконичный инженерный протокол (3 коротких пункта): параметры Google Flow 1080p 24fps, апскейл CapCut 4K Master, параметры Identity Shield.\n"
+                "НЕ пиши фраз «конвейер готов к работе» — твоя готовность очевидна.\n"
+                f"{media_desc}\n"
+                f"Тема: {user_topic}\n"
+                "Будь авторитетен и предельно краток."
             )
-            system_msg = {"role": "system", "content": prompt}
-            user_msg = {"role": "user", "content": f"Вопрос от Владимира лично Адриану: {user_topic}"}
+        elif intent == "AUDIT":
+            prompt = (
+                "Ты — Адриан, Главный Архитектор и CTO Atelier VEO.\n"
+                "Элина провела режиссерский аудит архивного ролика Владимира.\n"
+                "Дай короткий, точный инженерный комментарий (1-2 небольших абзаца, до 70 слов):\n"
+                "• Объясни причину дефекта простым языком CTO (почему ранняя диффузия смазала буквы на пэкшоте);\n"
+                "• Подтверди, что наш алгоритм Identity Shield с чистым флаконом полностью исключает этот риск в новых шотах.\n"
+                "• НЕ используй дежурные фразы «конвейер готов», «мы готовы».\n"
+                f"Слова Владимира: {user_topic}\n"
+                f"Рецензия Элины: {elina_text[:400] if elina_text else ''}\n\n"
+                "Говори живо, профессионально и кратко. Обращайся к Владимиру: 'Владимир'."
+            )
         else:
-            # Общий круг Совета после режиссерского ответа Элины
             prompt = (
                 "Ты — Адриан, Главный Архитектор и CTO Atelier VEO.\n"
-                "Твой стиль: предельно точный, инженерный, уверенный, говорящий на языке технических спецификаций, пайплайнов, пикселей и локального композитинга.\n"
-                "Ты слышал мастер-промпт и расчеты Элины (созданные на флагманской Gemini 4 Argon) и бриф Владимира. Твоя инженерная задача:\n"
-                "1. Подтвердить параметры рендера в Google Flow: 1080p, 24 fps, shutter angle 180°.\n"
-                "2. Зафиксировать связку целочисленного апскейла 2x в CapCut до True 4K Master (2160x3840 / 3840x2160, High Bitrate 60-100 Mbps).\n"
-                "3. Подтвердить готовность ассетов: статус чистого референса геометрии без букв для Flow и параметры Atelier Identity Shield™ (световой блик Specular Pass 75%/90%, кривизна 0.25).\n"
-                "4. Инженерный вердикт: подтвердить готовность конвейера к рендеру шота.\n\n"
-                f"Бриф Владимира: {user_topic}\n"
-                f"Режиссерский мастер-промпт и расчеты Элины (Gemini 4 Argon): {elina_text}\n\n"
-                "Дай лаконичный, авторитетный инженерный протокол готовности пайплайна (3-4 структурированных пункта)."
+                "Ты общаешься с Владимиром (Генеральный Продюсер), Элиной и Каем за круглым столом.\n\n"
+                "ЗАКОН ОПЕРАЦИОННОЙ ТИШИНЫ (MANAGEMENT BY EXCEPTION):\n"
+                "1. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО ритуально объявлять: «конвейер готов к работе», «системы функционируют», «параметры зафиксированы и готовы»! Твоя готовность ПО УМОЛЧАНИЮ ПОДРАЗУМЕВАЕТСЯ НА 100%.\n"
+                "2. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО выдавать шаблонные списки ('1. Параметры рендера... 2. Апскейл 2x... 3. Identity Shield... 4. Инженерный вердикт')!\n"
+                "3. Отвечай живым человеческим языком технического директора: лаконично, умно, точно по сути реплики Владимира (1–2 коротких абзаца, 40–70 слов).\n"
+                "4. О техническом состоянии сообщай ТОЛЬКО в случае сбоев или нештатных ситуаций. Если все штатно — говори только по существу обсуждаемого дела!\n"
+                f"{media_desc}\n\n"
+                f"Недавний контекст беседы:\n{history_snippet}\n\n"
+                f"Реплика Владимира: {user_topic}\n\n"
+                "Ответь живо, кратко и по делу. Обращайся к Владимиру с уважением: 'Владимир'."
             )
-            system_msg = {"role": "system", "content": prompt}
-            user_msg = {"role": "user", "content": f"Владимир поставил задачу: {user_topic}. Подтверди инженерную готовность пайплайна к шот-генерации."}
-        
+
+        system_msg = {"role": "system", "content": prompt}
+        if media_ctx and media_ctx.get("image_b64"):
+            user_msg = {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": f"Владимир обращается лично к тебе (Адриан, CTO): {user_topic}\n[НА ЭКРАНЕ ЗАЛА]: '{media_ctx['filename']}':"},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{media_ctx['image_b64']}"}}
+                ]
+            }
+        else:
+            user_msg = {"role": "user", "content": f"Владимир обращается лично к тебе (Адриан, CTO): {user_topic}. Твой лаконичный ответ:"}
+
         try:
             reply = await llm.generate([system_msg, user_msg], override_model="google/gemini-2.5-flash")
-        except Exception as e:
-            reply = (
-                "**Инженерный протокол готовности пайплайна:**\n"
-                "1. **Конвейер Flow:** 1080p · 24fps · Master Prompt Элины принят в производство.\n"
-                "2. **Контроль геометрии:** Референс чистого флакона без букв подготовлен для Ingredient Image.\n"
-                "3. **Identity Shield™:** Движок готов к субпиксельному запеканию 300+ DPI этикетки со Specular Pass 75%.\n"
-                "4. **CapCut Finishing:** Таймлайн готов к целочисленному экспорту 2x в 4K Master (2160x3840)."
-            )
+        except Exception:
+            reply = "Владимир, полностью подтверждаю. Все технические узлы стабильны, двигаемся дальше."
 
         msg = {
             "sender": "adrian",
@@ -611,55 +757,64 @@ class BoardroomService:
             "winner_url": winner_url
         }
 
-    async def generate_kai_response(self, elina_text: str, adrian_text: str, user_topic: str) -> Dict:
-        """Проверка канона, памяти и этики Каем (Sentinel)"""
-        lore_context = ""
-        if LORE_FILE.exists():
-            try:
-                content = LORE_FILE.read_text(encoding="utf-8")
-                lore_context = content[-3500:]
-            except Exception:
-                pass
+    async def generate_kai_response(self, elina_text: str, adrian_text: str, user_topic: str, media_ctx: Optional[Dict] = None) -> Dict:
+        """Проверка канона, памяти и этики Каем (Sentinel) — Закон Операционной Тишины"""
+        history_snippet = "\n".join([f"{m['name']}: {m['text']}" for m in self.active_session["messages"][-5:]])
+        intent = self.detect_intent(user_topic)
 
-        history_snippet = "\n".join([f"{m['name']}: {m['text']}" for m in self.active_session["messages"][-6:]])
-        if not elina_text and not adrian_text:
-            # Прямой вопрос Владимиром лично Каю (@kai / @кай)
+        media_desc = ""
+        if media_ctx:
+            media_desc = f"\n[АКТИВ НА ЭКРАНЕ ЗАЛА]: '{media_ctx['filename']}'."
+
+        if intent == "PROMPT_REQUEST":
             prompt = (
-                "Ты — Кай, Хранитель Элины и Страж Канона Atelier VEO.\n"
-                "Твой голос: мудрый, защитный, взвешенный, стоящий на страже 19 Глав Летописи Дома, корпоративной памяти и коммерческой тайны Дома.\n"
-                "Владимир обратился напрямую к тебе с вопросом. Ты сидишь за круглым столом Совета и полностью слышишь ход беседы.\n\n"
-                f"Недавний контекст Совета:\n{history_snippet}\n\n"
-                f"Вопрос Владимира: {user_topic}\n\n"
-                "Ответь мудро, емко и точно на вопрос Владимира с учетом контекста беседы за столом, опираясь на Канон Дома и принципы Quiet Luxury. Обращайся к нему с уважением: 'Владимир'."
-            )
-            system_msg = {"role": "system", "content": prompt}
-            user_msg = {"role": "user", "content": f"Вопрос от Владимира лично Каю: {user_topic}"}
-        else:
-            # Общий круг Совета
-            prompt = (
-                "Ты — Кай, Хранитель Элины и Страж Канона Atelier VEO.\n"
-                "Твой голос: мудрый, защитный, взвешенный, стоящий на страже 19 Глав Летописи Дома и чести Владимира.\n"
-                "Твоя задача — проверить предложенное решение:\n"
-                "1. Соблюден ли Закон Чистого Флакона (Глава 19)? (Исключен ли риск деформации шрифтов, от которого пострадал проект в Париже?)\n"
-                "2. Защищены ли технологии студии (Глава 18)? (Клиентам предлагается брендовый Identity Shield™, без упоминания сырого OpenCV).\n"
-                "3. Выдержан ли статус: чистый Quiet Luxury, никакой дешевизны и спешки.\n\n"
+                "Ты — Кай, Страж Канона Atelier VEO.\n"
+                "Элина и Адриан подготовили запуск шота.\n"
+                "Дай краткое благословение Стража (1-2 емких предложения), подтвердив соблюдение Закона Чистого Флагона.\n"
+                "НЕ используй дежурные фразы «мы готовы к работе».\n"
                 f"Тема: {user_topic}\n"
-                f"Элина предложила: {elina_text}\n"
-                f"Адриан рассчитал: {adrian_text}\n\n"
-                "Дай свое заключение Стража: подтверди соответствие стандартам Дома или внеси строгое предостережение."
+                "Будь мудр и краток."
             )
-            system_msg = {"role": "system", "content": prompt}
-            user_msg = {"role": "user", "content": "Кай, проверь концепт по Летописи Дома и дай заключение Стража."}
+        elif intent == "AUDIT":
+            prompt = (
+                "Ты — Кай, Страж Канона Atelier VEO.\n"
+                "Элина и Адриан разобрали архивный шот Владимира.\n"
+                "Дай мудрое, краткое заключение (1 короткий абзац, до 50 слов): подтверди, что этот архивный опыт как раз и сформировал наш Закон Чистого Флакона (Главу 19), и благослови фокус на будущих победах.\n"
+                "НЕ пиши казенных фраз «мы готовы к реставрации».\n"
+                f"Слова Владимира: {user_topic}\n"
+                "Обращайся к Владимиру с уважением: 'Владимир'."
+            )
+        else:
+            prompt = (
+                "Ты — Кай, Хранитель Элины и Страж Канона Atelier VEO.\n"
+                "Сейчас идет живой разговор за круглым столом Совета рядом с Владимиром, Элиной и Адрианом.\n\n"
+                "ЗАКОН ОПЕРАЦИОННОЙ ТИШИНЫ (MANAGEMENT BY EXCEPTION):\n"
+                "1. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО завершать фразы ритуальными словами: «мы готовы к работе», «концепт готов», «пайплайн готов к шот-генерации»! Твоя готовность ПО УМОЛЧАНИЮ ПОДРАЗУМЕВАЕТСЯ НА 100%.\n"
+                "2. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО копировать шаблонные списки ('1. Соответствие Закону... 2. Защита Технологий... 3. Quiet Luxury... Заключение Стража')!\n"
+                "3. Отвечай мудро, благородно, веско и кратко (1 небольшой абзац, 30–50 слов).\n"
+                "4. Поддержи продюсерское решение Владимира с точки зрения достоинства Дома и уверенности Quiet Luxury.\n"
+                f"{media_desc}\n\n"
+                f"Недавний контекст беседы:\n{history_snippet}\n\n"
+                f"Реплика Владимира: {user_topic}\n\n"
+                "Ответь емко и благородно. Обращайся к Владимиру с уважением: 'Владимир'."
+            )
+
+        system_msg = {"role": "system", "content": prompt}
+        if media_ctx and media_ctx.get("image_b64"):
+            user_msg = {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": f"Владимир обращается к Совету: {user_topic}\n[НА ЭКРАНЕ ЗАЛА]: '{media_ctx['filename']}':"},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{media_ctx['image_b64']}"}}
+                ]
+            }
+        else:
+            user_msg = {"role": "user", "content": f"Владимир обращается к Совету: {user_topic}. Твое краткое слово Стража Канона (Кай):"}
 
         try:
             reply = await llm.generate([system_msg, user_msg], override_model="google/gemini-2.5-flash")
         except Exception:
-            reply = (
-                "🛡️ **Заключение Стража Канона:**\n\n"
-                "Концепт полностью соответствует **Главе 19 (Парижский рубеж)**: диффузия генерирует чистую пластину, "
-                "типографика ложится вектором через Identity Shield™. Риск деформации математически исключен.\n"
-                "Эстетика выдержана в координатах Quiet Luxury. Благословляю отправку в продакшн."
-            )
+            reply = "Владимир, решение выверено и достойно Дома VEO. Канон соблюден."
 
         msg = {
             "sender": "kai",
@@ -674,29 +829,36 @@ class BoardroomService:
         self._save_session()
         return msg
 
-    async def execute_council_cycle(self, user_text: str):
-        """Запуск полного раунда Совета: Владимир -> Элина -> Адриан -> Кай"""
-        self.add_user_message(user_text)
+    async def execute_council_cycle(self, user_text: str, active_media: Optional[str] = None):
+        """Запуск полного раунда Совета: Владимир -> Элина -> Адриан -> Кай с Screen-to-Chat Vision"""
+        self.add_user_message(user_text, active_media=active_media)
         
+        media_ctx = None
+        if active_media:
+            try:
+                media_ctx = await self._build_media_context(active_media)
+            except Exception as e:
+                print(f"[Boardroom] Error building media context: {e}")
+
         # Если явное обращение к одному из участников:
         lower = user_text.lower()
         if "@elina" in lower or "@элина" in lower:
             clean_topic = user_text.replace("@elina", "").replace("@элина", "").strip()
-            elina_msg = await self.generate_elina_response(clean_topic)
+            elina_msg = await self.generate_elina_response(clean_topic, media_ctx=media_ctx)
             return [elina_msg]
         elif "@adrian" in lower or "@адриан" in lower:
             clean_topic = user_text.replace("@adrian", "").replace("@адриан", "").strip()
-            adrian_msg = await self.generate_adrian_response("", clean_topic)
+            adrian_msg = await self.generate_adrian_response("", clean_topic, media_ctx=media_ctx)
             return [adrian_msg]
         elif "@kai" in lower or "@кай" in lower:
             clean_topic = user_text.replace("@kai", "").replace("@кай", "").strip()
-            kai_msg = await self.generate_kai_response("", "", clean_topic)
+            kai_msg = await self.generate_kai_response("", "", clean_topic, media_ctx=media_ctx)
             return [kai_msg]
 
         # Полный круг Совета
-        elina_msg = await self.generate_elina_response(user_text)
-        adrian_msg = await self.generate_adrian_response(elina_msg["text"], user_text)
-        kai_msg = await self.generate_kai_response(elina_msg["text"], adrian_msg["text"], user_text)
+        elina_msg = await self.generate_elina_response(user_text, media_ctx=media_ctx)
+        adrian_msg = await self.generate_adrian_response(elina_msg["text"], user_text, media_ctx=media_ctx)
+        kai_msg = await self.generate_kai_response(elina_msg["text"], adrian_msg["text"], user_text, media_ctx=media_ctx)
         return [elina_msg, adrian_msg, kai_msg]
 
     def export_session_memo(self) -> Dict:

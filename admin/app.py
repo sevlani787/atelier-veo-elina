@@ -541,6 +541,7 @@ async def logs_page(request: Request, username: str = Depends(get_current_userna
 class CouncilSendRequest(BaseModel):
 
     text: str
+    active_media: Optional[str] = None
 
 
 
@@ -636,7 +637,7 @@ async def boardroom_clear_tablet(username: str = Depends(get_current_username)):
 
 async def boardroom_send(payload: CouncilSendRequest, username: str = Depends(get_current_username)):
 
-    responses = await boardroom_service.execute_council_cycle(payload.text)
+    responses = await boardroom_service.execute_council_cycle(payload.text, payload.active_media)
 
     return JSONResponse(content={"status": "success", "responses": responses, "messages": responses})
 
