@@ -9,7 +9,7 @@ import asyncio
 
 import shutil
 
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, Query, File, UploadFile
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, Query, File, UploadFile, BackgroundTasks
 
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
 
@@ -47,6 +47,7 @@ from admin.manager import bot_manager
 
 from admin.boardroom_service import boardroom_service
 from admin.auto_qa_service import auto_qa_runner
+from admin.pipeline_task_service import pipeline_task_service
 
 from aiogram import Bot
 
@@ -791,6 +792,28 @@ async def boardroom_auto_qa_start(payload: AutoQAStartRequest, username: str = D
 async def boardroom_auto_qa_status(username: str = Depends(get_current_username)):
     return JSONResponse(content=auto_qa_runner.get_telemetry())
 
+@app.get("/api/boardroom/pipeline/status")
+async def boardroom_pipeline_status(username: str = Depends(get_current_username)):
+    """Потоковая телеметрия выполнения задач для сигнального HUD зала VEO Boardroom"""
+    return JSONResponse(content=pipeline_task_service.get_telemetry())
+
+
+@app.post("/api/boardroom/pipeline/start_restoration_48")
+async def boardroom_pipeline_start_restoration_48(background_tasks: BackgroundTasks, username: str = Depends(get_current_username)):
+    """Асинхронный запуск реставрации ролика 48.mp4 (Liis Floating) силами Адриана"""
+    def run_job():
+        script_path = "D:/Antigravity/AI_Video_Agency/scripts/restore_48_liis.py"
+        subprocess.run([sys.executable, script_path], check=False)
+    background_tasks.add_task(run_job)
+    return JSONResponse(content={"status": "started", "task_name": "Реставрация архивного ролика 48.mp4 (Liis Floating)"})
+
+
+@app.post("/api/boardroom/pipeline/reset")
+async def boardroom_pipeline_reset(username: str = Depends(get_current_username)):
+    pipeline_task_service.reset()
+    return JSONResponse(content={"status": "success"})
+
+
 
 class SetTargetFolderRequest(BaseModel):
     target_folder: str
@@ -1222,7 +1245,7 @@ async def boardroom_download_media(path: str = Query(...), username: str = Depen
 
 @app.get("/media_stream")
 
-async def media_stream(path: str = Query(...), username: str = Depends(get_current_username)):
+async def media_stream(request: Request, path: str = Query(...), username: str = Depends(get_current_username)):
 
     media_file = Path(path)
 
@@ -1256,7 +1279,31 @@ async def media_stream(path: str = Query(...), username: str = Depends(get_curre
 
         media_type = "video/webm"
 
-        
+    elif ext == ".pdf":
+        page_num = 0
+        try:
+            page_num = int(request.query_params.get("page", 0))
+        except Exception:
+            page_num = 0
+
+        cache_dir = Path("D:/campaigns/.pdf_cache")
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cache_file = cache_dir / f"{media_file.stem}_p{page_num}.jpg"
+
+        if not cache_file.exists() or cache_file.stat().st_mtime < media_file.stat().st_mtime:
+            try:
+                import fitz
+                doc = fitz.open(str(media_file))
+                if page_num < len(doc):
+                    pix = doc[page_num].get_pixmap(dpi=150)
+                    pix.save(str(cache_file))
+                doc.close()
+            except Exception as e:
+                print(f"[PDF Stream Error]: {e}")
+
+        if cache_file.exists():
+            return FileResponse(cache_file, media_type="image/jpeg")
+        return FileResponse(media_file, media_type="application/pdf")
 
     return FileResponse(media_file, media_type=media_type)
 

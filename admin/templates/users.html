@@ -7,6 +7,7 @@
     <table>
         <thead>
             <tr>
+                <th>Резидент / Имя</th>
                 <th>Telegram ID</th>
                 <th>Статус в Ателье</th>
                 <th>Баланс Atelier Credits</th>
@@ -17,12 +18,30 @@
         <tbody>
             {% for user in users %}
             <tr {% if user.sub_type == 'admin' %}style="background: rgba(197, 160, 89, 0.08); border-left: 3px solid var(--primary);"{% elif user.sub_type == 'premium' %}style="background: rgba(16, 185, 129, 0.04); border-left: 3px solid var(--success);"{% endif %}>
+                <td>
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <span style="font-weight: 600; color: #ffffff; font-size: 0.95rem;">
+                            {% if user.first_name or user.last_name %}
+                                {{ user.first_name or '' }} {{ user.last_name or '' }}
+                            {% else %}
+                                <span style="color: var(--text-dim); font-style: italic;">Имя не указано</span>
+                            {% endif %}
+                        </span>
+                        {% if user.username %}
+                        <a href="https://t.me/{{ user.username }}" target="_blank" style="color: var(--primary-light); font-size: 0.8rem; text-decoration: none; opacity: 0.9;" title="Перейти в Telegram-профиль">
+                            @{{ user.username }} ↗
+                        </a>
+                        {% endif %}
+                    </div>
+                </td>
                 <td style="font-family: monospace;">
-                    {{ user.user_id }}
+                    <a href="tg://user?id={{ user.user_id }}" style="color: #cbd5e1; text-decoration: none;" title="Открыть чат по ID">
+                        {{ user.user_id }}
+                    </a>
                     {% if user.sub_type == 'admin' %}
-                    <span title="Исполнительный Совет (Founder/Admin)" style="font-size: 0.8rem; margin-left: 4px;">👑</span>
+                    <span title="Исполнительный Совет (Founder/Admin)" style="font-size: 0.85rem; margin-left: 4px;">👑</span>
                     {% elif user.sub_type == 'premium' %}
-                    <span title="Resident Atelier VEO" style="font-size: 0.8rem; margin-left: 4px;">💎</span>
+                    <span title="Resident Atelier VEO" style="font-size: 0.85rem; margin-left: 4px;">💎</span>
                     {% endif %}
                 </td>
                 <td>

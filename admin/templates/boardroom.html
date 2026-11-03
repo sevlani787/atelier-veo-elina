@@ -33,6 +33,11 @@
             ● Сессия активна
 
         </span>
+        <span id="header-pipeline-pill" style="display: none; margin-left: 0.5rem; font-size: 0.725rem; color: #dfba73; background: rgba(197, 160, 89, 0.15); border: 1px solid rgba(197, 160, 89, 0.45); border-radius: 4px; padding: 0.2rem 0.55rem; font-weight: 600; align-items: center; gap: 0.35rem;">
+            <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #dfba73; box-shadow: 0 0 6px #dfba73;"></span>
+            <span id="header-pipeline-text">Адриан в работе</span>
+        </span>
+
 
     </div>
 
@@ -1851,7 +1856,7 @@
 
                 </select>
 
-                <input type="file" id="media-file-input" style="display: none;" onchange="handleFileInputChange(this)" accept="video/*,image/*" multiple>
+                <input type="file" id="media-file-input" style="display: none;" onchange="handleFileInputChange(this)" accept="video/*,image/*,.pdf,application/pdf" multiple>
 
                 <button class="stage-btn" style="border-color: rgba(197, 160, 89, 0.4); color: var(--primary-light); background: rgba(197, 160, 89, 0.1);" onclick="document.getElementById('media-file-input').click()" title="Загрузить шот до 2GB+">
 
@@ -1863,6 +1868,41 @@
 
         </div>
 
+        <!-- Live Pipeline Execution HUD (Сигнализация выполнения задач Адриана) -->
+        <div id="pipeline-telemetry-hud" style="display: none; background: linear-gradient(90deg, rgba(20, 20, 30, 0.96), rgba(15, 15, 22, 0.98)); border-bottom: 1px solid rgba(197, 160, 89, 0.4); padding: 0.55rem 1rem; align-items: center; justify-content: space-between; gap: 1rem; z-index: 25; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6); transition: all 0.3s ease;">
+            <div style="display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0;">
+                <div id="hud-status-badge" style="display: flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.65rem; border-radius: 4px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(197, 160, 89, 0.15); border: 1px solid rgba(197, 160, 89, 0.5); color: #dfba73; animation: pulse 1.5s infinite; white-space: nowrap;">
+                    <span id="hud-status-dot" style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #dfba73; box-shadow: 0 0 8px #dfba73;"></span>
+                    <span id="hud-status-text">АДРИАН В РАБОТЕ</span>
+                </div>
+                <div style="display: flex; flex-direction: column; min-width: 0; flex: 1;">
+                    <div id="hud-task-name" style="font-size: 0.78rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.02em;">
+                        Реставрация архивного ролика 48.mp4 (Liis Floating)
+                    </div>
+                    <div id="hud-phase-desc" style="font-size: 0.68rem; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        Ожидание старта...
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 220px; flex-shrink: 0;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.66rem; color: #dfba73; font-weight: 600;">
+                    <span id="hud-progress-pct">0%</span>
+                    <span id="hud-telemetry-stats" style="color: #64748b;">00:00 | 24 fps</span>
+                </div>
+                <div style="width: 100%; height: 6px; background: rgba(255, 255, 255, 0.08); border-radius: 3px; overflow: hidden; border: 1px solid rgba(197, 160, 89, 0.25);">
+                    <div id="hud-progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #c5a059, #dfba73, #f59e0b); border-radius: 3px; transition: width 0.3s ease; box-shadow: 0 0 8px rgba(223, 186, 115, 0.5);"></div>
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
+                <button id="hud-btn-view" onclick="loadCompletedMasterToStage()" style="display: none; padding: 0.35rem 0.8rem; font-size: 0.72rem; font-weight: 700; color: #10b981; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 4px; cursor: pointer; transition: all 0.2s ease;">
+                    🎬 Загрузить на экран 4K
+                </button>
+            </div>
+        </div>
+
+
 
 
         <div class="stage-viewport" id="viewport-stage" onmousemove="handleLoupeMove(event)" onmouseleave="hideLoupe()">
@@ -1871,6 +1911,12 @@
 
             <div class="viewport-overlay-bar">
 
+                <div class="overlay-pill-group" id="pdf-stage-nav" style="display: none; align-items: center; gap: 0.35rem; background: rgba(0,0,0,0.7); border: 1px solid rgba(197, 160, 89, 0.4); border-radius: 4px; padding: 2px 6px;">
+                    <span style="font-size: 0.7rem; color: #dfba73; font-weight: 700;">📄 PDF</span>
+                    <button class="stage-btn" onclick="changePdfPage(-1)" style="font-size: 0.65rem; padding: 2px 6px;">◀</button>
+                    <span id="pdf-page-indicator" style="font-size: 0.68rem; color: #fff; font-family: monospace;">Стр. 1</span>
+                    <button class="stage-btn" onclick="changePdfPage(1)" style="font-size: 0.65rem; padding: 2px 6px;">▶</button>
+                </div>
                 <div class="overlay-pill-group">
 
                     <button class="stage-btn" id="btn-ghost-toggle" onclick="toggleGhostOverlay()" style="font-size: 0.725rem; padding: 0.25rem 0.5rem;" title="Полупрозрачное наложение оригинального фото бренда для сверки">
@@ -2261,7 +2307,7 @@
 
                             </button>
 
-                            <input type="file" id="custom-label-file-input" accept="image/png,image/jpeg" style="display: none;" onchange="handleCustomLabelUpload(event)" />
+                            <input type="file" id="custom-label-file-input" accept="image/png,image/jpeg,.pdf,application/pdf" style="display: none;" onchange="handleCustomLabelUpload(event)" />
 
                         </div>
 
@@ -3333,7 +3379,21 @@
 
 
 
-    function loadSelectedMedia() {
+    
+    // PDF Page Switcher on LookDev Stage
+    window.currentPdfPage = 0;
+    function changePdfPage(delta) {
+        if (!window.currentPdfPath) return;
+        window.currentPdfPage = Math.max(0, window.currentPdfPage + delta);
+        const stageImage = document.getElementById('stage-image');
+        if (stageImage) {
+            stageImage.src = '/media_stream?path=' + encodeURIComponent(window.currentPdfPath) + '&page=' + window.currentPdfPage + '&t=' + Date.now();
+        }
+        const ind = document.getElementById('pdf-page-indicator');
+        if (ind) ind.textContent = 'Стр. ' + (window.currentPdfPage + 1);
+    }
+
+function loadSelectedMedia() {
 
         const sel = document.getElementById('media-selector');
 
@@ -3379,8 +3439,19 @@
 
 
 
-        if (type === 'video' || type === 'audio') {
-
+        if (type === 'pdf') {
+            stageVideo.style.display = 'none';
+            stageVideo.pause();
+            stageImage.style.display = 'block';
+            stageImage.src = streamUrl + '&page=' + (window.currentPdfPage || 0);
+            window.currentPdfPath = path;
+            const cues = document.getElementById('timeline-cues');
+            if (cues) cues.style.display = 'none';
+            const pdfBadge = document.getElementById('pdf-stage-nav');
+            if (pdfBadge) pdfBadge.style.display = 'flex';
+        } else if (type === 'video' || type === 'audio') {
+            const pdfBadge = document.getElementById('pdf-stage-nav');
+            if (pdfBadge) pdfBadge.style.display = 'none';
             stageImage.style.display = 'none';
 
             stageVideo.style.display = 'block';
@@ -5269,6 +5340,177 @@ function closeFolderPickerModal() {
     window.addEventListener('DOMContentLoaded', () => {
         initTargetFolderDisplay();
         initFactoryModeUI();
+    });
+
+
+    // =========================================================
+    // CHAT AUTO-SCROLL & INTERACTION
+    // =========================================================
+    function scrollChatToBottom(smooth = true) {
+        const chat = document.getElementById('chat-messages');
+        if (chat) {
+            chat.scrollTo({
+                top: chat.scrollHeight,
+                behavior: smooth ? 'smooth' : 'auto'
+            });
+        }
+    }
+
+    // =========================================================
+    // LIVE PIPELINE TELEMETRY & SIGNALING (HUD)
+    // =========================================================
+    let lastPipelineStatus = 'idle';
+    let completedMasterPath = null;
+
+    async function pollPipelineStatus() {
+        try {
+            const resp = await fetch('/api/boardroom/pipeline/status');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            
+            const hud = document.getElementById('pipeline-telemetry-hud');
+            const headerPill = document.getElementById('header-pipeline-pill');
+            const headerText = document.getElementById('header-pipeline-text');
+            
+            if (!hud) return;
+
+            if (data.status === 'running') {
+                hud.style.display = 'flex';
+                if (headerPill) {
+                    headerPill.style.display = 'inline-flex';
+                    headerPill.style.color = '#dfba73';
+                    headerPill.style.borderColor = 'rgba(197, 160, 89, 0.45)';
+                    headerPill.style.background = 'rgba(197, 160, 89, 0.15)';
+                    headerText.textContent = `Адриан в работе (${data.progress}%)`;
+                }
+                
+                const badge = document.getElementById('hud-status-badge');
+                if (badge) {
+                    badge.style.color = '#dfba73';
+                    badge.style.borderColor = 'rgba(197, 160, 89, 0.5)';
+                    badge.style.background = 'rgba(197, 160, 89, 0.15)';
+                }
+                const dot = document.getElementById('hud-status-dot');
+                if (dot) {
+                    dot.style.background = '#dfba73';
+                    dot.style.boxShadow = '0 0 8px #dfba73';
+                }
+                const stText = document.getElementById('hud-status-text');
+                if (stText) stText.textContent = 'АДРИАН В РАБОТЕ';
+                
+                const tName = document.getElementById('hud-task-name');
+                if (tName) tName.textContent = data.task_name || 'Выполнение задачи';
+                const pDesc = document.getElementById('hud-phase-desc');
+                if (pDesc) pDesc.textContent = data.current_phase || '';
+                const pPct = document.getElementById('hud-progress-pct');
+                if (pPct) pPct.textContent = `${data.progress}%`;
+                const pFill = document.getElementById('hud-progress-fill');
+                if (pFill) {
+                    pFill.style.width = `${data.progress}%`;
+                    pFill.style.background = 'linear-gradient(90deg, #c5a059, #dfba73, #f59e0b)';
+                }
+                
+                const elapsed = data.elapsed_seconds || 0;
+                const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                const secs = (elapsed % 60).toString().padStart(2, '0');
+                const fpsStr = data.fps > 0 ? `${data.fps} fps` : 'GPU Kernel';
+                const tStats = document.getElementById('hud-telemetry-stats');
+                if (tStats) tStats.textContent = `${mins}:${secs} | ${fpsStr}`;
+                
+                const btnView = document.getElementById('hud-btn-view');
+                if (btnView) btnView.style.display = 'none';
+                lastPipelineStatus = 'running';
+            } else if (data.status === 'completed') {
+                hud.style.display = 'flex';
+                if (headerPill) {
+                    headerPill.style.display = 'inline-flex';
+                    headerPill.style.color = '#10b981';
+                    headerPill.style.borderColor = 'rgba(16, 185, 129, 0.45)';
+                    headerPill.style.background = 'rgba(16, 185, 129, 0.15)';
+                    headerText.textContent = '✓ Мастер 4K готов';
+                }
+                
+                const badge = document.getElementById('hud-status-badge');
+                if (badge) {
+                    badge.style.color = '#10b981';
+                    badge.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+                    badge.style.background = 'rgba(16, 185, 129, 0.15)';
+                }
+                const dot = document.getElementById('hud-status-dot');
+                if (dot) {
+                    dot.style.background = '#10b981';
+                    dot.style.boxShadow = '0 0 8px #10b981';
+                }
+                const stText = document.getElementById('hud-status-text');
+                if (stText) stText.textContent = 'ГОТОВО: МАСТЕР 4K';
+                
+                const tName = document.getElementById('hud-task-name');
+                if (tName) tName.textContent = data.task_name || 'Задача завершена';
+                const pDesc = document.getElementById('hud-phase-desc');
+                if (pDesc) pDesc.textContent = data.summary || 'Мастер 4K смонтирован и готов к инспекции';
+                const pPct = document.getElementById('hud-progress-pct');
+                if (pPct) pPct.textContent = '100%';
+                const pFill = document.getElementById('hud-progress-fill');
+                if (pFill) {
+                    pFill.style.width = '100%';
+                    pFill.style.background = '#10b981';
+                }
+                
+                if (data.output_path) {
+                    completedMasterPath = data.output_path;
+                    const btnView = document.getElementById('hud-btn-view');
+                    if (btnView) btnView.style.display = 'inline-block';
+                }
+                
+                if (lastPipelineStatus === 'running') {
+                    lastPipelineStatus = 'completed';
+                    if (typeof refreshMediaList === 'function' && data.output_path) {
+                        refreshMediaList(data.output_path);
+                    }
+                }
+            } else {
+                if (lastPipelineStatus !== 'completed') {
+                    hud.style.display = 'none';
+                    if (headerPill) headerPill.style.display = 'none';
+                }
+            }
+        } catch (e) {
+            console.warn('[HUD Poller]', e);
+        }
+    }
+
+    function loadCompletedMasterToStage() {
+        if (!completedMasterPath) return;
+        const sel = document.getElementById('media-selector');
+        if (sel) {
+            let found = false;
+            for (let i = 0; i < sel.options.length; i++) {
+                if (sel.options[i].value === completedMasterPath) {
+                    sel.selectedIndex = i;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                const opt = document.createElement('option');
+                opt.value = completedMasterPath;
+                opt.textContent = `[МАСТЕР 4K] ${completedMasterPath.split('/').pop()}`;
+                sel.appendChild(opt);
+                sel.value = completedMasterPath;
+            }
+            if (typeof loadSelectedMedia === 'function') {
+                loadSelectedMedia();
+            }
+        }
+    }
+
+    // Auto-scroll chat and start HUD polling on load
+    window.addEventListener('DOMContentLoaded', () => {
+        scrollChatToBottom(false);
+        setTimeout(() => scrollChatToBottom(false), 300);
+        setTimeout(() => scrollChatToBottom(false), 1000);
+        pollPipelineStatus();
+        setInterval(pollPipelineStatus, 1000);
     });
 
 </script>

@@ -13,6 +13,10 @@ import urllib.parse
 from bot.services.llm import llm
 from bot.services.memory import memory
 from bot.services.hindsight_bridge import hindsight_bridge
+try:
+    import pymupdf
+except ImportError:
+    import fitz as pymupdf
 from bot.utils import extract_keyframes_from_video, extract_audio_from_media, get_video_duration
 from PIL import Image
 import io
@@ -189,6 +193,42 @@ class BoardroomService:
                     ctx["audio_b64"] = base64.b64encode(f.read()).decode("utf-8")
             except Exception:
                 pass
+        elif ext == ".pdf":
+            ctx["type"] = "pdf"
+            try:
+                def _parse_pdf_worker(pdf_path: Path, max_pages: int = 6):
+                    doc_obj = pymupdf.open(str(pdf_path))
+                    total_pages = len(doc_obj)
+                    extracted_text = []
+                    page_images = []
+                    is_vector = False
+
+                    for idx in range(min(total_pages, max_pages)):
+                        page = doc_obj[idx]
+                        txt = page.get_text().strip()
+                        if txt:
+                            extracted_text.append(f"--- [Стр. {idx+1}/{total_pages}] ---\n" + txt)
+                        drawings = page.get_drawings()
+                        if drawings or (txt and len(txt) > 20):
+                            is_vector = True
+
+                        # Рендерим 150 DPI JPEG для мультимодального зрительного контура
+                        pix = page.get_pixmap(dpi=150)
+                        page_jpeg = pix.tobytes("jpeg")
+                        page_images.append(base64.b64encode(page_jpeg).decode("utf-8"))
+
+                    doc_obj.close()
+                    return total_pages, "\n\n".join(extracted_text), page_images, is_vector
+
+                total_pages, pdf_text, page_images, is_vector = await asyncio.to_thread(_parse_pdf_worker, p, 6)
+                ctx["total_pages"] = total_pages
+                ctx["pdf_text"] = pdf_text
+                ctx["pdf_pages_b64"] = page_images
+                ctx["is_vector"] = is_vector
+                if page_images:
+                    ctx["image_b64"] = page_images[0]
+            except Exception as e:
+                print(f"[Boardroom] PDF context build error: {e}")
 
         return ctx
 
@@ -226,7 +266,7 @@ class BoardroomService:
         """Рекурсивно сканирует D:/campaigns (включая заказ/выбрано/3) и папку студии."""
         items = []
         seen = set()
-        valid_exts = {".mp4", ".mov", ".webm", ".png", ".jpg", ".jpeg", ".webp", ".wav", ".mp3"}
+        valid_exts = {".mp4", ".mov", ".webm", ".png", ".jpg", ".jpeg", ".webp", ".wav", ".mp3", ".pdf"}
         
         roots = [
             Path("D:/campaigns"),
@@ -276,7 +316,7 @@ class BoardroomService:
                 items.append({
                     "name": display_name,
                     "path": p_resolved,
-                    "type": "video" if p.suffix.lower() in [".mp4", ".mov", ".webm"] else ("audio" if p.suffix.lower() in [".wav", ".mp3"] else "image"),
+                    "type": "video" if p.suffix.lower() in [".mp4", ".mov", ".webm"] else ("audio" if p.suffix.lower() in [".wav", ".mp3"] else ("pdf" if p.suffix.lower() == ".pdf" else "image")),
                     "size_mb": size_mb,
                     "modified": mtime
                 })
@@ -315,9 +355,11 @@ class BoardroomService:
         media_desc = ""
         if media_ctx:
             if media_ctx.get("type") == "image":
-                media_desc = f"\n[НА ЭКРАНЕ ЗАЛА]: Изображение '{media_ctx['filename']}'."
+                media_desc = f"\n[На экране Зала]: изображение '{media_ctx['filename']}'."
             elif media_ctx.get("type") == "video":
-                media_desc = f"\n[НА ЭКРАНЕ ЗАЛА]: Видео '{media_ctx['filename']}' ({media_ctx.get('duration', 0):.1f}с)."
+                media_desc = f"\n[На экране Зала]: видео '{media_ctx['filename']}' ({media_ctx.get('duration', 0):.1f}с)."
+            elif media_ctx.get("type") == "pdf":
+                media_desc = f"\n[На экране Зала]: полиграфический PDF '{media_ctx['filename']}' ({media_ctx.get('total_pages', 1)} стр., 150 DPI Vision, {'вектор' if media_ctx.get('is_vector') else 'растр'})."
 
         if intent == "PROMPT_REQUEST":
             prompt = (
@@ -369,6 +411,13 @@ class BoardroomService:
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{media_ctx['image_b64']}"}}
             ]
             user_msg = {"role": "user", "content": user_content}
+        elif media_ctx and media_ctx.get("type") == "pdf" and media_ctx.get("pdf_pages_b64"):
+            user_content = [
+                {"type": "text", "text": f"Владимир обращается лично к тебе (Элина): {context_topic}\n[ПОЛИГРАФИЧЕСКИЙ PDF НА ЭКРАНЕ ЗАЛА]: '{media_ctx['filename']}' ({media_ctx.get('total_pages', 1)} стр.):\n{media_ctx.get('pdf_text', '')[:800]}"}
+            ]
+            for p_b64 in media_ctx["pdf_pages_b64"]:
+                user_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{p_b64}"}})
+            user_msg = {"role": "user", "content": user_content}
         elif media_ctx and media_ctx.get("type") == "video" and (media_ctx.get("video_frames") or media_ctx.get("audio_b64")):
             user_content = [
                 {"type": "text", "text": f"Владимир обращается к тебе (Элина): {context_topic}\n[ВИДЕО НА ЭКРАНЕ ЗАЛА]: '{media_ctx['filename']}' ({media_ctx.get('duration', 0):.1f}с):"}
@@ -411,8 +460,10 @@ class BoardroomService:
 
         media_desc = ""
         if media_ctx:
-            media_desc = f"\n[АКТИВ НА ЭКРАНЕ ЗАЛА]: '{media_ctx['filename']}' ({media_ctx.get('size_mb')} MB)."
-
+            if media_ctx.get("type") == "pdf":
+                media_desc = f"\n[Полиграфический PDF на экране Зала]: '{media_ctx['filename']}' ({media_ctx.get('total_pages', 1)} стр., {'Векторный' if media_ctx.get('is_vector') else 'Растровый'}, {media_ctx.get('size_mb')} MB).\nВыдержка из текста:\n{media_ctx.get('pdf_text', '')[:500]}"
+            else:
+                media_desc = f"\n[Ассет на экране Зала]: '{media_ctx['filename']}' ({media_ctx.get('size_mb')} MB)."
         if intent == "PROMPT_REQUEST":
             prompt = (
                 "Ты — Адриан, Главный Архитектор и CTO Atelier VEO.\n"
@@ -764,8 +815,10 @@ class BoardroomService:
 
         media_desc = ""
         if media_ctx:
-            media_desc = f"\n[АКТИВ НА ЭКРАНЕ ЗАЛА]: '{media_ctx['filename']}'."
-
+            if media_ctx.get("type") == "pdf":
+                media_desc = f"\n[Полиграфический PDF на экране Зала]: '{media_ctx['filename']}' ({media_ctx.get('total_pages', 1)} стр., Вектор: {media_ctx.get('is_vector')}).\nВыдержка:\n{media_ctx.get('pdf_text', '')[:400]}"
+            else:
+                media_desc = f"\n[Ассет на экране Зала]: '{media_ctx['filename']}'."
         if intent == "PROMPT_REQUEST":
             prompt = (
                 "Ты — Кай, Страж Канона Atelier VEO.\n"
