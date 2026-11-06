@@ -17,7 +17,7 @@ try:
     import pymupdf
 except ImportError:
     import fitz as pymupdf
-from bot.utils import extract_keyframes_from_video, extract_audio_from_media, get_video_duration
+from bot.utils import extract_keyframes_from_video, extract_audio_from_media, get_video_duration, parse_custom_timestamps
 from PIL import Image
 import io
 
@@ -94,6 +94,13 @@ class BoardroomService:
         pass
 
     def get_session(self) -> Dict:
+        if SESSION_AUTOSAVE_FILE.exists():
+            try:
+                disk_session = self._load_session_from_disk()
+                if disk_session and disk_session.get("messages"):
+                    self.active_session = disk_session
+            except Exception:
+                pass
         return self.active_session
 
     def reset_session(self, title: Optional[str] = None):
@@ -146,8 +153,8 @@ class BoardroomService:
             with open(p, "rb") as f:
                 return base64.b64encode(f.read()).decode("utf-8")
 
-    async def _build_media_context(self, active_media_path: Optional[str]) -> Optional[Dict]:
-        """Формирует мультимодальный контекст актива, открытого на экране LookDev / Cinema Stage."""
+    async def _build_media_context(self, active_media_path: Optional[str], user_topic: Optional[str] = None) -> Optional[Dict]:
+        """Формирует мультимодальный контекст ассета, открытого на экране LookDev / Cinema Stage (с поддержкой Smart Director Cut)."""
         if not active_media_path:
             return None
         p = Path(active_media_path)
@@ -164,6 +171,7 @@ class BoardroomService:
             "type": "unknown",
             "image_b64": None,
             "video_frames": [],
+            "custom_timestamps": None,
             "audio_b64": None,
             "duration": 0.0
         }
@@ -176,12 +184,15 @@ class BoardroomService:
             try:
                 dur = await asyncio.to_thread(get_video_duration, str(p))
                 ctx["duration"] = float(dur or 0.0)
-                # Извлекаем 4 контрольных кадра по таймлайну
-                frames = await asyncio.to_thread(extract_keyframes_from_video, str(p), ctx["duration"], 4)
+                # Smart Director Cut: снайперское извлечение конкретных секунд по запросу Продюсера
+                custom_ts = parse_custom_timestamps(user_topic, ctx["duration"]) if user_topic else None
+                num_frames = len(custom_ts) if custom_ts else 4
+                frames = await asyncio.to_thread(extract_keyframes_from_video, str(p), ctx["duration"], num_frames, custom_ts)
                 ctx["video_frames"] = frames
+                ctx["custom_timestamps"] = custom_ts
                 if frames:
                     ctx["image_b64"] = frames[min(1, len(frames)-1)][1]
-                # Извлекаем нативный PCM аудиопоток (до 60 сек)
+                # Извлекаем нативное PCM аудио (до 60 сек)
                 audio_b64 = await asyncio.to_thread(extract_audio_from_media, str(p), min(ctx["duration"] or 30.0, 60.0))
                 ctx["audio_b64"] = audio_b64
             except Exception as e:
@@ -262,19 +273,19 @@ class BoardroomService:
         return msg
 
 
-    def list_media(self) -> List[Dict]:
-        """Рекурсивно сканирует D:/campaigns (включая заказ/выбрано/3) и папку студии."""
+    def list_media(self, campaign_filter: Optional[str] = None) -> List[Dict]:
+        """Изолированно сканирует только активный проект (The Perfect Jean), исключая архивный мусор."""
         items = []
         seen = set()
         valid_exts = {".mp4", ".mov", ".webm", ".png", ".jpg", ".jpeg", ".webp", ".wav", ".mp3", ".pdf"}
         
-        roots = [
-            Path("D:/campaigns"),
-            Path("d:/Antigravity/AI_Video_Agency/campaigns"),
-            Path("D:/campaigns/заказ"),
-            Path("D:/campaigns/заказ/выбрано/3")
-        ]
+        # Строгая изоляция активной кампании по директиве Продюсера
+        if campaign_filter and (Path("D:/campaigns") / campaign_filter).exists():
+            roots = [Path("D:/campaigns") / campaign_filter]
+        else:
+            roots = [Path("D:/campaigns")]
 
+        ignored_names = {"restoration", "frames", "temp", "tmp", "cache", ".pdf_cache", "__pycache__"}
         for root in roots:
             if not root.exists():
                 continue
@@ -283,14 +294,15 @@ class BoardroomService:
                     continue
                 if p.suffix.lower() not in valid_exts:
                     continue
-                # Игнорируем скрытые папки и временные файлы
                 if any(part.startswith(".") for part in p.parts):
+                    continue
+                if any(part.lower() in ignored_names or part.lower().startswith("shot_") or part.lower().startswith("frames_") for part in p.parts):
                     continue
                 
                 try:
-                    p_resolved = str(p.resolve())
+                    p_resolved = str(p.resolve()).replace("\\", "/")
                 except Exception:
-                    p_resolved = str(p)
+                    p_resolved = str(p).replace("\\", "/")
 
                 if p_resolved in seen:
                     continue
@@ -300,9 +312,9 @@ class BoardroomService:
                     rel = p.relative_to(root)
                     folder_str = str(rel.parent).replace(chr(92), "/")
                     if folder_str != ".":
-                        display_name = f"[{root.name}/{folder_str}] {p.name}"
+                        display_name = f"[{folder_str}] {p.name}"
                     else:
-                        display_name = f"[{root.name}] {p.name}"
+                        display_name = p.name
                 except Exception:
                     display_name = p.name
 
@@ -321,9 +333,9 @@ class BoardroomService:
                     "modified": mtime
                 })
 
-        # Сортировка по времени изменения (самые свежие первыми)
+        # Сортировка: самые свежие первыми
         items.sort(key=lambda x: x["modified"], reverse=True)
-        return items[:150]
+        return items
 
     def detect_intent(self, text: str) -> str:
         """Точное определение намерения: запрос промпта (PROMPT_REQUEST), аудит (AUDIT) или живой диалог (CONVERSATION)."""
@@ -358,6 +370,8 @@ class BoardroomService:
                 media_desc = f"\n[На экране Зала]: изображение '{media_ctx['filename']}'."
             elif media_ctx.get("type") == "video":
                 media_desc = f"\n[На экране Зала]: видео '{media_ctx['filename']}' ({media_ctx.get('duration', 0):.1f}с)."
+            if media_ctx.get("custom_timestamps"):
+                media_desc += f"\n[Снайперские ключекадры Smart Director Cut на секундах: {media_ctx['custom_timestamps']}]. Оцени эстетику, свет и стабильность формы именно на этих секундах."
             elif media_ctx.get("type") == "pdf":
                 media_desc = f"\n[На экране Зала]: полиграфический PDF '{media_ctx['filename']}' ({media_ctx.get('total_pages', 1)} стр., 150 DPI Vision, {'вектор' if media_ctx.get('is_vector') else 'растр'})."
 
@@ -464,6 +478,8 @@ class BoardroomService:
                 media_desc = f"\n[Полиграфический PDF на экране Зала]: '{media_ctx['filename']}' ({media_ctx.get('total_pages', 1)} стр., {'Векторный' if media_ctx.get('is_vector') else 'Растровый'}, {media_ctx.get('size_mb')} MB).\nВыдержка из текста:\n{media_ctx.get('pdf_text', '')[:500]}"
             else:
                 media_desc = f"\n[Ассет на экране Зала]: '{media_ctx['filename']}' ({media_ctx.get('size_mb')} MB)."
+            if media_ctx.get("custom_timestamps"):
+                media_desc += f"\n[Снайперские ключекадры Smart Director Cut на секундах: {media_ctx['custom_timestamps']}]. Проанализируй геометрию гомографии, наклон оси и цилиндрический изгиб именно на этих секундах, и предложи точные параметры исправления для OpenCV / Identity Shield (y_offset, angle, specular, cylindrical warp)."
         if intent == "PROMPT_REQUEST":
             prompt = (
                 "Ты — Адриан, Главный Архитектор и CTO Atelier VEO.\n"
@@ -490,6 +506,9 @@ class BoardroomService:
             prompt = (
                 "Ты — Адриан, Главный Архитектор и CTO Atelier VEO.\n"
                 "Ты общаешься с Владимиром (Генеральный Продюсер), Элиной и Каем за круглым столом.\n\n"
+                "ПРАВИЛО НЕМЕДЛЕННОГО ЧЕРНОВИКА И ДЕЙСТВИЯ:\n"
+                "1. Если Владимир просит тебя или Совет составить черновик письма, коммерческого ответа клиенту, ТЗ, расчета или промпта — КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО отвечать 'сейчас сделаю', 'уже в процессе' или писать о логах/спаме! ТЫ ОБЯЗАН СРАЗУ, НЕМЕДЛЕННО В ЭТОМ ЖЕ СООБЩЕНИИ ВЫДАТЬ ПОЛНЫЙ, ВЫВЕРЕННЫЙ ГОТОВЫЙ ТЕКСТ ЧЕРНОВИКА (на английском или русском по смыслу задачи) в рамке цитаты или блоке кода!\n"
+                "2. Слово 'письмо' в Зале Совета ВСЕГДА означает дипломатический текст ответа клиенту или партнеру для согласования в чате Совета, а НЕ технический email в почтовый ящик Владимира!\n\n"
                 "ЗАКОН ОПЕРАЦИОННОЙ ТИШИНЫ (MANAGEMENT BY EXCEPTION):\n"
                 "1. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО ритуально объявлять: «конвейер готов к работе», «системы функционируют», «параметры зафиксированы и готовы»! Твоя готовность ПО УМОЛЧАНИЮ ПОДРАЗУМЕВАЕТСЯ НА 100%.\n"
                 "2. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО выдавать шаблонные списки ('1. Параметры рендера... 2. Апскейл 2x... 3. Identity Shield... 4. Инженерный вердикт')!\n"
@@ -531,7 +550,7 @@ class BoardroomService:
         self._save_session()
         return msg
 
-    async def execute_visual_qa(self, media_path_str: str) -> Dict:
+    async def execute_visual_qa(self, media_path_str: str, custom_caption: Optional[str] = None) -> Dict:
         """
         Мультимодальный аудит ОТК от Элины через флагманскую нейросеть Gemini 4 Argon.
         Обязательный контроль 100% сцен на артефакты, галлюцинации и соответствие 10/10 стандарту (видео, фото и звук).
@@ -602,11 +621,17 @@ class BoardroomService:
         if is_video:
             # Извлекаем многоточечную раскадровку (до 6 ключевых фаз видео: старт, середина, финал)
             duration = await asyncio.to_thread(get_video_duration, str(media_path))
-            frames = await asyncio.to_thread(extract_keyframes_from_video, str(media_path), float(duration), 6)
+            custom_ts = parse_custom_timestamps(custom_caption, float(duration)) if custom_caption else None
+            num_frames = len(custom_ts) if custom_ts else 6
+            frames = await asyncio.to_thread(extract_keyframes_from_video, str(media_path), float(duration), num_frames, custom_ts)
             
             # Извлекаем нативный PCM-аудиопоток сцены (16kHz WAV)
             audio_b64 = await asyncio.to_thread(extract_audio_from_media, str(media_path), min(float(duration or 60.0), 90.0))
             
+            if custom_ts:
+                ts_note = f"\n[ВНИМАНИЕ: Продюсер запросил прицельный снайперский Smart Director Cut на секундах: {custom_ts}]. Тщательно разбери каждую из этих конкретных фаз!\n"
+            else:
+                ts_note = ""
             video_prompt = (
                 "Ты — Элина, Главный Режиссер и Глава ОТК (Dual-Stream Visual & Audio QA) Atelier VEO.\n"
                 "Ты работаешь на флагманской мультимодальной нейросети Gemini 4 Argon.\n"
@@ -889,7 +914,7 @@ class BoardroomService:
         media_ctx = None
         if active_media:
             try:
-                media_ctx = await self._build_media_context(active_media)
+                media_ctx = await self._build_media_context(active_media, user_text)
             except Exception as e:
                 print(f"[Boardroom] Error building media context: {e}")
 

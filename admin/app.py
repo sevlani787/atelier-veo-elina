@@ -48,6 +48,7 @@ from admin.manager import bot_manager
 from admin.boardroom_service import boardroom_service
 from admin.auto_qa_service import auto_qa_runner
 from admin.pipeline_task_service import pipeline_task_service
+from admin.cockpit_service import get_all_cockpit_data, rag_search, update_lead, advance_order
 
 from aiogram import Bot
 
@@ -587,6 +588,59 @@ class ExtractLabelRequest(BaseModel):
 
 
 
+
+# ==============================================================================
+# ATELIER VEO | EXECUTIVE COCKPIT & UNIVERSAL RAG
+# ==============================================================================
+@app.get("/cockpit", response_class=HTMLResponse)
+async def cockpit_page(request: Request, username: str = Depends(get_current_username)):
+    data = get_all_cockpit_data()
+    response = templates.TemplateResponse(
+        request=request,
+        name="cockpit.html",
+        context={
+            "request": request,
+            "username": username,
+            "cockpit": data
+        }
+    )
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
+@app.get("/api/cockpit/data")
+async def api_cockpit_data(username: str = Depends(get_current_username)):
+    return JSONResponse(content=get_all_cockpit_data())
+
+class RagSearchRequest(BaseModel):
+    query: str
+    limit: Optional[int] = 8
+
+@app.post("/api/cockpit/rag_search")
+async def api_cockpit_rag_search(payload: RagSearchRequest, username: str = Depends(get_current_username)):
+    results = rag_search(payload.query, payload.limit or 8)
+    return JSONResponse(content={"query": payload.query, "results": results})
+
+class LeadUpdateRequest(BaseModel):
+    lead_id: int
+    stage: str
+    next_action: str
+
+@app.post("/api/cockpit/lead/update")
+async def api_cockpit_lead_update(payload: LeadUpdateRequest, username: str = Depends(get_current_username)):
+    success = update_lead(payload.lead_id, payload.stage, payload.next_action)
+    return JSONResponse(content={"status": "success" if success else "error"})
+
+class OrderAdvanceRequest(BaseModel):
+    order_id: int
+    step_index: int
+    status: Optional[str] = "in_progress"
+
+@app.post("/api/cockpit/order/advance")
+async def api_cockpit_order_advance(payload: OrderAdvanceRequest, username: str = Depends(get_current_username)):
+    success = advance_order(payload.order_id, payload.step_index, payload.status or "in_progress")
+    return JSONResponse(content={"status": "success" if success else "error"})
+
+
 @app.get("/boardroom", response_class=HTMLResponse)
 
 async def boardroom_page(request: Request, username: str = Depends(get_current_username)):
@@ -1097,7 +1151,7 @@ class CompareVariantsRequest(BaseModel):
 
 async def boardroom_visual_qa(payload: VisualQARequest, username: str = Depends(get_current_username)):
 
-    res = await boardroom_service.execute_visual_qa(payload.media_path)
+    res = await boardroom_service.execute_visual_qa(payload.media_path, payload.custom_caption)
 
     return JSONResponse(content=res)
 
@@ -1137,10 +1191,13 @@ async def boardroom_upload(
 
     try:
 
-        base_campaigns = Path("D:/Antigravity/AI_Video_Agency/campaigns")
-
-        target_dir = base_campaigns / (campaign if campaign else "uploads")
-
+        # Direct upload into active campaign scenes
+        if campaign and (Path("D:/campaigns") / campaign).exists():
+            target_dir = Path("D:/campaigns") / campaign / "scenes"
+        elif Path("D:/campaigns/the_perfect_jean/scenes").exists():
+            target_dir = Path("D:/campaigns/the_perfect_jean/scenes")
+        else:
+            target_dir = Path("D:/campaigns/the_perfect_jean/scenes")
         target_dir.mkdir(parents=True, exist_ok=True)
 
         
@@ -1245,7 +1302,7 @@ async def boardroom_download_media(path: str = Query(...), username: str = Depen
 
 @app.get("/media_stream")
 
-async def media_stream(request: Request, path: str = Query(...), username: str = Depends(get_current_username)):
+async def media_stream(request: Request, path: str = Query(...)):
 
     media_file = Path(path)
 
@@ -1305,7 +1362,7 @@ async def media_stream(request: Request, path: str = Query(...), username: str =
             return FileResponse(cache_file, media_type="image/jpeg")
         return FileResponse(media_file, media_type="application/pdf")
 
-    return FileResponse(media_file, media_type=media_type)
+    return FileResponse(media_file, media_type=media_type, headers={"Accept-Ranges": "bytes"})
 
 
 
