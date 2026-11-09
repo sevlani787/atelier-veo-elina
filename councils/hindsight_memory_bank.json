@@ -401,9 +401,9 @@
     },
     {
       "id": "inv_030_video_shootout_reroll_mandate",
-      "title": "Video Shootout 1 of N & Mandatory Re-roll Protocol (Закон пересъемки)",
+      "title": "Video Shootout 1 of N: 4-Phase Grid & Triple Verdict Protocol (Grand Winner / Trim-Winner ✂️ / Re-roll Mandate ⛔)",
       "category": "qa_and_multimodal_vision",
-      "description": "Automated 1-of-N comparative audit for draft video variants (Google Flow 360p) in Telegram bot. If at least one variant scores >= 8.5/10 with stable physics and optics, declare Grand Winner for 4K upscaling. If ALL variants fail (< 8.5/10), invoke Mandatory Re-roll Rule: reject entire batch [БРАК ВСЕЙ СЕРИИ — ПЕРЕСЪЕМКА] and provide 3-part Prompt Doctor directive for Google Flow re-generation.",
+      "description": "Automated 1-of-N comparative audit for draft video variants (Google Flow 360p) in Telegram bot and Boardroom. 4-phase frame sampling: 10% (Start), 40% (Ramp-up), 70% (Critical inertia phase), 95% (Final). 5 criteria including Homography Anchor & Identity Shield Readiness (checking bottle angle for planar tracking). Triple Verdict: 1) Pure Winner; 2) Trim-Winner ✂️ with timestamp; 3) Mandatory Re-roll ⛔ with Prompt Doctor automatically synced to Director Tablet.",
       "status": "active",
       "date": "2026-11-09"
     }
