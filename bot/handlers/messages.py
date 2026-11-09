@@ -26,6 +26,7 @@ from bot.services.memory import memory
 from bot.services.hindsight_bridge import hindsight_bridge
 from bot.services.database import db
 from bot.utils import send_long_message, extract_keyframes_from_video, get_video_duration, extract_video_url_from_text, download_cloud_video, extract_audio_from_media, parse_custom_timestamps
+from bot.handlers.video_shootout import process_video_shootout
 
 router = Router()
 
@@ -41,6 +42,11 @@ user_locks: dict[int, asyncio.Lock] = {}
 photo_buffers: dict[str, list[Message]] = {}
 photo_buffering_active: dict[str, bool] = {}
 photo_locks: dict[str, asyncio.Lock] = {}
+
+# Буферы и блокировки для склейки медиагрупп/серий видео (Video Shootout 1 из N)
+video_buffers: dict[str, list[Message]] = {}
+video_buffering_active: dict[str, bool] = {}
+video_locks: dict[str, asyncio.Lock] = {}
 
 
 def _analyze_text_language(text: str, fallback_lang_code: Optional[str] = None) -> str:
@@ -1896,57 +1902,104 @@ async def process_video_audit(
 
 @router.message(F.video | F.video_note | (F.document & F.func(is_video_document)))
 async def handle_video(message: Message):
-    """Обработка видеосообщений, видеофайлов и несжатых видеодокументов через раскадровку и Vision/Multimodal."""
+    """
+    Обработка видеосообщений, видеофайлов и несжатых видеодокументов через раскадровку и Vision/Multimodal.
+    Поддерживает как одиночные видео (Video QA Audit), так и медиагруппы / серии дублей (Video Shootout 1 из N).
+    При отправке 2-4 вариантов (например, черновых генераций 360p из Google Flow) проводит сравнительный
+    ОТК-аудит, выбирает один лучший вариант для апскейла в 4K Master, либо бракует всю серию (Закон пересъемки).
+    """
     user_id = message.from_user.id
-    video = message.video or message.video_note or message.document
+    group_key = f"v_mg_{message.media_group_id}" if message.media_group_id else f"v_user_{user_id}"
+    lock = video_locks.setdefault(group_key, asyncio.Lock())
 
-    # 1. Проверка баланса на услугу Video QA (25 кредитов)
-    cost = await config.get_token_cost(action='qa')
-    user_data = await check_user_and_balance(user_id, message, cost=cost)
-    if not user_data:
+    if group_key not in video_buffers:
+        video_buffers[group_key] = []
+    video_buffers[group_key].append(message)
+
+    if video_buffering_active.get(group_key, False):
         return
 
-    # Проверка лимита размера видеофайла (20 МБ для облачного Bot API или до 2000 МБ для локального сервера)
-    max_bytes = config.max_video_size_mb * 1024 * 1024
-    if video.file_size and video.file_size > max_bytes:
-        await message.answer(
-            f"Этот видеоролик немного больше {config.max_video_size_mb} МБ — текущего предела загрузки.\n"
-            "Пожалуйста, отправь ссылку на файл в Google Drive или Dropbox, чтобы я смогла скачать оригинал. 🌿"
-        )
-        return
+    async with lock:
+        if not video_buffers.get(group_key):
+            return
 
-    temp_video_path = None
-    is_temp_file = False
-    try:
-        await message.bot.send_chat_action(chat_id=message.chat.id, action="upload_video")
-
-        # Скачиваем видео во временный файл или считываем напрямую с диска
-        file = await message.bot.get_file(video.file_id)
-        if file.file_path and os.path.exists(file.file_path):
-            temp_video_path = file.file_path
-            is_temp_file = False
-        else:
-            with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp_file:
-                temp_video_path = tmp_file.name
-            is_temp_file = True
-            await message.bot.download_file(file.file_path, temp_video_path, timeout=300)
-
-        duration = getattr(video, 'duration', 0) or 0
-        if duration <= 0:
-            duration = get_video_duration(temp_video_path)
-
-        caption = message.caption or (message.text if hasattr(message, 'text') else "") or ""
-        await process_video_audit(message, temp_video_path, duration, caption, user_id, user_data, is_temp_file=is_temp_file)
-
-    except Exception as e:
-        err_text = await get_system_error_message(user_id, message, 'video_download')
-        await message.answer(err_text)
-        print(f'Video Download Error: {e}')
-        if is_temp_file and temp_video_path and os.path.exists(temp_video_path):
+        video_buffering_active[group_key] = True
+        try:
             try:
-                os.unlink(temp_video_path)
+                await message.bot.send_chat_action(chat_id=message.chat.id, action="upload_video")
             except Exception:
                 pass
+
+            # Ожидаем склейки всех видео из альбома или серии (Telegram шлет их с паузой 0.2-1.5 сек)
+            while True:
+                count_before = len(video_buffers[group_key])
+                await asyncio.sleep(1.8)
+                count_after = len(video_buffers[group_key])
+                if count_after == count_before:
+                    break
+        finally:
+            video_buffering_active[group_key] = False
+
+        buffered_videos = video_buffers.pop(group_key, [])
+        if not buffered_videos:
+            return
+
+        target_message = next((m for m in buffered_videos if m.caption), buffered_videos[-1])
+        user_id = target_message.from_user.id
+
+        # 1. Проверка баланса на услугу Video QA (25 кредитов единоразово за батч)
+        cost = await config.get_token_cost(action='qa')
+        user_data = await check_user_and_balance(user_id, target_message, cost=cost)
+        if not user_data:
+            return
+
+        if len(buffered_videos) >= 2:
+            # Режим сравнительного отбора серии видео (Video Shootout 1 из N)
+            await process_video_shootout(target_message, buffered_videos, user_id, user_data)
+        else:
+            # Режим одиночного видео (Video QA Audit)
+            single_msg = buffered_videos[0]
+            video = single_msg.video or single_msg.video_note or single_msg.document
+
+            max_bytes = config.max_video_size_mb * 1024 * 1024
+            if video.file_size and video.file_size > max_bytes:
+                await single_msg.answer(
+                    f"Этот видеоролик немного больше {config.max_video_size_mb} МБ — текущего предела загрузки.\n"
+                    "Пожалуйста, отправь ссылку на файл в Google Drive или Dropbox, чтобы я смогла скачать оригинал. 🌿"
+                )
+                return
+
+            temp_video_path = None
+            is_temp_file = False
+            try:
+                await single_msg.bot.send_chat_action(chat_id=single_msg.chat.id, action="upload_video")
+
+                file = await single_msg.bot.get_file(video.file_id)
+                if file.file_path and os.path.exists(file.file_path):
+                    temp_video_path = file.file_path
+                    is_temp_file = False
+                else:
+                    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp_file:
+                        temp_video_path = tmp_file.name
+                    is_temp_file = True
+                    await single_msg.bot.download_file(file.file_path, temp_video_path, timeout=300)
+
+                duration = getattr(video, 'duration', 0) or 0
+                if duration <= 0:
+                    duration = get_video_duration(temp_video_path)
+
+                caption = single_msg.caption or (single_msg.text if hasattr(single_msg, 'text') else "") or ""
+                await process_video_audit(single_msg, temp_video_path, duration, caption, user_id, user_data, is_temp_file=is_temp_file)
+
+            except Exception as e:
+                err_text = await get_system_error_message(user_id, single_msg, 'video_download')
+                await single_msg.answer(err_text)
+                print(f'Video Download Error: {e}')
+                if is_temp_file and temp_video_path and os.path.exists(temp_video_path):
+                    try:
+                        os.unlink(temp_video_path)
+                    except Exception:
+                        pass
 
 
 @router.message(F.document & F.func(is_pdf_document))
