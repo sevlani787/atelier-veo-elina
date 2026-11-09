@@ -544,6 +544,7 @@ class CouncilSendRequest(BaseModel):
 
     text: str
     active_media: Optional[str] = None
+    tablet_text: Optional[str] = None
 
 
 
@@ -692,7 +693,7 @@ async def boardroom_clear_tablet(username: str = Depends(get_current_username)):
 
 async def boardroom_send(payload: CouncilSendRequest, username: str = Depends(get_current_username)):
 
-    responses = await boardroom_service.execute_council_cycle(payload.text, payload.active_media)
+    responses = await boardroom_service.execute_council_cycle(payload.text, payload.active_media, tablet_text=payload.tablet_text)
 
     return JSONResponse(content={"status": "success", "responses": responses, "messages": responses})
 
@@ -1170,68 +1171,60 @@ async def boardroom_compare_variants(payload: CompareVariantsRequest, username: 
 
 
 @app.post("/api/boardroom/upload")
-
 async def boardroom_upload(
-
     file: UploadFile = File(...),
-
     campaign: Optional[str] = Form(None),
-
+    target_folder: Optional[str] = Form(None),
     username: str = Depends(get_current_username)
-
 ):
-
     """
-
-    Прием тяжелых видеофайлов (до 2 Гб и более, 4K ProRes) в студийное хранилище.
-
+    Прием тяжелых видеофайлов (до 2 Гб и более, 4K ProRes) и изображений в студийное хранилище.
     Потоковая запись чанками по 16 Мб исключает перегрузку оперативной памяти.
-
     """
-
     try:
+        folder_str = target_folder or campaign
+        target_dir = None
+        if folder_str:
+            p = Path(folder_str)
+            if p.is_absolute() and p.exists() and p.is_dir():
+                target_dir = p
+            elif (Path("D:/campaigns") / folder_str).exists():
+                cand = Path("D:/campaigns") / folder_str
+                target_dir = cand / "scenes" if (cand / "scenes").exists() else cand
 
-        # Direct upload into active campaign scenes
-        if campaign and (Path("D:/campaigns") / campaign).exists():
-            target_dir = Path("D:/campaigns") / campaign / "scenes"
-        elif Path("D:/campaigns/the_perfect_jean/scenes").exists():
-            target_dir = Path("D:/campaigns/the_perfect_jean/scenes")
-        else:
-            target_dir = Path("D:/campaigns/the_perfect_jean/scenes")
+        if not target_dir:
+            if Path("D:/campaigns/отработка").exists():
+                target_dir = Path("D:/campaigns/отработка")
+            elif Path("D:/campaigns/the_perfect_jean/scenes").exists():
+                target_dir = Path("D:/campaigns/the_perfect_jean/scenes")
+            else:
+                target_dir = Path("D:/campaigns")
+
         target_dir.mkdir(parents=True, exist_ok=True)
-
-        
-
         target_path = target_dir / file.filename
 
-        
-
         with open(target_path, "wb") as buffer:
-
             shutil.copyfileobj(file.file, buffer, length=1024 * 1024 * 16)
 
-            
-
         file_size_mb = round(target_path.stat().st_size / (1024 * 1024), 2)
+        norm_path = str(target_path.resolve()).replace("\\", "/")
 
-        
+        ext = target_path.suffix.lower()
+        if ext in [".mp4", ".mov", ".webm", ".m4v"]:
+            media_type = "video"
+        elif ext == ".pdf":
+            media_type = "pdf"
+        else:
+            media_type = "image"
 
         return JSONResponse(content={
-
             "status": "success",
-
             "filename": file.filename,
-
-            "path": str(target_path),
-
+            "path": norm_path,
             "size_mb": file_size_mb,
-
-            "type": "video" if target_path.suffix.lower() in [".mp4", ".mov", ".webm"] else "image"
-
+            "type": media_type
         })
-
     except Exception as e:
-
         return JSONResponse(content={"status": "error", "detail": str(e)}, status_code=500)
 
 

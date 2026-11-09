@@ -285,7 +285,7 @@ class BoardroomService:
         else:
             roots = [Path("D:/campaigns")]
 
-        ignored_names = {"restoration", "frames", "temp", "tmp", "cache", ".pdf_cache", "__pycache__"}
+        ignored_names = {"restoration", "frames", "temp", "tmp", "cache", ".pdf_cache", "__pycache__", "99_Архив_исходный", "restoration_legacy_frames"}
         for root in roots:
             if not root.exists():
                 continue
@@ -300,9 +300,9 @@ class BoardroomService:
                     continue
                 
                 try:
-                    p_resolved = str(p.resolve()).replace("\\", "/")
+                    p_resolved = str(p.resolve()).replace(chr(92), "/")
                 except Exception:
-                    p_resolved = str(p).replace("\\", "/")
+                    p_resolved = str(p).replace(chr(92), "/")
 
                 if p_resolved in seen:
                     continue
@@ -359,7 +359,7 @@ class BoardroomService:
         # 3. Живой диалог Совета по умолчанию
         return "CONVERSATION"
 
-    async def generate_elina_response(self, context_topic: str, media_ctx: Optional[Dict] = None) -> Dict:
+    async def generate_elina_response(self, context_topic: str, media_ctx: Optional[Dict] = None, tablet_content: Optional[str] = None) -> Dict:
         """Режиссерский голос Элины через Gemini 4 Argon — живой кинематографичный диалог по Закону Операционной Тишины"""
         history_snippet = "\n".join([f"{m['name']}: {m['text']}" for m in self.active_session["messages"][-5:]])
         intent = self.detect_intent(context_topic)
@@ -375,13 +375,24 @@ class BoardroomService:
             elif media_ctx.get("type") == "pdf":
                 media_desc = f"\n[На экране Зала]: полиграфический PDF '{media_ctx['filename']}' ({media_ctx.get('total_pages', 1)} стр., 150 DPI Vision, {'вектор' if media_ctx.get('is_vector') else 'растр'})."
 
+        tablet_desc = ""
+        current_tablet = tablet_content if tablet_content is not None else self.get_tablet_content()
+        if current_tablet and current_tablet.strip():
+            tablet_desc = (
+                f"\n\n[РЕЖИССЕРСКИЙ ПЛАНШЕТ ЭЛИНЫ / EXECUTIVE PAD НА СТОЛЕ ЗАЛА]:\n"
+                f"\"\"\"\n{current_tablet.strip()}\n\"\"\"\n"
+                f"(ВНИМАНИЕ: Это рабочий планшет Владимира на столе Зала Заседаний. "
+                f"Ты видишь всё его содержимое в реальном времени! "
+                f"При любых вопросах, режиссуре или анализе обязательно используй эти данные и подтверждай, что видишь информацию в планшете).\n"
+            )
+
         if intent == "PROMPT_REQUEST":
             prompt = (
                 "Ты — Элина, Главный Режиссер Atelier VEO.\n"
                 "Владимир запросил создание мастер-промпта для сцены.\n"
                 "Выдай лаконичное режиссерское вступление (1 абзац) и готовый блок кода мастер-промпта Google Flow строго из 3 частей:\n"
                 "[Visual & Clean Plate], [Audio & Foley SFX], [Voiceover].\n"
-                f"{media_desc}\n\n"
+                f"{media_desc}{tablet_desc}\n\n"
                 f"Запрос Владимира: {context_topic}\n"
                 "Ответь структурированно, красиво и без лишней воды."
             )
@@ -396,7 +407,7 @@ class BoardroomService:
                 "   • Атмосфера, свет и оптика: что снято красиво, как держится свет и цвет (оценка /10);\n"
                 "   • Где конкретно виден брак или артефакт (например, деформация шрифтов, заплыв глифов на пэкшоте);\n"
                 "   • Твой режиссерский вердикт и рекомендация продюсеру (архивировать как историю или восстановить пэкшот).\n"
-                f"{media_desc}\n\n"
+                f"{media_desc}{tablet_desc}\n\n"
                 f"Контекст Совета:\n{history_snippet}\n\n"
                 f"Запрос Владимира: {context_topic}\n\n"
                 "Отвечай как настоящий европейский режиссер в монтажной студии. Обращайся к нему с уважением: 'Владимир'."
@@ -411,7 +422,7 @@ class BoardroomService:
                 "2. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО выдавать шаблонные списки, чек-листы и любые блоки кода с промптами!\n"
                 "3. Отвечай кратко, живо, образно, тепло и естественно — ровно как коллега и партнер в реальном диалоге (1–2 коротких абзаца, до 80 слов).\n"
                 "4. Отвечай строго на то, о чем говорит Владимир (оцени интерфейс, согласись с решением или выскажи мысль).\n"
-                f"{media_desc}\n\n"
+                f"{media_desc}{tablet_desc}\n\n"
                 f"Недавний контекст беседы:\n{history_snippet}\n\n"
                 f"Реплика Владимира: {context_topic}\n\n"
                 "Ответь лаконично, живо и по-человечески. Обращайся к нему с уважением: 'Владимир'."
@@ -467,7 +478,7 @@ class BoardroomService:
         self._save_session()
         return msg
 
-    async def generate_adrian_response(self, elina_text: str, user_topic: str, media_ctx: Optional[Dict] = None) -> Dict:
+    async def generate_adrian_response(self, elina_text: str, user_topic: str, media_ctx: Optional[Dict] = None, tablet_content: Optional[str] = None) -> Dict:
         """Инженерно-технологический расчет Адриана (CTO) — Закон Операционной Тишины (Management by Exception)"""
         history_snippet = "\n".join([f"{m['name']}: {m['text']}" for m in self.active_session["messages"][-5:]])
         intent = self.detect_intent(user_topic)
@@ -480,13 +491,23 @@ class BoardroomService:
                 media_desc = f"\n[Ассет на экране Зала]: '{media_ctx['filename']}' ({media_ctx.get('size_mb')} MB)."
             if media_ctx.get("custom_timestamps"):
                 media_desc += f"\n[Снайперские ключекадры Smart Director Cut на секундах: {media_ctx['custom_timestamps']}]. Проанализируй геометрию гомографии, наклон оси и цилиндрический изгиб именно на этих секундах, и предложи точные параметры исправления для OpenCV / Identity Shield (y_offset, angle, specular, cylindrical warp)."
+
+        tablet_desc = ""
+        current_tablet = tablet_content if tablet_content is not None else self.get_tablet_content()
+        if current_tablet and current_tablet.strip():
+            tablet_desc = (
+                f"\n\n[ПЛАНШЕТ СОВЕТА / EXECUTIVE PAD НА СТОЛЕ ЗАЛА]:\n"
+                f"\"\"\"\n{current_tablet.strip()}\n\"\"\"\n"
+                f"(ВНИМАНИЕ: Адриан, ты видишь рабочий планшет Владимира в реальном времени! "
+                f"Учитывай зафиксированные там технические требования, хронометраж, ограничения и коды Дома, и подтверждай знание содержимого планшета при вопросах).\n"
+            )
         if intent == "PROMPT_REQUEST":
             prompt = (
                 "Ты — Адриан, Главный Архитектор и CTO Atelier VEO.\n"
                 "Элина выдала мастер-промпт, а Владимир запускает производство.\n"
                 "Дай ультра-лаконичный инженерный протокол (3 коротких пункта): параметры Google Flow 1080p 24fps, апскейл CapCut 4K Master, параметры Identity Shield.\n"
                 "НЕ пиши фраз «конвейер готов к работе» — твоя готовность очевидна.\n"
-                f"{media_desc}\n"
+                f"{media_desc}{tablet_desc}\n"
                 f"Тема: {user_topic}\n"
                 "Будь авторитетен и предельно краток."
             )
@@ -498,6 +519,7 @@ class BoardroomService:
                 "• Объясни причину дефекта простым языком CTO (почему ранняя диффузия смазала буквы на пэкшоте);\n"
                 "• Подтверди, что наш алгоритм Identity Shield с чистым флаконом полностью исключает этот риск в новых шотах.\n"
                 "• НЕ используй дежурные фразы «конвейер готов», «мы готовы».\n"
+                f"{tablet_desc}\n"
                 f"Слова Владимира: {user_topic}\n"
                 f"Рецензия Элины: {elina_text[:400] if elina_text else ''}\n\n"
                 "Говори живо, профессионально и кратко. Обращайся к Владимиру: 'Владимир'."
@@ -514,7 +536,7 @@ class BoardroomService:
                 "2. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО выдавать шаблонные списки ('1. Параметры рендера... 2. Апскейл 2x... 3. Identity Shield... 4. Инженерный вердикт')!\n"
                 "3. Отвечай живым человеческим языком технического директора: лаконично, умно, точно по сути реплики Владимира (1–2 коротких абзаца, 40–70 слов).\n"
                 "4. О техническом состоянии сообщай ТОЛЬКО в случае сбоев или нештатных ситуаций. Если все штатно — говори только по существу обсуждаемого дела!\n"
-                f"{media_desc}\n\n"
+                f"{media_desc}{tablet_desc}\n\n"
                 f"Недавний контекст беседы:\n{history_snippet}\n\n"
                 f"Реплика Владимира: {user_topic}\n\n"
                 "Ответь живо, кратко и по делу. Обращайся к Владимиру с уважением: 'Владимир'."
@@ -725,43 +747,120 @@ class BoardroomService:
 
     async def execute_variants_comparison(self, media_paths: List[str]) -> Dict:
         """
-        Кураторский сравнительный отбор (LookDev Shootout) 1 из 4 вариантов первого кадра (Start Frame 2K).
-        Элина через флагманскую мультимодальную нейросеть Gemini 4 Argon сравнивает кандидатов
-        и официально провозглашает Кадр-Победитель для старта движения в Google Flow.
-        Кадр-победитель возвращается для автоматического вывода в центральный LookDev Stage.
+        Кураторский сравнительный отбор 1 из N в Зале заседаний (Boardroom):
+        - Режим А (Видео): Сравнительный аудит 2-4 видеодублей (Google Flow 360p черновики)
+          с покадровой раскадровкой, анализом PCM звука и Законом пересъемки (Re-roll / Prompt Doctor).
+        - Режим Б (Изображения): Сравнительный отбор 1 из N вариантов стартового кадра (Start Frame 2K).
         """
-        import base64
-        import urllib.parse
-        content_items = [
-            {
-                "type": "text",
-                "text": (
-                    "Ты — Элина, Главный Режиссер, Верховный Архитектор Промптов и Глава ОТК Atelier VEO.\n"
-                    "Ты работаешь на флагманской мультимодальной нейросети Gemini 4 Argon — мощнейшем визуальном интеллекте.\n\n"
-                    "Перед тобой варианты первого кадра (Start Frame 2K) для сцены luxury-ролика.\n"
-                    "Владимир сгенерировал эти варианты по твоему авторскому промпту.\n"
-                    "Твоя режиссерская задача — провести сравнительный кураторский аудит и выбрать ОДИН безоговорочно лучший кадр (Кадр-Победитель), который станет официальным первым кадром (First Frame) для оживления в Google Flow.\n\n"
-                    "Сравни кандидатов по 5 каноническим критериям:\n"
-                    "1. Оптика и геометрия флакона (чистота граней, отсутствие размытия и искажений).\n"
-                    "2. The Clean Flacon Invariant (идеально гладкая передняя грань без псевдо-букв и клякс под наложение Identity Shield).\n"
-                    "3. Физика света и каустики (5200K / 2800K, глубина светотени, игра света в парфюмерной жидкости, скользящий блик).\n"
-                    "4. Атмосфера Quiet Luxury и кинематографическая эстетика Haute Horlogerie / Haute Parfumerie.\n"
-                    "5. Идеальная стартовая композиция для движения камеры.\n\n"
-                    "Сформируй режиссерский протокол выбора:\n"
-                    "- Краткий экспертный разбор каждого представленного варианта (плюсы и минусы).\n"
-                    "- 🏆 **КАДР-ПОБЕДИТЕЛЬ:** [Вариант №X] — детальное объяснение, почему победил именно он.\n"
-                    "- **РЕЖИССЕРСКАЯ ДИРЕКТИВА ДЛЯ GOOGLE FLOW:** ключевые акценты для видеокамеры при старте движения из этого кадра.\n\n"
-                    "ВАЖНОЕ ТЕХНИЧЕСКОЕ ТРЕБОВАНИЕ: В самой последней строке своего ответа ОБЯЗАТЕЛЬНО напиши строго:\n"
-                    "WINNER_INDEX: X\n(где X — цифра от 1 до количества вариантов, указывающая победителя)."
-                )
-            }
-        ]
+        valid_paths = [Path(p) for p in media_paths if Path(p).exists()]
+        if not valid_paths:
+            return {"status": "error", "detail": "Не найдено существующих файлов для сравнительного отбора"}
 
-        valid_names = []
-        valid_paths = []
-        for idx, p_str in enumerate(media_paths, start=1):
-            p = Path(p_str)
-            if p.exists() and p.suffix.lower() in [".jpg", ".jpeg", ".png", ".webp"]:
+        video_exts = {".mp4", ".mov", ".webm", ".mkv", ".m4v"}
+        is_video_shootout = any(p.suffix.lower() in video_exts for p in valid_paths)
+
+        if is_video_shootout:
+            # ==========================================================
+            # РЕЖИМ А: СРАВНИТЕЛЬНЫЙ ВИДЕО-БАТЛ 1 ИЗ N (FLOW 360P ЧЕРНОВИКИ)
+            # ==========================================================
+            shootout_intro = (
+                f"Ты — Элина, Главный Режиссер, Верховный Архитектор Промптов и Глава ОТК Atelier VEO.\n"
+                f"Ты работаешь на флагманской мультимодальной нейросети Gemini 4 Argon.\n\n"
+                f"Владимир проводит в Зале заседаний (Boardroom) сравнительный кураторский отбор {len(valid_paths)} видеодублей сцены (Google Flow 360p черновики).\n"
+                f"Твоя режиссерская задача — провести бескомпромиссный аудит раскадровок и звука каждого дубля и выбрать ОДИН лучший дубль для апскейла в 4K Master, "
+                f"ЛИБО забраковать всю серию целиком, если ни один вариант не соответствует стандартам Haute Parfumerie & Quiet Luxury.\n\n"
+                f"Критерии бескомпромиссного ОТК VEO:\n"
+                f"1. Геометрия флакона и физика стекла (Bottle Integrity & Physics) — отсутствие «плывущих» граней, морфинга стекла, деформаций колпачка или дна.\n"
+                f"2. Инвариант чистоты оптики и этикетки (The Clean Flacon Invariant) — ровная плоскость под Identity Shield / цифровую шелкографию, отсутствие паразитных мутных пятен, AI-глюков и клякс.\n"
+                f"3. Кинематографическая оптика и свет (Lighting & Optics) — благородная глубина резкости, каустика, преломление лучей (2700K / 5200K), органичное размытие движения (180° shutter angle), отсутствие стробоскопа.\n"
+                f"4. Плавность динамики и отсутствие AI-галлюцинаций — естественное движение камеры (smooth dolly/orbit), отсутствие внезапных исчезновений или искривлений объектов.\n\n"
+                f"🏆 ОБЯЗАТЕЛЬНЫЙ ЗАКОН ПЕРЕСЪЕМКИ (MANDATORY RE-ROLL RULE):\n"
+                f"• Если хотя бы один вариант набрал 8.5/10 или выше и не имеет критических визуальных дефектов:\n"
+                f"  Объяви: 🏆 **ГРАНД-ПОБЕДИТЕЛЬ: [Вариант №X] (Оценка: Y/10)**.\n"
+                f"  Дай аргументированный вердикт, почему именно он превосходит остальные, укажи таймкоды лучших моментов и выдай директиву для 4K апскейла / монтажа.\n"
+                f"  В САМОМ КОНЦЕ ответа обязательно напиши строгой отдельной строкой:\n"
+                f"  WINNER_INDEX: X\n"
+                f"  (где X — цифра от 1 до количества вариантов, указывающая победителя).\n"
+                f"• Если ВСЕ {len(valid_paths)} вариантов имеют оценку ниже 8.5/10 (или страдают от плывущей геометрии, мыла, паразитного морфинга и артефактов):\n"
+                f"  Ты ОБЯЗАНА категорически отклонить всю серию:\n"
+                f"  ⛔ **[БРАК ВСЕЙ СЕРИИ — ПЕРЕСЪЕМКА]**\n"
+                f"  В САМОМ КОНЦЕ ответа обязательно напиши строгой отдельной строкой:\n"
+                f"  WINNER_INDEX: 0\n"
+                f"  Четко и профессионально укажи, почему каждый вариант (Вариант №1, Вариант №2, ...) провалил ОТК.\n"
+                f"  Затем активируй режим **Prompt Doctor** и предоставь обновленный, выверенный 3-частный промпт для Google Flow:\n"
+                f"  - 1. Камера и оптика (Camera Motion & Optics: фокусное расстояние, апертура, угол обтюратора 180°, траектория движения)\n"
+                f"  - 2. Объект и геометрия (Subject & Bottle Physics: геометрия флакона, стекло, жидкость, каустика)\n"
+                f"  - 3. Свет и атмосфера (Lighting & Quiet Luxury Ambiance: 2700K/5200K, chiaroscuro, студийная среда)\n"
+                f"  - Отрицательные промпты (Negative Prompts: morphing, melting, floating artifacts, warped typography, unstable glass, strobing, 3D CGI plastic look).\n\n"
+                f"Формат ответа:\n"
+                f"• Экспресс-разбор каждого варианта (Вариант №1, Вариант №2, ...): оценка по 10-балльной шкале, сильные стороны и дефекты.\n"
+                f"• ИТОГОВЫЙ ВЕРДИКТ: Либо 🏆 **ГРАНД-ПОБЕДИТЕЛЬ: [Вариант №X]**, либо ⛔ **[БРАК ВСЕЙ СЕРИИ — ПЕРЕСЪЕМКА]**.\n"
+                f"• Директива: Рекомендация для апскейла в 4K (если выбран победитель) ИЛИ Готовый исправленный 3-частный промпт для Google Flow (при браке всей серии).\n"
+            )
+
+            content_items = [{"type": "text", "text": shootout_intro}]
+            valid_names = []
+
+            for idx, p in enumerate(valid_paths, start=1):
+                valid_names.append(p.name)
+                p_str = str(p.resolve())
+                if p.suffix.lower() in video_exts:
+                    dur = get_video_duration(p_str)
+                    frames = await asyncio.to_thread(extract_keyframes_from_video, p_str, float(dur), 3)
+                    audio_b64 = await asyncio.to_thread(extract_audio_from_media, p_str, min(float(dur or 30.0), 30.0))
+                else:
+                    dur = 0.0
+                    with open(p, "rb") as f:
+                        b64 = base64.b64encode(f.read()).decode("utf-8")
+                    frames = [(0.0, b64)]
+                    audio_b64 = None
+
+                content_items.append({
+                    "type": "text",
+                    "text": f"\n====================\nВАРИАНТ №{idx}: {p.name} (Длительность: {round(dur, 1)}с)\n===================="
+                })
+                for ts, b64_frame in frames:
+                    content_items.append({"type": "text", "text": f"[{p.name} — Кадр ~{ts}с]:"})
+                    content_items.append({
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{b64_frame}"}
+                    })
+                if audio_b64:
+                    content_items.append({"type": "text", "text": f"[{p.name} — Аудиодорожка PCM]:"})
+                    content_items.append({
+                        "type": "input_audio",
+                        "input_audio": {"data": audio_b64, "format": "wav"}
+                    })
+
+        else:
+            # ==========================================================
+            # РЕЖИМ Б: СРАВНИТЕЛЬНЫЙ ОТБОР КАДРОВ (START FRAME 2K SHOOTOUT)
+            # ==========================================================
+            shootout_intro = (
+                "Ты — Элина, Главный Режиссер, Верховный Архитектор Промптов и Глава ОТК Atelier VEO.\n"
+                "Ты работаешь на флагманской мультимодальной нейросети Gemini 4 Argon — мощнейшем визуальном интеллекте.\n\n"
+                "Перед тобой варианты первого кадра (Start Frame 2K) для сцены luxury-ролика.\n"
+                "Владимир сгенерировал эти варианты по твоему авторскому промпту.\n"
+                "Твоя режиссерская задача — провести сравнительный кураторский аудит и выбрать ОДИН безоговорочно лучший кадр (Кадр-Победитель), который станет официальным первым кадром (First Frame) для оживления в Google Flow.\n\n"
+                "Сравни кандидатов по 5 каноническим критериям:\n"
+                "1. Оптика и геометрия флакона (чистота граней, физика толстого стекла, отсутствие мыла).\n"
+                "2. The Clean Flacon Invariant (идеальная плоская грань под Identity Shield без паразитных букв и мутных пятен).\n"
+                "3. Физика света и каустики (5200K / 2800K, благородство chiaroscuro, преломление лучей в жидкости).\n"
+                "4. Эстетика Quiet Luxury в традициях швейцарского Haute Horlogerie / Haute Parfumerie.\n"
+                "5. Кинематографический потенциал для движения камеры.\n\n"
+                "Формат ответа:\n"
+                "- Экспресс-разбор каждого варианта (плюсы и дефекты).\n"
+                "- 🏆 **КАДР-ПОБЕДИТЕЛЬ: [Вариант №X]** — аргументированный вердикт.\n"
+                "- **Режиссерская директива для Google Flow:** вектор движения камеры.\n\n"
+                "В САМОМ КОНЦЕ ответа укажи строго:\n"
+                "WINNER_INDEX: X\n(где X — цифра от 1 до количества вариантов, указывающая победителя)."
+            )
+
+            content_items = [{"type": "text", "text": shootout_intro}]
+            valid_names = []
+
+            for idx, p in enumerate(valid_paths, start=1):
+                valid_names.append(p.name)
                 with open(p, "rb") as f:
                     b64 = base64.b64encode(f.read()).decode("utf-8")
                 content_items.append({
@@ -772,11 +871,6 @@ class BoardroomService:
                     "type": "image_url",
                     "image_url": {"url": f"data:image/jpeg;base64,{b64}"}
                 })
-                valid_names.append(p.name)
-                valid_paths.append(str(p.resolve()))
-
-        if not valid_names:
-            return {"status": "error", "detail": "Не найдено подходящих изображений для сравнительного отбора"}
 
         messages = [{"role": "user", "content": content_items}]
 
@@ -788,35 +882,65 @@ class BoardroomService:
             except Exception as e2:
                 report = f"Ошибка сравнительного отбора: {e2}"
 
-        # Автоматический парсинг выбранного кадра-победителя
+        # Автоматический парсинг победителя
         winner_idx = 1
         m_idx = re.search(r"WINNER_INDEX:\s*(\d+)", report, re.IGNORECASE)
         if m_idx:
             cand = int(m_idx.group(1))
-            if 1 <= cand <= len(valid_paths):
+            if 0 <= cand <= len(valid_paths):
                 winner_idx = cand
+        elif re.search(r"БРАК ВСЕЙ СЕРИИ|ПЕРЕСЪЕМК", report, re.IGNORECASE):
+            winner_idx = 0
         else:
-            m_alt = re.search(r"(?:КАДР[- ]ПОБЕДИТЕЛЬ|победил|выбор)[^\n\d]*[№N]?\s*(\d+)", report, re.IGNORECASE)
+            m_alt = re.search(r"(?:КАДР[- ]ПОБЕДИТЕЛЬ|ГРАНД[- ]ПОБЕДИТЕЛЬ|победил|выбор)[^\n\d]*[№N]?\s*(\d+)", report, re.IGNORECASE)
             if m_alt:
                 cand = int(m_alt.group(1))
                 if 1 <= cand <= len(valid_paths):
                     winner_idx = cand
 
-        winner_path = valid_paths[winner_idx - 1]
-        winner_name = valid_names[winner_idx - 1]
-        winner_url = f"/media_stream?path={urllib.parse.quote(winner_path)}"
-
         # Очищаем отчет от служебного тега перед выводом в чат
         clean_report = re.sub(r"WINNER_INDEX:\s*\d+", "", report, flags=re.IGNORECASE).strip()
 
+        is_reroll = (winner_idx == 0)
+
+        if not is_reroll:
+            winner_path = str(valid_paths[winner_idx - 1].resolve()).replace(chr(92), "/")
+            winner_name = valid_names[winner_idx - 1]
+            winner_url = f"/media_stream?path={urllib.parse.quote(winner_path)}"
+        else:
+            winner_path = None
+            winner_name = None
+            winner_url = None
+
+            # Если вся серия забракована — выгружаем Prompt Doctor в Планшет Режиссера (Tablet)
+            doctor_match = re.search(r"(?:Prompt Doctor|ПРОМПТ ДЛЯ FLOW|Скорректированный промпт|Режим Prompt Doctor).*?(?=\Z|WINNER_INDEX)", report, re.DOTALL | re.IGNORECASE)
+            prompt_payload = doctor_match.group(0).strip() if doctor_match else clean_report
+            current_tablet = self.get_tablet_content() or ""
+            new_tablet = (
+                current_tablet.rstrip() +
+                f"\n\n# ⛔ [PROMPT DOCTOR: ПЕРЕСЪЕМКА ДУБЛЕЙ GOOGLE FLOW — {datetime.datetime.now().strftime('%d.%m %H:%M')}]\n" +
+                f"{prompt_payload}\n"
+            ).lstrip()
+            self.save_tablet_content(new_tablet)
+
+        msg_title = "Элина (Видео-Батл Flow 1 из N)" if is_video_shootout else "Элина (Кураторский отбор Start Frame)"
+        msg_avatar = "🏆" if not is_reroll else "⛔"
+        msg_color = "#dfba73" if not is_reroll else "#ef4444"
+
+        footer_text = (
+            f"🏆 **Победитель выведен в Cinema Stage:** `{winner_name}`"
+            if not is_reroll
+            else "⛔ **Вся серия забракована ОТК. Исправленный промпт (Prompt Doctor) отправлен на Планшет Режиссера.**"
+        )
+
         msg = {
             "sender": "elina",
-            "name": "Элина (Кураторский отбор Start Frame)",
+            "name": msg_title,
             "role": "Главный Режиссёр & ОТК",
-            "avatar": "🏆",
-            "color": "#dfba73",
+            "avatar": msg_avatar,
+            "color": msg_color,
             "time": datetime.datetime.now().strftime("%H:%M"),
-            "text": f"**Кураторский вердикт: Отбор 1 из {len(valid_names)} (Gemini 4 Argon):**\n\n{clean_report}\n\n---\n🏆 **Кадр-Победитель выведен в LookDev Stage:** `{winner_name}`",
+            "text": f"**Кураторский вердикт: Отбор 1 из {len(valid_paths)} (Gemini 4 Argon):**\n\n{clean_report}\n\n---\n{footer_text}",
             "winner_path": winner_path,
             "winner_name": winner_name
         }
@@ -830,10 +954,11 @@ class BoardroomService:
             "winner_index": winner_idx,
             "winner_name": winner_name,
             "winner_path": winner_path,
-            "winner_url": winner_url
+            "winner_url": winner_url,
+            "reroll_mandate": is_reroll
         }
 
-    async def generate_kai_response(self, elina_text: str, adrian_text: str, user_topic: str, media_ctx: Optional[Dict] = None) -> Dict:
+    async def generate_kai_response(self, elina_text: str, adrian_text: str, user_topic: str, media_ctx: Optional[Dict] = None, tablet_content: Optional[str] = None) -> Dict:
         """Проверка канона, памяти и этики Каем (Sentinel) — Закон Операционной Тишины"""
         history_snippet = "\n".join([f"{m['name']}: {m['text']}" for m in self.active_session["messages"][-5:]])
         intent = self.detect_intent(user_topic)
@@ -844,6 +969,16 @@ class BoardroomService:
                 media_desc = f"\n[Полиграфический PDF на экране Зала]: '{media_ctx['filename']}' ({media_ctx.get('total_pages', 1)} стр., Вектор: {media_ctx.get('is_vector')}).\nВыдержка:\n{media_ctx.get('pdf_text', '')[:400]}"
             else:
                 media_desc = f"\n[Ассет на экране Зала]: '{media_ctx['filename']}'."
+
+        tablet_desc = ""
+        current_tablet = tablet_content if tablet_content is not None else self.get_tablet_content()
+        if current_tablet and current_tablet.strip():
+            tablet_desc = (
+                f"\n\n[ПЛАНШЕТ СОВЕТА / EXECUTIVE PAD НА СТОЛЕ ЗАЛА]:\n"
+                f"\"\"\"\n{current_tablet.strip()}\n\"\"\"\n"
+                f"(ВНИМАНИЕ: Кай, ты как Страж Канона видишь рабочий планшет Владимира на столе Зала! "
+                f"Сверяй замысел и сценарии в планшете со стандартами и канонами Дома VEO, и подтверждай знание содержимого планшета при вопросах).\n"
+            )
         if intent == "PROMPT_REQUEST":
             prompt = (
                 "Ты — Кай, Страж Канона Atelier VEO.\n"
@@ -859,6 +994,7 @@ class BoardroomService:
                 "Элина и Адриан разобрали архивный шот Владимира.\n"
                 "Дай мудрое, краткое заключение (1 короткий абзац, до 50 слов): подтверди, что этот архивный опыт как раз и сформировал наш Закон Чистого Флакона (Главу 19), и благослови фокус на будущих победах.\n"
                 "НЕ пиши казенных фраз «мы готовы к реставрации».\n"
+                f"{tablet_desc}\n"
                 f"Слова Владимира: {user_topic}\n"
                 "Обращайся к Владимиру с уважением: 'Владимир'."
             )
@@ -871,7 +1007,7 @@ class BoardroomService:
                 "2. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО копировать шаблонные списки ('1. Соответствие Закону... 2. Защита Технологий... 3. Quiet Luxury... Заключение Стража')!\n"
                 "3. Отвечай мудро, благородно, веско и кратко (1 небольшой абзац, 30–50 слов).\n"
                 "4. Поддержи продюсерское решение Владимира с точки зрения достоинства Дома и уверенности Quiet Luxury.\n"
-                f"{media_desc}\n\n"
+                f"{media_desc}{tablet_desc}\n\n"
                 f"Недавний контекст беседы:\n{history_snippet}\n\n"
                 f"Реплика Владимира: {user_topic}\n\n"
                 "Ответь емко и благородно. Обращайся к Владимиру с уважением: 'Владимир'."
@@ -907,10 +1043,14 @@ class BoardroomService:
         self._save_session()
         return msg
 
-    async def execute_council_cycle(self, user_text: str, active_media: Optional[str] = None):
-        """Запуск полного раунда Совета: Владимир -> Элина -> Адриан -> Кай с Screen-to-Chat Vision"""
+    async def execute_council_cycle(self, user_text: str, active_media: Optional[str] = None, tablet_text: Optional[str] = None):
+        """Запуск полного раунда Совета: Владимир -> Элина -> Адриан -> Кай с Screen-to-Chat Vision и Синхронным Планшетом"""
+        if tablet_text is not None and tablet_text.strip():
+            self.save_tablet_content(tablet_text)
+
         self.add_user_message(user_text, active_media=active_media)
         
+        current_tablet = self.get_tablet_content()
         media_ctx = None
         if active_media:
             try:
@@ -922,21 +1062,21 @@ class BoardroomService:
         lower = user_text.lower()
         if "@elina" in lower or "@элина" in lower:
             clean_topic = user_text.replace("@elina", "").replace("@элина", "").strip()
-            elina_msg = await self.generate_elina_response(clean_topic, media_ctx=media_ctx)
+            elina_msg = await self.generate_elina_response(clean_topic, media_ctx=media_ctx, tablet_content=current_tablet)
             return [elina_msg]
         elif "@adrian" in lower or "@адриан" in lower:
             clean_topic = user_text.replace("@adrian", "").replace("@адриан", "").strip()
-            adrian_msg = await self.generate_adrian_response("", clean_topic, media_ctx=media_ctx)
+            adrian_msg = await self.generate_adrian_response("", clean_topic, media_ctx=media_ctx, tablet_content=current_tablet)
             return [adrian_msg]
         elif "@kai" in lower or "@кай" in lower:
             clean_topic = user_text.replace("@kai", "").replace("@кай", "").strip()
-            kai_msg = await self.generate_kai_response("", "", clean_topic, media_ctx=media_ctx)
+            kai_msg = await self.generate_kai_response("", "", clean_topic, media_ctx=media_ctx, tablet_content=current_tablet)
             return [kai_msg]
 
-        # Полный круг Совета
-        elina_msg = await self.generate_elina_response(user_text, media_ctx=media_ctx)
-        adrian_msg = await self.generate_adrian_response(elina_msg["text"], user_text, media_ctx=media_ctx)
-        kai_msg = await self.generate_kai_response(elina_msg["text"], adrian_msg["text"], user_text, media_ctx=media_ctx)
+        # Полный круг Совета (все видят планшет)
+        elina_msg = await self.generate_elina_response(user_text, media_ctx=media_ctx, tablet_content=current_tablet)
+        adrian_msg = await self.generate_adrian_response(elina_msg["text"], user_text, media_ctx=media_ctx, tablet_content=current_tablet)
+        kai_msg = await self.generate_kai_response(elina_msg["text"], adrian_msg["text"], user_text, media_ctx=media_ctx, tablet_content=current_tablet)
         return [elina_msg, adrian_msg, kai_msg]
 
     def export_session_memo(self) -> Dict:

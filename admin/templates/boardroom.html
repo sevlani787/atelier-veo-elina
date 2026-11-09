@@ -45,6 +45,7 @@
 
     <div style="display: flex; align-items: center; gap: 0.75rem;">
 
+        <a href="/cockpit" style="display: flex; align-items: center; gap: 0.45rem; background: rgba(223, 186, 115, 0.12); border: 1px solid rgba(223, 186, 115, 0.45); color: #dfba73; padding: 0.35rem 0.75rem; border-radius: 6px; text-decoration: none; font-size: 0.8rem; font-weight: 600; transition: all 0.2s ease;"><span>🧭</span> Центр Управления & RAG</a>
         <button class="stage-btn" onclick="toggleCinemaMode()" id="btn-cinema-mode" style="border-color: rgba(56, 189, 248, 0.4); color: #38bdf8; background: rgba(56, 189, 248, 0.08); padding: 0.35rem 0.75rem; font-size: 0.8rem; font-weight: 600;">
 
             🎬 Кино-фокус (Максимальный экран)
@@ -837,70 +838,69 @@
 
     /* Split Mode Specific Layout inside Left Pane */
 
-    .left-pane-unified.mode-split .pane-chat-wrapper {
-
-        flex: 1;
-
-        height: 60%;
-
-        display: flex;
-
-        flex-direction: column;
-
-        border-top: 1px solid var(--glass-border);
-
+    .left-pane-unified {
+        display: flex !important;
+        flex-direction: column !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        overflow: hidden !important;
+        position: relative !important;
     }
 
-    .left-pane-unified.mode-split .pane-tablet-wrapper {
-
-        height: 40%;
-
+    .left-tabs-nav {
         display: flex;
-
-        flex-direction: column;
-
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.45rem 0.65rem;
+        background: rgba(12, 13, 18, 0.98);
+        border-bottom: 1px solid rgba(223, 186, 115, 0.25);
+        flex-shrink: 0 !important;
+        z-index: 25;
+        position: sticky;
+        top: 0;
     }
-
-
-
-    /* Tab Mode Specific Layout */
 
     .left-pane-unified.mode-tab-chat .pane-tablet-wrapper {
-
         display: none !important;
-
     }
 
     .left-pane-unified.mode-tab-chat .pane-chat-wrapper {
-
         display: flex !important;
-
-        flex: 1;
-
-        height: 100%;
-
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        height: calc(100% - 42px) !important;
         flex-direction: column;
-
+        overflow: hidden !important;
     }
 
-
-
     .left-pane-unified.mode-tab-tablet .pane-chat-wrapper {
-
         display: none !important;
-
     }
 
     .left-pane-unified.mode-tab-tablet .pane-tablet-wrapper {
-
         display: flex !important;
-
-        flex: 1;
-
-        height: 100%;
-
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        height: calc(100% - 42px) !important;
         flex-direction: column;
+        overflow: hidden !important;
+    }
 
+    .left-pane-unified.mode-split .pane-chat-wrapper {
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        height: 55% !important;
+        display: flex;
+        flex-direction: column;
+        border-top: 1px solid var(--glass-border);
+    }
+
+    .left-pane-unified.mode-split .pane-tablet-wrapper {
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        height: 45% !important;
+        display: flex;
+        flex-direction: column;
     }
 
 
@@ -1846,7 +1846,7 @@
 
                     {% for item in media_items %}
 
-                    <option value="{{ item.path }}" data-type="{{ item.type }}">
+                    <option value="{{ item.path }}" data-type="{{ item.type }}" {% if session.active_media and (session.active_media.replace("\\", "/").lower() == item.path.replace("\\", "/").lower() or session.active_media.replace("\\", "/").split("/")[-1].lower() == item.path.replace("\\", "/").split("/")[-1].lower()) %}selected{% endif %}>
 
                         {{ item.name }} ({{ item.size_mb }} MB)
 
@@ -1985,16 +1985,27 @@
 
 
 
+            <!-- Drag & Drop Visual Overlay HUD -->
+            <div id="stage-drop-overlay" style="display: none; position: absolute; inset: 0; background: rgba(8, 10, 15, 0.92); backdrop-filter: blur(8px); z-index: 55; border: 2px dashed #dfba73; border-radius: 8px; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; pointer-events: none;">
+                <span style="font-size: 2.75rem;">📥</span>
+                <div style="font-size: 1.1rem; font-weight: 700; color: #dfba73; letter-spacing: 0.05em; text-transform: uppercase;">
+                    Отпустите файл для загрузки в LookDev 4K
+                </div>
+                <div style="font-size: 0.75rem; color: #94a3b8;">
+                    Видео (MP4, MOV, WebM), изображения (PNG, JPG, WebP) или PDF до 2GB+
+                </div>
+            </div>
+
             <video id="stage-video" loop controls controlsList="nofullscreen" style="display: none;"></video>
 
             <img id="stage-image" style="display: none;" />
 
             <img id="ghost-overlay-image" />
 
-            <div id="stage-placeholder" style="color: var(--text-dim); font-size: 0.85rem; text-align: center; padding: 1rem;">
-
-                ✦ Перетащите сюда шот (до 2GB+) или выберите в селекторе выше ✦
-
+            <div id="stage-placeholder" onclick="document.getElementById('media-file-input').click()" style="cursor: pointer; color: var(--text-dim); font-size: 0.85rem; text-align: center; padding: 2rem 1.5rem; border: 1px dashed rgba(197, 160, 89, 0.25); border-radius: 8px; margin: auto; transition: all 0.2s ease;" onmouseover="this.style.borderColor='rgba(197,160,89,0.6)'; this.style.color='#dfba73'" onmouseout="this.style.borderColor='rgba(197,160,89,0.25)'; this.style.color='var(--text-dim)'" title="Нажмите для выбора файла с диска">
+                <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🎬</div>
+                <div style="font-weight: 600; color: #dfba73; margin-bottom: 0.35rem; font-size: 0.95rem;">Нажмите для выбора файла или перетащите файл прямо на экран</div>
+                <div style="font-size: 0.725rem; color: #94a3b8;">Поддерживаются видео (MP4, MOV, WebM) и изображения (PNG, JPG, WebP) до 2GB+</div>
             </div>
 
 
@@ -2099,32 +2110,13 @@
 
             </div>
 
-            <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
-
-                <button id="loupe-btn" class="stage-btn" onclick="toggleLoupe()" title="Включить / выключить лупу (горячая клавиша L)">
-
-                    🔍 Часовая лупа x4.0
-
-                </button>
-
-                <button id="main-fullscreen-btn" class="stage-btn" onclick="toggleStageFullscreen()" style="border-color: #38bdf8; color: #38bdf8; background: rgba(56, 189, 248, 0.1);" title="Развернуть видео во весь экран монитора (горячая клавиша F или двойной клик)">
-
-                    ⛶ Во весь экран (F)
-
-                </button>
-
-                <button class="stage-btn" style="border-color: #10b981; color: #34d399; background: rgba(16,185,129,0.1);" onclick="runVisualQA()">
-
+            <div style="display: flex; gap: 0.45rem; align-items: center; flex-wrap: wrap;">
+                <button class="stage-btn" style="border-color: #10b981; color: #34d399; background: rgba(16,185,129,0.12); font-weight: 600;" onclick="runVisualQA()" title="Мультимодальный аудит кадра/видео через Gemini 4 Argon">
                     🔎 Режиссерский аудит ОТК (Gemini 4 Argon)
-
                 </button>
-
-                <button class="stage-btn" style="border-color: #f59e0b; color: #fbbf24; background: rgba(245,158,11,0.1);" onclick="openVariantShootoutModal()">
-
+                <button class="stage-btn" style="border-color: #f59e0b; color: #fbbf24; background: rgba(245,158,11,0.12); font-weight: 600;" onclick="openVariantShootoutModal()" title="Сравнительный отбор 1 из 4 лучших вариантов для генерации">
                     ⚔️ Сравнительный отбор 1 из 4
-
                 </button>
-
             </div>
 
         </div>
@@ -2143,11 +2135,11 @@
 
         <!-- Collapsed Rail -->
 
-        <div class="hub-collapsed-rail" onclick="toggleHubCollapse()" title="Развернуть Пайплайн & Калибровку">
+        <div class="hub-collapsed-rail" onclick="toggleHubCollapse()" title="Развернуть Центр Кампании & Ассеты">
 
-            <span style="font-size: 1.1rem; color: var(--primary);">⚙️</span>
+            <span style="font-size: 1.1rem; color: var(--primary);">📁</span>
 
-            <div class="hub-vertical-title">Студийный Пайплайн & Наложение Щита</div>
+            <div class="hub-vertical-title">Центр Кампании & Ассеты</div>
 
             <span style="font-size: 0.85rem; margin-top: auto; color: var(--primary-light);">◀</span>
 
@@ -2161,7 +2153,7 @@
 
             <div class="pane-header">
 
-                <span class="pane-title"><span>⚙️</span> Пайплайн & Наложение Щита</span>
+                <span class="pane-title"><span>📁</span> Центр Кампании & Ассеты</span>
 
                 <button class="stage-btn" style="padding: 0.2rem 0.45rem; font-size: 0.725rem;" onclick="toggleHubCollapse()" title="Свернуть панель для максимизации экрана">
 
@@ -2175,142 +2167,179 @@
 
             <div class="action-scroll">
 
-                <!-- Atelier Identity Shield Studio -->
+                <!-- 1. Папка кампании -->
+                <div class="action-card" id="card-campaign-folder" style="padding: 0.6rem 0.75rem; margin-bottom: 0.65rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                        <span style="font-size: 0.68rem; color: #dfba73; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; display: flex; align-items: center; gap: 0.3rem;">
+                            <span>📁</span> Папка кампании:
+                        </span>
+                        <button class="stage-btn" style="font-size: 0.62rem; padding: 2px 7px; color: #dfba73; border-color: rgba(197, 160, 89, 0.4); background: rgba(197, 160, 89, 0.1);" onclick="openFolderPickerModal()">
+                            Выбрать папку
+                        </button>
+                    </div>
+                    <div id="target-folder-display" style="font-size: 0.68rem; color: #6ee7b7; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="D:/campaigns/отработка">
+                        D:/campaigns/отработка
+                    </div>
+                    <div style="font-size: 0.6rem; color: var(--text-dim); margin-top: 0.2rem;">
+                        Директория сохранения мастеров и рендеров сессии.
+                    </div>
+                </div>
 
-                <div class="action-card" id="card-identity-shield">
-
-                    <div class="card-heading">
-
-                        <span>✨</span> Впечатывание текстового слепка (Typography Inprint)
-
+                <!-- 2. Сценарный навигатор со статусом рендера (5 сцен) -->
+                <div class="action-card" id="card-scene-navigator" style="background: rgba(14, 16, 22, 0.7); border: 1px solid rgba(197, 160, 89, 0.25); border-radius: 8px; padding: 0.65rem 0.75rem; margin-bottom: 0.65rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem;">
+                        <span style="font-size: 0.68rem; color: #dfba73; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">
+                            <span>🎞️</span> Сценарный навигатор (5 сцен):
+                        </span>
+                        <span style="font-size: 0.6rem; color: #10b981; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 3px; padding: 1px 5px; font-weight: 600;">
+                            3/5 ГОТОВО
+                        </span>
                     </div>
 
+                    <div class="scene-chain" style="display: flex; flex-direction: column; gap: 0.3rem;">
+                        <!-- Сцена 01 -->
+                        <div class="scene-item" onclick="selectSceneByPattern('01|shot_1|intro|tree')" style="display: flex; align-items: center; justify-content: space-between; padding: 0.32rem 0.45rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 5px; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(197, 160, 89, 0.1)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.02)'">
+                            <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                <span style="font-size: 0.65rem; font-family: monospace; color: #dfba73; font-weight: 700;">01</span>
+                                <span style="font-size: 0.68rem; color: #f1f5f9;">Тайга / Пробуждение мха</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.3rem;" title="4K Master готов">
+                                <span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 5px #10b981;"></span>
+                                <span style="font-size: 0.58rem; color: #6ee7b7; font-family: monospace;">4K MASTER</span>
+                            </div>
+                        </div>
 
+                        <!-- Сцена 02 -->
+                        <div class="scene-item" onclick="selectSceneByPattern('02|shot_2|moss|eas|eau')" style="display: flex; align-items: center; justify-content: space-between; padding: 0.32rem 0.45rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 5px; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(197, 160, 89, 0.1)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.02)'">
+                            <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                <span style="font-size: 0.65rem; font-family: monospace; color: #dfba73; font-weight: 700;">02</span>
+                                <span style="font-size: 0.68rem; color: #f1f5f9;">Флакон на мху (21с)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.3rem;" title="Eau de Parfum 4K восстановлено">
+                                <span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 5px #10b981;"></span>
+                                <span style="font-size: 0.58rem; color: #6ee7b7; font-family: monospace;">4K MASTER</span>
+                            </div>
+                        </div>
 
-                    
-                    <!-- Активная папка сохранения кампании -->
-                    <div style="background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(197, 160, 89, 0.25); border-radius: 6px; padding: 0.5rem 0.65rem; margin: 0.4rem 0 0.75rem 0;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                            <span style="font-size: 0.68rem; color: #dfba73; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; display: flex; align-items: center; gap: 0.3rem;">
-                                <span>📁</span> Папка сохранения мастера:
+                        <!-- Сцена 03 -->
+                        <div class="scene-item" onclick="selectSceneByPattern('03|shot_3|ambassador|hand')" style="display: flex; align-items: center; justify-content: space-between; padding: 0.32rem 0.45rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 5px; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(197, 160, 89, 0.1)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.02)'">
+                            <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                <span style="font-size: 0.65rem; font-family: monospace; color: #dfba73; font-weight: 700;">03</span>
+                                <span style="font-size: 0.68rem; color: #f1f5f9;">Амбассадор / Касание</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.3rem;" title="Finger Occlusion & LOD > 5%">
+                                <span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 5px #10b981;"></span>
+                                <span style="font-size: 0.58rem; color: #6ee7b7; font-family: monospace;">4K MASTER</span>
+                            </div>
+                        </div>
+
+                        <!-- Сцена 04 -->
+                        <div class="scene-item" onclick="selectSceneByPattern('04|shot_4|rheology|drops|liquid')" style="display: flex; align-items: center; justify-content: space-between; padding: 0.32rem 0.45rem; background: rgba(245, 158, 11, 0.06); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 5px; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(245, 158, 11, 0.15)'" onmouseout="this.style.background='rgba(245, 158, 11, 0.06)'">
+                            <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                <span style="font-size: 0.65rem; font-family: monospace; color: #f59e0b; font-weight: 700;">04</span>
+                                <span style="font-size: 0.68rem; color: #fde68a;">Реология масел & Капли</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.3rem;" title="В рендере / Физика жидкого золота">
+                                <span style="width: 6px; height: 6px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 5px #f59e0b; animation: pulse 1.4s infinite;"></span>
+                                <span style="font-size: 0.58rem; color: #fbbf24; font-family: monospace;">РЕНДЕР / OPENCV</span>
+                            </div>
+                        </div>
+
+                        <!-- Сцена 05 -->
+                        <div class="scene-item active-scene" onclick="selectSceneByPattern('05|shot_5|packshot|51|balincourt')" style="display: flex; align-items: center; justify-content: space-between; padding: 0.32rem 0.45rem; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 5px; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(56, 189, 248, 0.15)'" onmouseout="this.style.background='rgba(56, 189, 248, 0.08)'">
+                            <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                <span style="font-size: 0.65rem; font-family: monospace; color: #38bdf8; font-weight: 700;">05</span>
+                                <span style="font-size: 0.68rem; color: #ffffff; font-weight: 600;">Финальный пэкшот (53с)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.3rem;" title="ОТК Элины & Слепок 3D">
+                                <span style="width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid #38bdf8; background: transparent;"></span>
+                                <span style="font-size: 0.58rem; color: #38bdf8; font-family: monospace;">ОТБОР 1 из 4</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Оптический паспорт & Калибровка (Синергия Режиссуры и CTO) -->
+                <div class="action-card" id="card-optical-passport" style="background: rgba(12, 14, 18, 0.85); border: 1px solid rgba(197, 160, 89, 0.3); border-radius: 8px; padding: 0.65rem 0.75rem; margin-bottom: 0.65rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                        <span style="font-size: 0.68rem; color: #dfba73; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">
+                            <span>💎</span> Оптический паспорт & Калибровка
+                        </span>
+                        <span id="passport-sync-badge" style="font-size: 0.58rem; color: #6ee7b7; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 3px; padding: 1px 4px; font-weight: 600;">
+                            LOCKED (1:1)
+                        </span>
+                    </div>
+
+                    <!-- Оптика & Свет (Режиссура Элины) -->
+                    <div style="background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 5px; padding: 0.4rem 0.5rem; margin-bottom: 0.45rem;">
+                        <div style="font-size: 0.58rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.25rem; font-weight: 600;">
+                            Оптика & Свет (Стандарт Кампании):
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
+                            <span style="font-size: 0.62rem; color: #f1f5f9; background: rgba(197, 160, 89, 0.12); border: 1px solid rgba(197, 160, 89, 0.3); border-radius: 4px; padding: 1px 5px; font-family: monospace;">
+                                🎥 85mm Anamorphic
                             </span>
-                            <button class="stage-btn" style="font-size: 0.62rem; padding: 2px 7px; color: #dfba73; border-color: rgba(197, 160, 89, 0.4); background: rgba(197, 160, 89, 0.1);" onclick="openFolderPickerModal()">
-                                Выбрать папку
-                            </button>
-                        </div>
-                        <div id="target-folder-display" style="font-size: 0.68rem; color: #6ee7b7; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="D:/campaigns/заказ/выбрано/3">
-                            D:/campaigns/заказ/выбрано/3
-                        </div>
-                        <div style="font-size: 0.6rem; color: var(--text-dim); margin-top: 0.2rem;">
-                            Файлы сохраняются с суффиксом <code>_shielded_master</code> и записью в протокол Совета.
-                        </div>
-                    </div>
-
-                                        <!-- Режим Кинофабрики (Atelier Pipeline Presets) -->
-                    <div style="background: linear-gradient(145deg, rgba(197, 160, 89, 0.08), rgba(15, 15, 22, 0.6)); border: 1px solid rgba(197, 160, 89, 0.35); border-radius: 8px; padding: 0.65rem; margin: 0.2rem 0 0.85rem 0;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-                            <span style="font-size: 0.7rem; color: #dfba73; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">
-                                <span>🏛️</span> Режим Кинофабрики:
+                            <span style="font-size: 0.62rem; color: #fde68a; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 4px; padding: 1px 5px; font-family: monospace;">
+                                ☀️ 5200K Daylight
                             </span>
-                            <span id="factory-mode-badge" style="font-size: 0.6rem; color: #6ee7b7; padding: 2px 7px; border-radius: 4px; background: rgba(110, 231, 183, 0.12); border: 1px solid rgba(110, 231, 183, 0.3); font-weight: 700; letter-spacing: 0.04em;">
-                                ПРОДАКШН
+                            <span style="font-size: 0.62rem; color: #c084fc; background: rgba(192, 132, 252, 0.1); border: 1px solid rgba(192, 132, 252, 0.3); border-radius: 4px; padding: 1px 5px; font-family: monospace;">
+                                ✨ Specular: 82%
                             </span>
                         </div>
-                        
-                        <div class="param-row" style="margin-bottom: 0.4rem;">
-                            <select id="factory-pipeline-mode" onchange="handleFactoryModeChange(this.value)" style="width: 100%; font-size: 0.72rem; padding: 0.35rem 0.5rem; background: rgba(0,0,0,0.6); border: 1px solid rgba(197, 160, 89, 0.4); color: #fff; border-radius: 5px;">
-                                <option value="clean_production">🎬 Чистый продакшн (Clean Plate + Shield)</option>
-                                <option value="restoration">🩹 Реставрация чужих роликов (Inpaint Cleanse + Shield)</option>
-                                <option value="ambassador">👑 Цифровой амбассадор (Hand Matte + Dynamic LOD)</option>
-                                <option value="new_location">🌍 Новая локация (2K Upscale + Kelvin Match)</option>
-                            </select>
-                        </div>
+                    </div>
 
-                        <!-- Описание выбранного режима -->
-                        <div id="factory-mode-desc" style="font-size: 0.64rem; color: var(--text-dim); line-height: 1.35; padding: 0.4rem 0.55rem; background: rgba(0,0,0,0.3); border-radius: 5px; border-left: 2px solid #dfba73;">
-                            Генерация 2K чистой сцены без надписей («Закон чистого стекла») + наложение нативного 4K-вектора Identity Shield™. Без рисков галлюцинаций.
-                        </div>
-
-                        <!-- Подпанель: Направленный донор (для Реставрации) -->
-                        <div id="factory-sub-restoration" style="display: none; margin-top: 0.45rem; padding: 0.4rem 0.55rem; border-radius: 5px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); font-size: 0.63rem; color: #bae6fd;">
-                            <div style="font-weight: 600; margin-bottom: 0.15rem; display: flex; align-items: center; gap: 0.3rem;">
-                                <span>🧭</span> Вертикальный световой донор стекла (Vertical Donor)
+                    <!-- Миниатюры-эталоны (Амбассадор + Векторная этикетка) -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; margin-bottom: 0.45rem;">
+                        <div style="background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 5px; padding: 0.35rem 0.45rem; display: flex; align-items: center; gap: 0.4rem;">
+                            <div style="width: 28px; height: 28px; border-radius: 4px; background: rgba(197, 160, 89, 0.15); border: 1px solid rgba(197, 160, 89, 0.35); display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
+                                👑
                             </div>
-                            <div style="color: #94a3b8; font-size: 0.6rem;">
-                                Затирка дефектов строго по вертикальному световому ребру (от горлышка к донцу). Предотвращает появление мыльных пятен под новым вектором.
+                            <div style="min-width: 0;">
+                                <div style="font-size: 0.62rem; color: #dfba73; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Амбассадор</div>
+                                <div style="font-size: 0.56rem; color: #94a3b8;">LOD Lock</div>
                             </div>
                         </div>
 
-                        <!-- Подпанель: Маска пальцев и LOD (для Амбассадоров) -->
-                        <div id="factory-sub-ambassador" style="display: none; margin-top: 0.45rem; padding: 0.4rem 0.55rem; border-radius: 5px; background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.25); font-size: 0.63rem; color: #e9d5ff;">
-                            <div style="font-weight: 600; margin-bottom: 0.15rem; display: flex; align-items: center; gap: 0.3rem;">
-                                <span>🖐️</span> Маска пальцев (Finger Occlusion) + LOD > 5%
+                        <div style="background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 5px; padding: 0.35rem 0.45rem; display: flex; align-items: center; gap: 0.4rem;">
+                            <div style="width: 28px; height: 28px; border-radius: 4px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
+                                🏷️
                             </div>
-                            <div style="color: #cbd5e1; font-size: 0.6rem;">
-                                Векторная шелкография ложится строго под пальцы модели с контактной микро-тенью. Активируется только когда флакон занимает &gt;5% площади кадра.
-                            </div>
-                        </div>
-
-                        <!-- Подпанель: Kelvin Match & Grain Lock (для Новой локации) -->
-                        <div id="factory-sub-location" style="display: none; margin-top: 0.45rem; padding: 0.45rem 0.55rem; border-radius: 5px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); font-size: 0.63rem;">
-                            <div style="font-weight: 600; color: #fde68a; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.3rem;">
-                                <span>🌡️</span> Адаптация температуры света (Kelvin Tint Match)
-                            </div>
-                            <div style="display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.35rem;">
-                                <select id="factory-kelvin-select" onchange="handleKelvinChange(this.value)" style="flex: 1; font-size: 0.65rem; padding: 0.25rem 0.4rem; background: rgba(0,0,0,0.6); border: 1px solid rgba(245, 158, 11, 0.4); color: #fde68a; border-radius: 4px;">
-                                    <option value="2400">2400K — Вечернее барокко / свечи (янтарный)</option>
-                                    <option value="2700" selected>2700K — Тёплый вечерний интерьер (золото)</option>
-                                    <option value="4200">4200K — Нейтральный дневной / галерея</option>
-                                    <option value="5600">5600K — Скандинавское утро (платина)</option>
-                                    <option value="6500">6500K — Арктический холодный / пасмурно</option>
-                                </select>
-                            </div>
-                            <div style="color: #94a3b8; font-size: 0.59rem;">
-                                Авто-синхронизация рефлекса золота + пленочное микро-зерно 35mm (Kodak Vision3 Grain Lock).
+                            <div style="min-width: 0;">
+                                <div style="font-size: 0.62rem; color: #38bdf8; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Этикетка</div>
+                                <div style="font-size: 0.56rem; color: #6ee7b7; font-family: monospace;">Scale: 1.000</div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Выбор источника этикетки -->
-
-                    <div class="param-row">
-
-                        <span class="param-label"><span>Источник этикетки:</span></span>
-
-                        <select id="shield-source-mode" onchange="toggleShieldSourceMode()">
-
-                            <option value="extracted">✨ Альфа-этикетка (PNG)</option>
-
-                            <option value="text">✍ Векторный шрифт</option>
-
-                        </select>
-
-                    </div>
-
-
-
-                    <div id="shield-extracted-block" style="margin: 0.4rem 0;">
-
-                        <div id="active-label-badge" style="font-size:0.72rem; color:#dfba73; background:rgba(223,186,115,0.08); padding:5px 8px; border-radius:5px; border:1px solid rgba(223,186,115,0.25); line-height: 1.3;">
-
-                            <span id="active-label-text">⚠️ Этикетка не выбрана. Извлеките её из фото в карточке ниже.</span>
-
+                    <!-- Инженерная калибровка Адриана (CTO) -->
+                    <div style="background: rgba(0, 0, 0, 0.45); border-left: 2px solid #38bdf8; border-radius: 0 5px 5px 0; padding: 0.4rem 0.5rem; font-size: 0.6rem;">
+                        <div style="color: #38bdf8; font-weight: 700; margin-bottom: 0.2rem; display: flex; justify-content: space-between;">
+                            <span>ИНЖЕНЕРНАЯ КАЛИБРОВКА (CTO):</span>
+                            <span style="color: #6ee7b7; font-family: monospace;">Δ = 0.02 px</span>
                         </div>
+                        <div style="color: #cbd5e1; line-height: 1.35; font-family: monospace;">
+                            <div>• Гомография: Намертво зафиксирована (0.01px)</div>
+                            <div>• Цветовой сдвиг: 0K (ΔE &lt; 0.4 Invariant)</div>
+                            <div>• Зерно: 35mm Kodak 500T (Grain Lock On)</div>
+                        </div>
+                    </div>
+                </div>
 
-                    
-
+                <!-- 4. Эталонный ассет / Загрузка макета -->
+                <div class="action-card" id="card-identity-shield" style="margin-bottom: 0.65rem;">
+                    <div class="card-heading" style="margin-bottom: 0.35rem;">
+                        <span>🏷️</span> Эталон этикетки / логотипа
+                    </div>
+                    <div id="shield-extracted-block" style="margin: 0.2rem 0;">
+                        <div id="active-label-badge" style="font-size: 0.68rem; color: #dfba73; background: rgba(223, 186, 115, 0.08); padding: 5px 8px; border-radius: 5px; border: 1px solid rgba(223, 186, 115, 0.25); line-height: 1.3;">
+                            <span id="active-label-text">⚠️ Эталон не выбран. Загрузите PNG-макет.</span>
+                        </div>
                         <div style="display: flex; gap: 0.4rem; margin-top: 0.35rem;">
-
                             <button class="stage-btn" style="flex: 1; font-size: 0.64rem; padding: 4px 8px; color: #dfba73; border-color: rgba(197, 160, 89, 0.4); background: rgba(197, 160, 89, 0.12);" onclick="document.getElementById('custom-label-file-input').click()">
-
-                                📂 Выбрать файл этикетки (PNG)
-
+                                📂 Выбрать файл эталона (PNG)
                             </button>
-
                             <input type="file" id="custom-label-file-input" accept="image/png,image/jpeg,.pdf,application/pdf" style="display: none;" onchange="handleCustomLabelUpload(event)" />
-
                         </div>
-
                         <div id="mini-reference-dock" style="display: none; align-items: center; gap: 0.6rem; margin-top: 0.45rem; padding: 5px 8px; background: rgba(197, 160, 89, 0.06); border: 1px solid rgba(197, 160, 89, 0.25); border-radius: 4px;">
                             <img id="mini-reference-img" src="" style="width: 44px; height: 44px; object-fit: contain; border-radius: 3px; background: rgba(0,0,0,0.6);" />
                             <div style="font-size: 0.65rem; color: #dfba73; line-height: 1.25;">
@@ -2318,12 +2347,10 @@
                                 <div id="mini-reference-name" style="color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; max-width: 140px; white-space: nowrap;">эталон.png</div>
                             </div>
                         </div>
+                    </div>
 
-</div>
-
-
-
-                    <!-- Скрытые канонические параметры (математика 4 углов) -->
+                    <!-- Скрытые параметры для совместимости скриптов -->
+                    <input type="hidden" id="shield-source-mode" value="extracted">
                     <input type="hidden" id="shield-geometry" value="cylinder">
                     <input type="hidden" id="shield-defringe" value="0">
                     <input type="hidden" id="shield-scale" value="100">
@@ -2331,79 +2358,8 @@
                     <input type="hidden" id="shield-x" value="0">
                     <input type="hidden" id="shield-angle" value="0">
                     <input type="hidden" id="shield-curvature" value="0">
-
-                    <!-- Модуль математического запекания (Zero Sliders) -->
-                    <div style="background: rgba(0,0,0,0.4); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 8px; padding: 0.75rem; margin: 0.6rem 0;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-                            <span style="font-size: 0.72rem; color: #34d399; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">
-                                <span>📐</span> Привязка 4 углов:
-                            </span>
-                            <span style="font-size: 0.62rem; color: #6ee7b7; padding: 2px 7px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 700;">
-                                ЭТАЛОН (0.01 px)
-                            </span>
-                        </div>
-                        <div style="font-size: 0.63rem; color: #cbd5e1; line-height: 1.4;">
-                            Планарная гомография: текстовый слепок намертво проецируется по внешним углам чистой этикетки. Ручные смещения исключены для сохранения единого эталона во всех сценах.
-                        </div>
-                    </div>
-
-                    <!-- Светотеневая директива Элины (Specular Pass) -->
-                    <div style="background: linear-gradient(145deg, rgba(197, 160, 89, 0.08), rgba(15, 15, 22, 0.6)); border: 1px solid rgba(197, 160, 89, 0.35); border-radius: 8px; padding: 0.75rem; margin: 0.6rem 0;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem;">
-                            <span style="font-size: 0.72rem; color: #dfba73; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">
-                                <span>☀️</span> Директива Элины по свету:
-                            </span>
-                            <span style="font-size: 0.6rem; color: #dfba73; padding: 2px 6px; border-radius: 4px; background: rgba(223, 186, 115, 0.12); border: 1px solid rgba(223, 186, 115, 0.3); font-weight: 700;">
-                                SPECULAR PASS
-                            </span>
-                        </div>
-
-                        <div class="param-row" style="margin-bottom: 0.35rem;">
-                            <span class="param-label" style="font-size: 0.68rem; color: var(--text-dim);"><span>Блик золота на стекле:</span></span>
-                            <select id="shield-blend" onchange="runShieldPreview()" style="width: 100%; font-size: 0.72rem; padding: 0.35rem 0.5rem; background: rgba(0,0,0,0.65); border: 1px solid rgba(197, 160, 89, 0.45); color: #fff; border-radius: 5px;">
-                                <option value="0.75" selected>75% — Директива Элины (Мягкий рассеянный свет 5200K)</option>
-                                <option value="0.88">88% — Директива Элины (Скользящий золотой луч на камнях)</option>
-                                <option value="0.95">95% — Директива Элины (Зеркальное золото / прямой фокус)</option>
-                                <option value="0.50">50% — Директива Элины (Матовая шелкография / полумрак)</option>
-                            </select>
-                        </div>
-                        <div style="font-size: 0.6rem; color: var(--text-dim); line-height: 1.35;">
-                            Точный параметр рассчитывается Режиссером на Gemini 4 Argon под угол обтюратора 180° и физику сцены.
-                        </div>
-                    </div>
-
-                    <!-- Action Buttons -->
-                    <div style="display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.7rem;">
-                        <button class="stage-btn btn-smoky-sage" style="width: 100%; justify-content: center; border: 1px solid rgba(116, 140, 124, 0.5); background: rgba(116, 140, 124, 0.14); color: #c8d6cb; font-weight: 600; padding: 0.5rem 0.8rem; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(116,140,124,0.25)'; this.style.borderColor='rgba(116,140,124,0.85)'" onmouseout="this.style.background='rgba(116,140,124,0.14)'; this.style.borderColor='rgba(116,140,124,0.5)'" onclick="runShieldPreview()">
-                            ⚡ Быстрая проекция (<0.5 сек)
-                        </button>
-
-                        <button class="stage-btn" style="width: 100%; justify-content: center; border-color: rgba(197, 160, 89, 0.5); background: rgba(197, 160, 89, 0.18); color: var(--primary-light); font-weight: 600; padding: 0.5rem 0.8rem;" onclick="runShieldAction()">
-                            🛡️ Финальное запекание в 4K Master
-                        </button>
-                    </div>
-
+                    <input type="hidden" id="shield-blend" value="0.75">
                 </div>
-
-                <!-- Паспорт эталона плоской этикетки от Заказчика -->
-                <div class="action-card" id="card-master-flat-label">
-                    <div class="card-heading">
-                        <span>📜</span> Паспорт плоского эталона (от Заказчика)
-                    </div>
-                    <p style="font-size: 0.725rem; color: var(--text-dim); margin-bottom: 0.5rem; line-height: 1.4;">
-                        Загрузите оригинальный плоский макет от бренда (PDF / PNG). Извлечение единого прозрачного альфа-слепка без фона и фиксация базовых координат.
-                    </p>
-                    <div style="display: flex; gap: 0.4rem; margin-bottom: 0.45rem;">
-                        <button class="stage-btn" style="flex: 1; justify-content: center; font-size: 0.68rem; padding: 5px 8px; border-color: rgba(197, 160, 89, 0.4); background: rgba(197, 160, 89, 0.12); color: #dfba73;" onclick="document.getElementById('custom-label-file-input').click()">
-                            📂 Выбрать плоский макет этикетки (PNG)
-                        </button>
-                    </div>
-                    <button class="stage-btn" style="width: 100%; justify-content: center; font-size: 0.68rem; padding: 5px 8px; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.08); color: #38bdf8;" onclick="extractLabelFromCurrentStage()">
-                        ✨ Снять прозрачный альфа-слепок (Alpha Monolith)
-                    </button>
-                </div>
-
-
 
                 <!-- Export Memo -->
 
@@ -2411,7 +2367,7 @@
 
                     <div class="card-heading">
 
-                        <span>🏛</span> Режиссерский протокол
+                        <span>🏛️</span> Режиссерский протокол
 
                     </div>
 
@@ -2459,10 +2415,15 @@
 
         </div>
 
-        <div style="padding: 1rem 1.25rem; font-size: 0.8rem; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.06);">
-
-            Выберите от 2 до 4 вариантов первого кадра. Элина через мультимодальный интеллект Gemini 4 Argon проведет сравнительный аудит и выберет безоговорочный кадр-победитель для старта движения в Google Flow.
-
+                <div style="padding: 0.85rem 1.25rem; font-size: 0.8rem; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+                Выберите от 2 до 4 вариантов (видеодубли Flow 360p или кадры 2K). Элина проведет кураторский аудит в Gemini 4 Argon.
+            </div>
+            <div style="display: flex; gap: 0.35rem;">
+                <button id="btn-shootout-filter-video" class="stage-btn" style="border-color: #3b82f6; color: #60a5fa; background: rgba(59,130,246,0.15); font-size: 0.75rem;" onclick="setShootoutFilter('video')">🎬 Видеодубли (Flow 360p)</button>
+                <button id="btn-shootout-filter-image" class="stage-btn" style="border-color: #64748b; color: #94a3b8; background: transparent; font-size: 0.75rem;" onclick="setShootoutFilter('image')">🖼 Кадры (Start Frame 2K)</button>
+                <button id="btn-shootout-filter-all" class="stage-btn" style="border-color: #64748b; color: #94a3b8; background: transparent; font-size: 0.75rem;" onclick="setShootoutFilter('all')">Все файлы</button>
+            </div>
         </div>
 
         <div id="shootout-items-list" style="padding: 1rem 1.25rem; flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem;">
@@ -2659,6 +2620,8 @@
 
             }
 
+            syncTabletFromServer();
+
         }
 
 
@@ -2674,6 +2637,8 @@
 
 
         const chat = document.getElementById('chat-messages');
+        const uPane = document.getElementById('left-unified-pane');
+        if (uPane && uPane.scrollTop !== 0) uPane.scrollTop = 0;
 
         if (chat) {
 
@@ -2695,18 +2660,42 @@
 
 
 
+        // Global protection: prevent browser from navigating away on dropped files outside dropzone
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            window.addEventListener(eventName, (e) => {
+                e.preventDefault();
+            }, false);
+        });
+
         const stageViewport = document.getElementById('viewport-stage');
+        const dropOverlay = document.getElementById('stage-drop-overlay');
+        let dragCounter = 0;
+
         if (stageViewport) {
+            stageViewport.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                dragCounter++;
+                if (dropOverlay) dropOverlay.style.display = 'flex';
+                stageViewport.style.outline = '2px dashed #dfba73';
+            });
             stageViewport.addEventListener('dragover', (e) => {
                 e.preventDefault();
-                stageViewport.style.outline = '2px dashed #c5a059';
+                if (dropOverlay) dropOverlay.style.display = 'flex';
+                stageViewport.style.outline = '2px dashed #dfba73';
             });
             stageViewport.addEventListener('dragleave', (e) => {
                 e.preventDefault();
-                stageViewport.style.outline = 'none';
+                dragCounter--;
+                if (dragCounter <= 0) {
+                    dragCounter = 0;
+                    if (dropOverlay) dropOverlay.style.display = 'none';
+                    stageViewport.style.outline = 'none';
+                }
             });
             stageViewport.addEventListener('drop', (e) => {
                 e.preventDefault();
+                dragCounter = 0;
+                if (dropOverlay) dropOverlay.style.display = 'none';
                 stageViewport.style.outline = 'none';
                 if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                     uploadFilesQueue(Array.from(e.dataTransfer.files));
@@ -2774,7 +2763,21 @@
 
 
 
+    function toggleTabletFromHeader() {
+        const pane = document.getElementById('left-unified-pane');
+        if (!pane) return;
+        if (pane.classList.contains('mode-tab-tablet')) {
+            setLeftPaneMode('tab-chat');
+        } else {
+            setLeftPaneMode('tab-tablet');
+        }
+    }
+
     function setLeftPaneMode(mode) {
+        const headerBtn = document.getElementById('btn-header-tablet');
+        const unifiedPane = document.getElementById('left-unified-pane');
+        if (unifiedPane) unifiedPane.scrollTop = 0;
+
 
         const pane = document.getElementById('left-unified-pane');
 
@@ -2799,12 +2802,16 @@
 
 
         if (mode === 'tab-chat') {
+            if (headerBtn) { headerBtn.innerHTML = '<span>📜</span> Режиссерский планшет'; headerBtn.style.borderColor = 'rgba(223, 186, 115, 0.4)'; headerBtn.style.color = '#dfba73'; }
+
 
             pane.classList.add('mode-tab-chat');
 
             btnChat?.classList.add('active');
 
         } else if (mode === 'tab-tablet') {
+            if (headerBtn) { headerBtn.innerHTML = '<span>💬</span> Вернуться в Чат'; headerBtn.style.borderColor = 'rgba(56, 189, 248, 0.5)'; headerBtn.style.color = '#38bdf8'; }
+
 
             pane.classList.add('mode-tab-tablet');
 
@@ -2945,6 +2952,41 @@
     // TABLET & PIN LOGIC
 
     // =========================================================
+
+
+    let tabletSaveTimeout = null;
+    function saveTabletToServer(text) {
+        if (tabletSaveTimeout) clearTimeout(tabletSaveTimeout);
+        tabletSaveTimeout = setTimeout(() => {
+            fetch('/api/boardroom/tablet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text })
+            }).catch(e => console.warn('Tablet autosave error:', e));
+        }, 400);
+    }
+
+    async function syncTabletFromServer() {
+        const textarea = document.getElementById('tablet-textarea');
+        if (!textarea) return;
+        try {
+            const resp = await fetch('/api/boardroom/tablet');
+            if (resp.ok) {
+                const data = await resp.json();
+                const serverText = data.text || '';
+                const localText = localStorage.getItem(TABLET_STORAGE_KEY) || '';
+                if (!localText && serverText) {
+                    textarea.value = serverText;
+                    localStorage.setItem(TABLET_STORAGE_KEY, serverText);
+                    updateTabletStats();
+                } else if (localText && !serverText) {
+                    saveTabletToServer(localText);
+                }
+            }
+        } catch (e) {
+            console.warn('Tablet sync error:', e);
+        }
+    }
 
     function handleTabletInput() {
 
@@ -3087,6 +3129,8 @@
             localStorage.setItem(TABLET_STORAGE_KEY, '');
 
             updateTabletStats();
+
+            fetch('/api/boardroom/tablet/clear', { method: 'POST' }).catch(e => console.warn(e));
 
         }
 
@@ -3232,7 +3276,8 @@
 
                 body: JSON.stringify({ 
                     text: text,
-                    active_media: activeMedia
+                    active_media: activeMedia,
+                    tablet_text: document.getElementById('tablet-textarea')?.value || ''
                 })
 
             });
@@ -3272,6 +3317,8 @@
     function appendMessage(sender, name, role, avatar, color, text) {
 
         const chat = document.getElementById('chat-messages');
+        const uPane = document.getElementById('left-unified-pane');
+        if (uPane && uPane.scrollTop !== 0) uPane.scrollTop = 0;
 
         const card = document.createElement('div');
 
@@ -3346,6 +3393,8 @@
             if (data.status === 'success') {
 
                 const chat = document.getElementById('chat-messages');
+        const uPane = document.getElementById('left-unified-pane');
+        if (uPane && uPane.scrollTop !== 0) uPane.scrollTop = 0;
 
                 chat.innerHTML = '';
 
@@ -3467,7 +3516,15 @@ function loadSelectedMedia() {
                 }
             };
 
-            stageVideo.play().catch(() => {});
+            stageVideo.onerror = function() {
+                console.error('Cinema Stage Video Error:', stageVideo.error);
+            };
+
+            stageVideo.play().catch((err) => {
+                console.warn('Autoplay unmuted blocked, falling back to muted autoplay:', err);
+                stageVideo.muted = true;
+                stageVideo.play().catch(() => {});
+            });
 
             document.getElementById('timeline-cues').style.display = (type === 'video' ? 'flex' : 'none');
 
@@ -4234,230 +4291,176 @@ function loadSelectedMedia() {
 
     // =========================================================
 
-    // VARIANT SHOOTOUT (1 of 4)
-
+    // VARIANT SHOOTOUT (1 of 4) — FLOW 360p & START FRAMES
     // =========================================================
+    let currentShootoutMedia = [];
+    let currentShootoutFilter = 'video';
 
-    async function openVariantShootoutModal() {
+    function setShootoutFilter(filterType) {
+        currentShootoutFilter = filterType;
+        ['video', 'image', 'all'].forEach(ft => {
+            const btn = document.getElementById(`btn-shootout-filter-${ft}`);
+            if (btn) {
+                if (ft === filterType) {
+                    btn.style.borderColor = '#3b82f6';
+                    btn.style.color = '#60a5fa';
+                    btn.style.background = 'rgba(59,130,246,0.15)';
+                } else {
+                    btn.style.borderColor = '#64748b';
+                    btn.style.color = '#94a3b8';
+                    btn.style.background = 'transparent';
+                }
+            }
+        });
+        renderShootoutItems();
+    }
 
-        const resp = await fetch('/api/boardroom/media');
-
-        const data = await resp.json();
-
+    function renderShootoutItems() {
         const listDiv = document.getElementById('shootout-items-list');
-
         listDiv.innerHTML = '';
 
-
-
-        const images = (data.media || []).filter(m => m.type === 'image');
-
-        if (images.length === 0) {
-
-            listDiv.innerHTML = '<div style="color: #94a3b8; grid-column: 1/-1;">В медиатеке нет изображений. Загрузите варианты через кнопку «⚡ Загрузить файл».</div>';
-
-        } else {
-
-            images.forEach(img => {
-
-                const item = document.createElement('label');
-
-                item.style.cssText = 'display: flex; gap: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 0.5rem; cursor: pointer; align-items: center;';
-
-                item.innerHTML = `
-
-                    <input type="checkbox" value="${img.path}" class="shootout-chk" onchange="updateShootoutCount()">
-
-                    <img src="/media_stream?path=${encodeURIComponent(img.path)}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(197, 160, 89, 0.3);">
-
-                    <div style="overflow: hidden;">
-
-                        <div style="font-size: 0.775rem; color: #fff; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;" title="${img.name}">${img.name}</div>
-
-                        <div style="font-size: 0.675rem; color: var(--text-dim);">${img.size_mb} MB</div>
-
-                    </div>
-
-                `;
-
-                listDiv.appendChild(item);
-
-            });
-
+        let items = currentShootoutMedia;
+        if (currentShootoutFilter === 'video') {
+            items = items.filter(m => m.type === 'video');
+        } else if (currentShootoutFilter === 'image') {
+            items = items.filter(m => m.type === 'image');
         }
 
+        if (items.length === 0) {
+            const label = currentShootoutFilter === 'video' ? 'видеофайлов (Flow 360p)' : 'файлов';
+            listDiv.innerHTML = `<div style="color: #94a3b8; grid-column: 1/-1; padding: 1.5rem; text-align: center;">В медиатеке нет ${label}. Загрузите их через панель справа. 🌿</div>`;
+            updateShootoutCount();
+            return;
+        }
 
+        items.forEach(item => {
+            const label = document.createElement('label');
+            label.style.cssText = 'display: flex; gap: 0.65rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 0.6rem; cursor: pointer; align-items: center; transition: all 0.15s;';
+            label.onmouseover = () => { label.style.borderColor = '#dfba73'; };
+            label.onmouseout = () => {
+                const chk = label.querySelector('.shootout-chk');
+                label.style.borderColor = chk && chk.checked ? '#dfba73' : 'rgba(255,255,255,0.08)';
+            };
+
+            const isVid = (item.type === 'video');
+            const previewEl = isVid
+                ? `<div style="width: 58px; height: 58px; border-radius: 6px; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0;">🎬</div>`
+                : `<img src="/media_stream?path=${encodeURIComponent(item.path)}" style="width: 58px; height: 58px; object-fit: cover; border-radius: 6px; flex-shrink: 0;" />`;
+
+            const badgeHtml = isVid
+                ? `<span style="font-size: 0.625rem; background: rgba(59,130,246,0.2); color: #60a5fa; border: 1px solid rgba(59,130,246,0.4); padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 600;">FLOW 360P</span>`
+                : `<span style="font-size: 0.625rem; background: rgba(223,186,115,0.2); color: #dfba73; border: 1px solid rgba(223,186,115,0.4); padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 600;">START FRAME 2K</span>`;
+
+            label.innerHTML = `
+                <input type="checkbox" value="${item.path}" class="shootout-chk" onchange="updateShootoutCount()" style="accent-color: #dfba73; cursor: pointer; width: 16px; height: 16px;">
+                ${previewEl}
+                <div style="overflow: hidden; flex: 1;">
+                    <div style="font-size: 0.775rem; color: #fff; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;" title="${item.name}">${item.name}</div>
+                    <div style="display: flex; gap: 0.4rem; align-items: center; margin-top: 0.25rem;">
+                        ${badgeHtml}
+                        <span style="font-size: 0.675rem; color: var(--text-dim);">${item.size_mb} MB</span>
+                    </div>
+                </div>
+            `;
+            listDiv.appendChild(label);
+        });
 
         updateShootoutCount();
+    }
+
+    async function openVariantShootoutModal() {
+        const resp = await fetch('/api/boardroom/media');
+        const data = await resp.json();
+        currentShootoutMedia = data.media || [];
+
+        const hasVideos = currentShootoutMedia.some(m => m.type === 'video');
+        currentShootoutFilter = hasVideos ? 'video' : 'image';
+        setShootoutFilter(currentShootoutFilter);
 
         document.getElementById('shootout-modal').style.display = 'flex';
-
     }
-
-
 
     function closeVariantShootoutModal() {
-
         document.getElementById('shootout-modal').style.display = 'none';
-
     }
-
-
 
     function updateShootoutCount() {
-
         const chks = document.querySelectorAll('.shootout-chk:checked');
-
         const countSpan = document.getElementById('shootout-selected-count');
-
         if (countSpan) {
-
             countSpan.textContent = chks.length;
-
-            countSpan.style.color = chks.length > 4 ? '#ef4444' : '#dfba73';
-
+            countSpan.style.color = (chks.length > 4 || chks.length < 2) ? '#ef4444' : '#dfba73';
         }
-
     }
 
-
-
     async function runVariantShootout() {
-
         const chks = document.querySelectorAll('.shootout-chk:checked');
-
         if (chks.length < 2) {
-
             alert('Пожалуйста, выберите минимум 2 варианта (до 4) для сравнительного отбора!');
-
             return;
-
         }
-
         if (chks.length > 4) {
-
             alert('Пожалуйста, выберите не более 4 вариантов одновременно!');
-
             return;
-
         }
-
-
 
         const selectedPaths = Array.from(chks).map(c => c.value);
-
         closeVariantShootoutModal();
 
-
-
         const banner = document.getElementById('thinking-banner');
-
         const thinkingText = document.getElementById('thinking-text');
-
-        thinkingText.textContent = `Элина (Gemini 4 Argon) проводит сравнительный аудит ${selectedPaths.length} вариантов первого кадра...`;
-
+        thinkingText.textContent = `Элина (Gemini 4 Argon) проводит кураторский отбор ${selectedPaths.length} вариантов...`;
         banner.style.display = 'flex';
 
-
-
         try {
-
             const resp = await fetch('/api/boardroom/compare_variants', {
-
                 method: 'POST',
-
                 headers: { 'Content-Type': 'application/json' },
-
                 body: JSON.stringify({ media_paths: selectedPaths })
-
             });
 
             if (!resp.ok) {
                 const errText = await resp.text();
                 banner.style.display = 'none';
-                alert('Сбой сервера (' + resp.status + '): ' + errText);
+                alert('Сбой отбора (' + resp.status + '): ' + errText);
                 return;
             }
 
             const res = await resp.json();
-
             banner.style.display = 'none';
-
-
 
             if (res.status === 'success') {
-
                 const m = res.message;
-
                 appendMessage(m.sender, m.name, m.role, m.avatar, m.color, m.text);
 
-
-
-                // ✦ АВТОМАТИЧЕСКИЙ ВЫВОД В LOOKDEV STAGE
-
                 if (res.winner_path) {
-
                     currentWinnerPath = res.winner_path;
-
                     currentWinnerName = res.winner_name;
 
-
-
-                    const stagePlaceholder = document.getElementById('stage-placeholder');
-
-                    const stageVideo = document.getElementById('stage-video');
-
-                    const stageImage = document.getElementById('stage-image');
-
-
-
-                    stagePlaceholder.style.display = 'none';
-
-                    stageVideo.style.display = 'none';
-
-                    stageVideo.pause();
-
-                    stageImage.style.display = 'block';
-
-                    stageImage.src = '/media_stream?path=' + encodeURIComponent(res.winner_path);
-
-
-
                     await refreshMediaList(res.winner_path);
-
-
+                    loadSelectedMedia();
 
                     const winBanner = document.getElementById('winner-banner');
-
                     const winName = document.getElementById('winner-banner-name');
-
                     if (winBanner && winName) {
-
                         winName.textContent = res.winner_name;
-
                         winBanner.style.display = 'flex';
-
                     }
-
                 }
 
+                if (res.reroll_mandate) {
+                    if (typeof syncTabletFromServer === 'function') {
+                        await syncTabletFromServer();
+                    }
+                }
             } else {
-
-                alert('Ошибка отбора: ' + res.detail);
-
+                alert('Ошибка отбора: ' + (res.detail || 'Не удалось выполнить отбор'));
             }
-
         } catch (e) {
-
             banner.style.display = 'none';
-
-            alert('Сбой: ' + e);
-
+            alert('Ошибка сети: ' + e);
         }
-
     }
-
-
 
     // =========================================================
 
@@ -4652,173 +4655,152 @@ function loadSelectedMedia() {
     // Media upload logic
 
     function handleFileInputChange(input) {
-
         if (!input.files || input.files.length === 0) return;
-
-        uploadFilesQueue(Array.from(input.files));
-
+        const files = Array.from(input.files);
+        input.value = ''; // Reset so selecting the same file triggers onchange next time
+        uploadFilesQueue(files);
     }
-
-
 
     async function uploadFilesQueue(files) {
+        if (!files || files.length === 0) return;
 
-        const overlay = document.getElementById('upload-overlay');
+        // Instant local preview for zero-delay visual feedback
+        const firstFile = files[0];
+        const ext = firstFile.name.split('.').pop().toLowerCase();
+        const isVideo = ['mp4', 'mov', 'webm', 'm4v'].includes(ext);
+        const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'].includes(ext);
+        const stageVideo = document.getElementById('stage-video');
+        const stageImage = document.getElementById('stage-image');
+        const stagePlaceholder = document.getElementById('stage-placeholder');
 
-        const bar = document.getElementById('upload-progress-bar');
-
-        const status = document.getElementById('upload-status');
-
-        const title = document.getElementById('upload-title');
-
-
-
-        overlay.style.display = 'flex';
-
-        let lastUploadedPath = null;
-
-
-
-        for (let i = 0; i < files.length; i++) {
-
-            const file = files[i];
-
-            title.textContent = `Загрузка в LookDev [${i + 1}/${files.length}]: ${file.name}`;
-
-            try {
-
-                const res = await uploadMediaFileAsync(file, (pct, loaded, total) => {
-
-                    bar.style.width = pct + '%';
-
-                    status.textContent = `${pct}% (${(loaded / 1024 / 1024).toFixed(1)} MB / ${(total / 1024 / 1024).toFixed(1)} MB)`;
-
-                });
-
-                if (res && res.path) lastUploadedPath = res.path;
-
-            } catch (e) {
-
-                alert(`Ошибка загрузки ${file.name}: ${e}`);
-
-            }
-
-        }
-
-
-
-        overlay.style.display = 'none';
-
-        if (lastUploadedPath) {
-
-            await refreshMediaList(lastUploadedPath);
-
-        }
-
-    }
-
-
-
-    function uploadMediaFileAsync(file, progressCb) {
-
-        return new Promise((resolve, reject) => {
-
-            const xhr = new XMLHttpRequest();
-
-            xhr.open('POST', '/api/boardroom/upload');
-
-            xhr.upload.onprogress = function(e) {
-
-                if (e.lengthComputable && progressCb) {
-
-                    const pct = Math.round((e.loaded / e.total) * 100);
-
-                    progressCb(pct, e.loaded, e.total);
-
-                }
-
-            };
-
-            xhr.onload = function() {
-
-                if (xhr.status === 200) {
-
-                    try { resolve(JSON.parse(xhr.responseText)); } catch(e) { reject(e); }
-
-                } else {
-
-                    reject('HTTP ' + xhr.status);
-
-                }
-
-            };
-
-            xhr.onerror = function() { reject('Сбой сети при загрузке'); };
-
-            const fd = new FormData();
-
-            fd.append('file', file);
-
-            fd.append('campaign', 'заказ/выбрано/3');
-
-            xhr.send(fd);
-
-        });
-
-    }
-
-
-
-    async function refreshMediaList(selectedPathToSet) {
+        if (stagePlaceholder) stagePlaceholder.style.display = 'none';
 
         try {
-
-            const resp = await fetch('/api/boardroom/media');
-
-            const data = await resp.json();
-
-            const sel = document.getElementById('media-selector');
-
-            const prevVal = sel.value;
-
-
-
-            sel.innerHTML = '<option value="">-- Выберите медиа-актив для инспекции --</option>';
-
-            data.media.forEach(m => {
-
-                const opt = document.createElement('option');
-
-                opt.value = m.path;
-
-                opt.setAttribute('data-type', m.type);
-
-                opt.textContent = `${m.name} (${m.size_mb} MB)`;
-
-                sel.appendChild(opt);
-
-            });
-
-
-
-            if (selectedPathToSet) {
-
-                sel.value = selectedPathToSet;
-
-                loadSelectedMedia();
-
-            } else if (prevVal) {
-
-                sel.value = prevVal;
-
+            const localBlobUrl = URL.createObjectURL(firstFile);
+            if (isVideo) {
+                if (stageImage) stageImage.style.display = 'none';
+                if (stageVideo) {
+                    stageVideo.style.display = 'block';
+                    stageVideo.src = localBlobUrl;
+                    stageVideo.load();
+                    stageVideo.play().catch(() => { stageVideo.muted = true; stageVideo.play().catch(() => {}); });
+                }
+            } else if (isImage) {
+                if (stageVideo) {
+                    stageVideo.style.display = 'none';
+                    stageVideo.pause();
+                }
+                if (stageImage) {
+                    stageImage.style.display = 'block';
+                    stageImage.src = localBlobUrl;
+                }
             }
-
-        } catch (e) {
-
-            console.error('Ошибка обновления медиа:', e);
-
+        } catch(e) {
+            console.warn('Local preview blob creation skipped:', e);
         }
 
+        const overlay = document.getElementById('upload-overlay');
+        const bar = document.getElementById('upload-progress-bar');
+        const status = document.getElementById('upload-status');
+        const title = document.getElementById('upload-title');
+
+        if (overlay) overlay.style.display = 'flex';
+        let lastUploadedPath = null;
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (title) title.textContent = `Загрузка в LookDev [${i + 1}/${files.length}]: ${file.name}`;
+            try {
+                const res = await uploadMediaFileAsync(file, (pct, loaded, total) => {
+                    if (bar) bar.style.width = pct + '%';
+                    if (status) status.textContent = `${pct}% (${(loaded / 1024 / 1024).toFixed(1)} MB / ${(total / 1024 / 1024).toFixed(1)} MB)`;
+                });
+                if (res && res.path) lastUploadedPath = res.path;
+            } catch (e) {
+                alert(`Ошибка загрузки ${file.name}: ${e}`);
+            }
+        }
+
+        if (overlay) overlay.style.display = 'none';
+        if (lastUploadedPath) {
+            const normPath = lastUploadedPath.replace(/\\/g, '/');
+            await refreshMediaList(normPath);
+        }
+    }
+
+    function uploadMediaFileAsync(file, progressCb) {
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/boardroom/upload');
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable && progressCb) {
+                    const pct = Math.round((e.loaded / e.total) * 100);
+                    progressCb(pct, e.loaded, e.total);
+                }
+            };
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    try { resolve(JSON.parse(xhr.responseText)); } catch(e) { reject(e); }
+                } else {
+                    reject('HTTP ' + xhr.status);
+                }
+            };
+            xhr.onerror = function() { reject('Сбой сети при загрузке'); };
+            const fd = new FormData();
+            fd.append('file', file);
+
+            const folderDisplay = document.getElementById('target-folder-display');
+            const activeFolder = (folderDisplay && folderDisplay.textContent.trim()) || (window.currentTargetCampaignFolder || 'D:/campaigns/отработка');
+            fd.append('target_folder', activeFolder);
+            fd.append('campaign', activeFolder);
+            xhr.send(fd);
+        });
+    }
+
+    async function refreshMediaList(selectedPathToSet) {
+        try {
+            const resp = await fetch('/api/boardroom/media');
+            const data = await resp.json();
+            const sel = document.getElementById('media-selector');
+            if (!sel) return;
+            const prevVal = sel.value;
+
+            sel.innerHTML = '<option value="">-- Выберите медиа-актив для инспекции --</option>';
+            let matched = false;
+            const normTarget = selectedPathToSet ? selectedPathToSet.replace(/\\/g, '/').toLowerCase() : null;
+
+            data.media.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.path;
+                opt.setAttribute('data-type', m.type);
+                opt.textContent = `${m.name} (${m.size_mb} MB)`;
+
+                const normPath = m.path.replace(/\\/g, '/').toLowerCase();
+                if (normTarget && (normPath === normTarget || normPath.endsWith('/' + normTarget.split('/').pop()))) {
+                    opt.selected = true;
+                    matched = true;
+                }
+                sel.appendChild(opt);
+            });
+
+            if (matched) {
+                loadSelectedMedia();
+            } else if (selectedPathToSet) {
+                const filename = selectedPathToSet.split('/').pop();
+                const opt = document.createElement('option');
+                opt.value = selectedPathToSet;
+                const ext = filename.split('.').pop().toLowerCase();
+                opt.setAttribute('data-type', ['mp4', 'mov', 'webm', 'm4v'].includes(ext) ? 'video' : (ext === 'pdf' ? 'pdf' : 'image'));
+                opt.textContent = `[Загружено] ${filename}`;
+                opt.selected = true;
+                sel.appendChild(opt);
+                loadSelectedMedia();
+            } else if (prevVal) {
+                sel.value = prevVal;
+            }
+        } catch (e) {
+            console.error('Ошибка обновления медиа:', e);
+        }
     }
 
 
@@ -5348,6 +5330,8 @@ function closeFolderPickerModal() {
     // =========================================================
     function scrollChatToBottom(smooth = true) {
         const chat = document.getElementById('chat-messages');
+        const uPane = document.getElementById('left-unified-pane');
+        if (uPane && uPane.scrollTop !== 0) uPane.scrollTop = 0;
         if (chat) {
             chat.scrollTo({
                 top: chat.scrollHeight,
@@ -5511,7 +5495,32 @@ function closeFolderPickerModal() {
         setTimeout(() => scrollChatToBottom(false), 1000);
         pollPipelineStatus();
         setInterval(pollPipelineStatus, 1000);
+
+        // Auto-mount active media onto Cinema Stage immediately
+        setTimeout(() => {
+            const sel = document.getElementById('media-selector');
+            if (sel && sel.value) {
+                console.log('Auto-mounting active media on load:', sel.value);
+                loadSelectedMedia();
+            }
+        }, 150);
     });
+
+
+    function selectSceneByPattern(pattern) {
+        const sel = document.getElementById('media-selector');
+        if (!sel || !sel.options) return;
+        const parts = pattern.toLowerCase().split('|');
+        for (let i = 0; i < sel.options.length; i++) {
+            const val = sel.options[i].value.toLowerCase();
+            const text = sel.options[i].textContent.toLowerCase();
+            if (parts.some(p => val.includes(p) || text.includes(p))) {
+                sel.selectedIndex = i;
+                loadSelectedMedia();
+                return;
+            }
+        }
+    }
 
 </script>
 
