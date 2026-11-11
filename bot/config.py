@@ -20,8 +20,8 @@ class Config:
 
     # OpenRouter
     openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
-    openrouter_model: str = "google/gemini-2.5-flash"
-    cheap_model: str = "google/gemini-2.5-flash"
+    openrouter_model: str = "deepseek/deepseek-v4.1-flash-1017"
+    cheap_model: str = "deepseek/deepseek-v4.1-flash-1017"
 
     # Search APIs
     brave_api_key: str = os.getenv("BRAVE_API_KEY", "")

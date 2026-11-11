@@ -203,7 +203,8 @@ async def process_video_shootout(
             elin_persona=elin_persona,
             lore_context=lore_context,
             is_admin=is_admin,
-            override_model=override_model
+            override_model=override_model,
+            session_id=f"tg_{user_id}"
         )
 
         # Списание кредитов (1 раз за всю серию как за Video QA)

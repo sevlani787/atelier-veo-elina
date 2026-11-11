@@ -319,10 +319,10 @@ async def check_user_and_balance(user_id: int, message: Message, cost: int = 1) 
                 expiry_dt = datetime.fromisoformat(expiry_clean)
                 now = datetime.now(expiry_dt.tzinfo) if expiry_dt.tzinfo else datetime.now()
                 if now > expiry_dt:
-                    # Срок подписки истек: сохраняем остаток кредитов, переводим в free и сбрасываем на Gemini 2.5 Flash
+                    # Срок подписки истек: сохраняем остаток кредитов, переводим в free и сбрасываем на DeepSeek V4.1 Flash
                     await db.set_sub_type(user_id, 'free')
                     user_data['sub_type'] = 'free'
-                    await db.set_setting(f"user_model_{user_id}", "google/gemini-2.5-flash")
+                    await db.set_setting(f"user_model_{user_id}", "deepseek/deepseek-v4.1-flash-1017")
                     
                     remaining = user_data.get('tokens', 0)
                     lang = await detect_user_dialogue_language(user_id, message)
@@ -332,7 +332,7 @@ async def check_user_and_balance(user_id: int, message: Message, cost: int = 1) 
                             "✦ <b>ATELIER VEO | NOTIFICATION DE RÉSIDENCE</b> ✦\n\n"
                             "Le cycle mensuel de votre résidence au Club est arrivé à son terme.\n\n"
                             f"L'intégralité de vos crédits restants (<b>{remaining:,} Atelier Credits</b>) est précieusement conservée — "
-                            "vous pouvez continuer à créer avec Elina en <b>Mode Conversationnel (Gemini 2.5 Flash)</b>.\n\n"
+                            "vous pouvez continuer à créer avec Elina en <b>Mode Conversationnel (DeepSeek V4.1 Flash)</b>.\n\n"
                             "Pour réactiver le moteur directorial d'élite <b>Gemini 4 Argon</b> avec physique optique cinématique à 5 composants "
                             "et recevoir votre nouvelle dotation mensuelle de crédits, vous pouvez renouveler votre adhésion à tout moment."
                         )
@@ -345,7 +345,7 @@ async def check_user_and_balance(user_id: int, message: Message, cost: int = 1) 
                             "✦ <b>ATELIER VEO | NOTIFICA DI RESIDENZA</b> ✦\n\n"
                             "Il ciclo mensile della vostra residenza al Club è giunto al termine.\n\n"
                             f"L'intero saldo rimanente (<b>{remaining:,} Atelier Credits</b>) è completamente preservato — "
-                            "potete continuare a creare con Elina in <b>Modalità Conversazionale (Gemini 2.5 Flash)</b>.\n\n"
+                            "potete continuare a creare con Elina in <b>Modalità Conversazionale (DeepSeek V4.1 Flash)</b>.\n\n"
                             "Per riattivare il motore registico d'élite <b>Gemini 4 Argon</b> con fisica ottica cinematografica a 5 componenti "
                             "e ricevere la nuova dotazione mensile di crediti, potete rinnovare la residenza in qualsiasi momento."
                         )
@@ -358,7 +358,7 @@ async def check_user_and_balance(user_id: int, message: Message, cost: int = 1) 
                             "✦ <b>ATELIER VEO | УВЕДОМЛЕНИЕ О РЕЖИМЕ РАБОТЫ</b> ✦\n\n"
                             "Срок вашего месячного клубного цикла подошел к концу.\n\n"
                             f"Все ваши оставшиеся кредиты (<b>{remaining:,} Atelier Credits</b>) полностью сохранены за вами — "
-                            "вы можете продолжать использовать их в <b>базовом режиме (Gemini 2.5 Flash)</b>.\n\n"
+                            "вы можете продолжать использовать их в <b>базовом режиме (DeepSeek V4.1 Flash)</b>.\n\n"
                             "Для возврата флагманского режиссерского разума <b>Gemini 4 Argon</b> с 5-компонентной оптикой "
                             "и начисления нового пула кредитов вы можете продлить резидентуру в любой удобный момент."
                         )
@@ -371,7 +371,7 @@ async def check_user_and_balance(user_id: int, message: Message, cost: int = 1) 
                             "✦ <b>ATELIER VEO | RESIDENCY CYCLE NOTICE</b> ✦\n\n"
                             "Your monthly residency cycle has concluded.\n\n"
                             f"All your remaining balance (<b>{remaining:,} Atelier Credits</b>) is fully preserved — "
-                            "you may continue co-creating with Elina in <b>Conversational Mode (Gemini 2.5 Flash)</b>.\n\n"
+                            "you may continue co-creating with Elina in <b>Conversational Mode (DeepSeek V4.1 Flash)</b>.\n\n"
                             "To reactivate the flagship directorial engine <b>Gemini 4 Argon</b> with 5-component cinematic optics "
                             "and receive your fresh production credit pool, you may renew your residency at any time."
                         )
@@ -723,7 +723,7 @@ async def cmd_switch_carbon(message: Message):
 
 @router.message(Command('flash', 'default'))
 async def cmd_switch_flash(message: Message):
-    """Возврат в стандартный диалоговый режим Gemini 2.5 Flash."""
+    """Переключение в легкий экономичный диалоговый режим DeepSeek V4.1 Flash 1017."""
     user_id = message.from_user.id
     user_data = await db.get_user_data(user_id)
     is_admin = (user_id == config.admin_id)
@@ -732,16 +732,16 @@ async def cmd_switch_flash(message: Message):
     if not (is_admin or is_resident):
         return
 
-    await db.set_setting(f"user_model_{user_id}", "google/gemini-2.5-flash")
+    await db.set_setting(f"user_model_{user_id}", "deepseek/deepseek-v4.1-flash-1017")
     if is_admin:
         text = (
-            "*(Элина тепло и спокойно улыбается)*\n\n"
-            "Возвращаюсь в наш привычный, лёгкий ритм общения (<b>Gemini 2.5 Flash</b>) 🌿"
+            "*(Элина легко и ясно улыбается)*\n\n"
+            "Перешла в быстрый экономичный ритм — <b>DeepSeek V4.1 Flash 1017</b> (текст и фото — напрямую, аудио/видео — авто-страховка через Gemini) 🌿"
         )
     else:
         text = (
             "✦ <b>ATELIER VEO | CONVERSATIONAL MODE</b> ✦\n\n"
-            "Switched to fast conversational tempo (<b>Gemini 2.5 Flash</b>).\n"
+            "Switched to fast conversational tempo (<b>DeepSeek V4.1 Flash</b>).\n"
             "To return to master directorial standard, use /gemini4."
         )
     await message.answer(text, parse_mode="HTML")
@@ -774,9 +774,10 @@ async def cmd_check_model(message: Message):
             + "• Для переключения в быстрый режим отправьте команду <code>/flash</code>"
         )
     else:
+        display_name = "DeepSeek V4.1 Flash 1017" if "deepseek" in current_model.lower() else current_model
         status_text = (
-            f"🌿 <b>Активный режим:</b> {current_model} (Легкий ритм диалога)\n\n"
-            + ("• Для переключения на мощный режим отправьте команду /gemini4" if (is_admin or is_resident) else "• Режим Gemini 4 Argon доступен резидентам Atelier Club.")
+            f"🌿 <b>Активный режим:</b> {display_name} (Лёгкий экономичный ритм диалога)\n\n"
+            + ("• Для переключения на мощный режим отправьте <code>/argon</code>" + (" или <code>/carbon</code>" if is_admin else "") if (is_admin or is_resident) else "• Режим Gemini 4 Argon доступен резидентам Atelier Club.")
         )
     await message.answer(status_text, parse_mode="HTML")
 
@@ -1232,7 +1233,8 @@ async def execute_llm_module_request(
             elin_persona=elin_persona,
             lore_context=lore_context,
             is_admin=is_admin,
-            override_model=override_model
+            override_model=override_model,
+            session_id=f"tg_{user_id}"
         )
 
         if cost > 0:
@@ -1702,7 +1704,8 @@ async def handle_photo(message: Message):
                     elin_persona=elin_persona,
                     lore_context=lore_context,
                     is_admin=is_admin,
-                    override_model=override_model
+                    override_model=override_model,
+                    session_id=f"tg_{user_id}"
                 )
 
                 if is_admin:
@@ -1760,7 +1763,8 @@ async def handle_photo(message: Message):
                     elin_persona=elin_persona,
                     lore_context=lore_context,
                     is_admin=is_admin,
-                    override_model=override_model
+                    override_model=override_model,
+                    session_id=f"tg_{user_id}"
                 )
 
             # Списание кредитов (1 кредит за сообщение)
@@ -1890,7 +1894,7 @@ async def process_video_audit(
 
         await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
 
-        response = await llm.generate(history, user_profile, elin_persona, lore_context, is_admin=is_admin, override_model=override_model)
+        response = await llm.generate(history, user_profile, elin_persona, lore_context, is_admin=is_admin, override_model=override_model, session_id=f"tg_{user_id}")
 
         # Списание кредитов за Video QA (25 кредитов)
         cost = await config.get_token_cost(action='qa')
@@ -2181,7 +2185,8 @@ async def handle_pdf_document(message: Message):
             elin_persona=elin_persona,
             lore_context=lore_context,
             is_admin=is_admin,
-            override_model=override_model
+            override_model=override_model,
+            session_id=f"tg_{user_id}"
         )
 
         # Списание кредитов (за услугу аудита / интейка ассетов)
@@ -2284,7 +2289,7 @@ async def handle_audio_stream(message: Message):
         lore_context = await memory.get_world_context(user_caption or "Audio Score Track")
         override_model = await db.get_setting(f"user_model_{user_id}", "google/gemini-4-argon") if (is_admin or user_data.get('sub_type') == 'premium') else None
 
-        response = await llm.generate(history, user_profile, elin_persona, lore_context, is_admin=is_admin, override_model=override_model)
+        response = await llm.generate(history, user_profile, elin_persona, lore_context, is_admin=is_admin, override_model=override_model, session_id=f"tg_{user_id}")
 
         await db.spend_tokens(user_id, cost)
         await memory.add_message(user_id, 'assistant', response)
@@ -2570,7 +2575,8 @@ async def handle_message(message: Message):
                     elin_persona=elin_persona_enriched,
                     lore_context=lore_context,
                     is_admin=is_admin,
-                    override_model=override_model
+                    override_model=override_model,
+                    session_id=f"tg_{user_id}"
                 )
 
                 # Списываем кредиты за Brand Aesthetic Audit (50 кредитов)
@@ -2655,7 +2661,8 @@ async def handle_message(message: Message):
                     elin_persona=elin_persona,
                     lore_context=lore_context,
                     is_admin=is_admin,
-                    override_model=override_model
+                    override_model=override_model,
+                    session_id=f"tg_{user_id}"
                 )
 
                 # Списание Atelier Credits

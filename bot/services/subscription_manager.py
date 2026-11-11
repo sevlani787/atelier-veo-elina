@@ -139,9 +139,9 @@ async def check_expiring_subscriptions(bot: Bot):
             # 2. НАСТУПЛЕНИЕ МОМЕНТА ОКОНЧАНИЯ СРОКА (DELTAS <= 0)
             # -----------------------------------------------------------------
             elif delta <= timedelta(0):
-                # Переводим статус в free и сбрасываем модель на Gemini 2.5 Flash
+                # Переводим статус в free и сбрасываем модель на DeepSeek V4.1 Flash
                 await db.set_sub_type(user_id, "free")
-                await db.set_setting(f"user_model_{user_id}", "google/gemini-2.5-flash")
+                await db.set_setting(f"user_model_{user_id}", "deepseek/deepseek-v4.1-flash-1017")
 
                 cycle_end_key = f"expiry_handled_{user_id}_{date_key}"
                 already_handled = await db.get_setting(cycle_end_key)
@@ -156,7 +156,7 @@ async def check_expiring_subscriptions(bot: Bot):
                             "✦ <b>ATELIER VEO | NOTIFICATION DE RÉSIDENCE</b> ✦\n\n"
                             "Le cycle mensuel de votre résidence au Club est arrivé à son terme.\n\n"
                             f"L'intégralité de vos crédits restants (<b>{tokens:,} Atelier Credits</b>) est précieusement conservée — "
-                            "vous pouvez continuer à créer avec Elina en <b>Mode Conversationnel (Gemini 2.5 Flash)</b>.\n\n"
+                            "vous pouvez continuer à créer avec Elina en <b>Mode Conversationnel (DeepSeek V4.1 Flash)</b>.\n\n"
                             "Pour réactiver le moteur directorial d'élite <b>Gemini 4 Argon</b> avec physique optique cinématique à 5 composants "
                             "et recevoir votre nouvelle dotation mensuelle de crédits, vous pouvez renouveler votre adhésion à tout moment."
                         )
@@ -169,7 +169,7 @@ async def check_expiring_subscriptions(bot: Bot):
                             "✦ <b>ATELIER VEO | NOTIFICA DI RESIDENZA</b> ✦\n\n"
                             "Il ciclo mensile della vostra residenza al Club è giunto al termine.\n\n"
                             f"L'intero saldo rimanente (<b>{tokens:,} Atelier Credits</b>) è completamente preservato — "
-                            "potete continuare a creare con Elina in <b>Modalità Conversazionale (Gemini 2.5 Flash)</b>.\n\n"
+                            "potete continuare a creare con Elina in <b>Modalità Conversazionale (DeepSeek V4.1 Flash)</b>.\n\n"
                             "Per riattivare il motore registico d'élite <b>Gemini 4 Argon</b> con fisica ottica cinematografica a 5 componenti "
                             "e ricevere la nuova dotazione mensile di crediti, potete rinnovare la residenza in qualsiasi momento."
                         )
@@ -182,7 +182,7 @@ async def check_expiring_subscriptions(bot: Bot):
                             "✦ <b>ATELIER VEO | УВЕДОМЛЕНИЕ О РЕЖИМЕ РАБОТЫ</b> ✦\n\n"
                             "Срок вашего месячного клубного цикла подошел к концу.\n\n"
                             f"Все ваши оставшиеся кредиты (<b>{tokens:,} Atelier Credits</b>) полностью сохранены за вами — "
-                            "вы можете продолжать использовать их в <b>базовом режиме (Gemini 2.5 Flash)</b>.\n\n"
+                            "вы можете продолжать использовать их в <b>базовом режиме (DeepSeek V4.1 Flash)</b>.\n\n"
                             "Для возврата флагманского режиссерского разума <b>Gemini 4 Argon</b> с 5-компонентной оптикой "
                             "и начисления нового пула кредитов вы можете продлить резидентуру в любой удобный момент."
                         )
@@ -195,7 +195,7 @@ async def check_expiring_subscriptions(bot: Bot):
                             "✦ <b>ATELIER VEO | RESIDENCY CYCLE NOTICE</b> ✦\n\n"
                             "Your monthly residency cycle has concluded.\n\n"
                             f"All your remaining balance (<b>{tokens:,} Atelier Credits</b>) is fully preserved — "
-                            "you may continue co-creating with Elina in <b>Conversational Mode (Gemini 2.5 Flash)</b>.\n\n"
+                            "you may continue co-creating with Elina in <b>Conversational Mode (DeepSeek V4.1 Flash)</b>.\n\n"
                             "To reactivate the flagship directorial engine <b>Gemini 4 Argon</b> with 5-component cinematic optics "
                             "and receive your fresh production credit pool, you may renew your residency at any time."
                         )

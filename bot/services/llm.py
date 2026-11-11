@@ -1,3 +1,4 @@
+import hashlib
 import httpx
 import json
 import asyncio
@@ -10,87 +11,195 @@ class LLMService:
         self.api_key = config.openrouter_api_key
         self.model = config.openrouter_model
 
-    async def generate(self, messages: list[dict], override_model: Optional[str] = None) -> str:
+    @staticmethod
+    def _supports_vision(model: str) -> bool:
+        m = (model or "").lower()
+        return any(tok in m for tok in (
+            "deepseek-v4.1-flash",
+            "gemini-2.5",
+            "gemini-2.0",
+            "gemini-4-argon",
+            "gemini-4-carbon",
+            "gpt-4o",
+        ))
+
+    @staticmethod
+    def _supports_audio(model: str) -> bool:
+        m = (model or "").lower()
+        return any(tok in m for tok in (
+            "gemini-2.5",
+            "gemini-2.0",
+            "gemini-4-argon",
+            "gemini-4-carbon",
+        ))
+
+    @staticmethod
+    def _supports_cache_control(model: str) -> bool:
+        m = (model or "").lower()
+        return ("gemini" in m or "claude" in m or "anthropic" in m)
+
+    @classmethod
+    def _prepare_messages_for_model(cls, optimized_messages: list[dict], model: str) -> list[dict]:
+        """Адаптирует сообщения под модальности конкретной модели (vision / native audio)."""
+        supports_vision = cls._supports_vision(model)
+        supports_audio = cls._supports_audio(model)
+
+        prepared = []
+        for m in optimized_messages:
+            content = m.get('content')
+            if not isinstance(content, list):
+                prepared.append({'role': m['role'], 'content': content})
+                continue
+
+            if not supports_vision:
+                text = " ".join([it.get('text', '') for it in content if it.get('type') == 'text']).strip()
+                prepared.append({'role': m['role'], 'content': f"[Изображение/медиа пропущено] {text}".strip()})
+                continue
+
+            if not supports_audio:
+                filtered_items = []
+                stripped_audio = False
+                for it in content:
+                    if it.get('type') == 'input_audio':
+                        stripped_audio = True
+                        continue
+                    filtered_items.append(dict(it))
+                if stripped_audio:
+                    filtered_items.insert(0, {'type': 'text', 'text': '[Примечание: нативная аудиодорожка пропущена, так как резервная модель работает без звука.]'})
+                if all(it.get('type') == 'text' for it in filtered_items):
+                    merged = " ".join([it.get('text', '') for it in filtered_items]).strip()
+                    prepared.append({'role': m['role'], 'content': merged})
+                else:
+                    prepared.append({'role': m['role'], 'content': filtered_items})
+                continue
+
+            prepared.append({'role': m['role'], 'content': [dict(it) for it in content]})
+        return prepared
+
+    @staticmethod
+    def _mark_block_ephemeral(msg: dict) -> dict:
+        """Добавляет cache_control: ephemeral на последний текстовый блок сообщения (для Gemini/Claude)."""
+        content = msg.get('content')
+        if isinstance(content, str):
+            if not content.strip():
+                return msg
+            return {
+                'role': msg['role'],
+                'content': [{
+                    'type': 'text',
+                    'text': content,
+                    'cache_control': {'type': 'ephemeral'}
+                }]
+            }
+        if isinstance(content, list) and content:
+            new_items = [dict(it) for it in content]
+            for idx in range(len(new_items) - 1, -1, -1):
+                if new_items[idx].get('type') == 'text' and str(new_items[idx].get('text', '')).strip():
+                    new_items[idx]['cache_control'] = {'type': 'ephemeral'}
+                    break
+            return {'role': msg['role'], 'content': new_items}
+        return msg
+
+    @classmethod
+    def _apply_prompt_cache(cls, messages: list[dict], model: str) -> list[dict]:
+        """Расставляет cache_control breakpoints для префиксного кэширования Gemini на OpenRouter."""
+        if not messages or not cls._supports_cache_control(model):
+            return messages
+
+        cached = [dict(m) for m in messages]
+        # Точка 1: стабильный системный промпт (role == system)
+        if cached[0].get('role') == 'system':
+            cached[0] = cls._mark_block_ephemeral(cached[0])
+
+        # Точка 2: граница накопленной истории перед последним сообщением (минимум 3 сообщения)
+        if len(cached) >= 3:
+            cached[-2] = cls._mark_block_ephemeral(cached[-2])
+
+        return cached
+
+    async def generate(self, messages: list[dict], override_model: Optional[str] = None, session_id: Optional[str] = None) -> str:
         start_time = time.time()
         # Получаем актуальную модель из конфига (она может быть в БД)
         preferred_model = await config.get_model()
-        
+
         headers = {
-            f'Authorization': f'Bearer {self.api_key}',
+            'Authorization': f'Bearer {self.api_key}',
             'Content-Type': 'application/json',
             'HTTP-Referer': 'https://elin-telegram-bot',
             'X-Title': 'Elin Telegram Bot'
         }
 
-        # Список моделей для авто-фоллбэка
-        models_to_try = []
-        if override_model:
-            models_to_try.append(override_model)
-        
-        models_to_try.extend([
-            preferred_model,
-            "google/gemini-2.5-flash",
-            "deepseek/deepseek-chat",
-            "google/gemini-2.0-flash",
-            "openai/gpt-4o-mini"
-        ])
-        
-        # Убираем дубликаты, сохраняя порядок
-        models_to_try = list(dict.fromkeys(models_to_try))
-
-        # Список моделей с поддержкой vision
-        vision_models = [
-            "google/gemini-2.5-flash",
-            "google/gemini-2.0-flash",
-            "openai/gpt-4o-mini",
-            "google/gemini-2.5-pro",
-            "google/gemini-4-argon",
-            "google/gemini-4-carbon"
-        ]
-
-        # Оптимизация контекста: оставляем изображения только в ПОСЛЕДНЕМ сообщении
-        # Для остальных сообщений в истории заменяем картинки на текстовое описание
+        # Оптимизация контекста: оставляем медиа только в ПОСЛЕДНЕМ сообщении
+        # Для остальных сообщений в истории заменяем медиа на текстовое описание
         optimized_messages = []
         for i, m in enumerate(messages):
             is_last = (i == len(messages) - 1)
             if isinstance(m.get('content'), list):
-                # Извлекаем текст
                 text_parts = [item.get('text', '') for item in m['content'] if item.get('type') == 'text']
                 combined_text = " ".join(text_parts).strip()
-                
-                # Проверяем наличие медиа (изображения или аудио)
+
                 has_media = any(item.get('type') in ('image_url', 'input_audio') for item in m['content'])
-                
+
                 if has_media:
                     if is_last:
-                        # В последнем сообщении оставляем всё как есть (для обработки нового медиа)
                         optimized_messages.append(m)
                     else:
-                        # В истории заменяем на текст-заглушку, чтобы не слать мегабайты base64
                         desc = f"[Медиа-ассет: {combined_text}]" if combined_text else "[Медиа-ассет без описания]"
                         optimized_messages.append({'role': m['role'], 'content': desc})
                 else:
-                    # Если медиа не было, просто схлопываем список в текст для экономии
                     optimized_messages.append({'role': m['role'], 'content': combined_text or ""})
             else:
                 optimized_messages.append(m)
 
+        # Проверяем, содержит ли текущий активный запрос нативную аудиодорожку (input_audio)
+        has_current_audio = any(
+            isinstance(m.get('content'), list) and any(it.get('type') == 'input_audio' for it in m['content'])
+            for m in optimized_messages
+        )
+
+        # Список моделей для авто-фоллбэка с защитой нативного звука
+        models_to_try = []
+        if has_current_audio:
+            if override_model and self._supports_audio(override_model):
+                models_to_try.append(override_model)
+            elif override_model:
+                print(f"[LLM] Обнаружен input_audio: авто-маршрутизация с '{override_model}' на Gemini (Audio-capable).")
+            if preferred_model and self._supports_audio(preferred_model):
+                models_to_try.append(preferred_model)
+            models_to_try.extend([
+                "google/gemini-2.5-flash",
+                "google/gemini-2.0-flash",
+                "deepseek/deepseek-v4.1-flash-1017",
+                "openai/gpt-4o-mini"
+            ])
+        else:
+            if override_model:
+                models_to_try.append(override_model)
+            models_to_try.extend([
+                preferred_model,
+                "deepseek/deepseek-v4.1-flash-1017",
+                "google/gemini-2.5-flash",
+                "google/gemini-2.0-flash",
+                "openai/gpt-4o-mini"
+            ])
+
+        # Убираем дубликаты, сохраняя порядок
+        models_to_try = list(dict.fromkeys(m for m in models_to_try if m))
+
+        # Стабильный session_id для Sticky Routing OpenRouter (макс 256 символов)
+        if session_id:
+            effective_session_id = str(session_id)[:256]
+        else:
+            first_content = str(optimized_messages[0].get('content', ''))[:1000] if optimized_messages else "default"
+            digest = hashlib.sha256(first_content.encode('utf-8', errors='ignore')).hexdigest()[:16]
+            effective_session_id = f"atelier_{digest}"
+
         last_error = ""
         for model in models_to_try:
             model_start = time.time()
-            
-            # Решаем, какие сообщения отправлять (теперь используем оптимизированные)
-            # Если модель НЕ поддерживает vision, а в последнем сообщении картинка - используем текст-версию
-            current_messages = []
-            if model not in vision_models:
-                for m in optimized_messages:
-                    if isinstance(m.get('content'), list):
-                        text = " ".join([it.get('text', '') for it in m['content'] if it.get('type') == 'text'])
-                        current_messages.append({'role': m['role'], 'content': f"[Изображение пропущено] {text}"})
-                    else:
-                        current_messages.append(m)
-            else:
-                current_messages = optimized_messages
+
+            current_messages = self._prepare_messages_for_model(optimized_messages, model)
+            current_messages = self._apply_prompt_cache(current_messages, model)
 
             max_tokens_val = await config.get_max_tokens()
             payload = {
@@ -98,7 +207,8 @@ class LLMService:
                 'messages': current_messages,
                 'max_tokens': max_tokens_val,
                 'temperature': 0.7,
-                'repetition_penalty': 1.1 # Защита от зацикливания
+                'repetition_penalty': 1.1, # Защита от зацикливания
+                'session_id': effective_session_id
             }
 
             try:
@@ -106,7 +216,7 @@ class LLMService:
                 payload_json = json.dumps(payload)
                 payload_kb = len(payload_json) / 1024
                 char_count = sum(len(str(m.get('content', ''))) for m in current_messages)
-                print(f"[LLM] Модель: {model} | Сообщений: {len(current_messages)} | Символов: {char_count} | Payload: {payload_kb:.1f}KB")
+                print(f"[LLM] Модель: {model} | Session: {effective_session_id} | Сообщений: {len(current_messages)} | Символов: {char_count} | Payload: {payload_kb:.1f}KB")
                 
                 async with httpx.AsyncClient() as client:
                     response = await client.post(
@@ -136,8 +246,17 @@ class LLMService:
                                 last_error = error_msg
                                 continue
 
+                            usage = data.get('usage') or {}
+                            prompt_toks = usage.get('prompt_tokens', 0) or 0
+                            details = usage.get('prompt_tokens_details') or {}
+                            cached_toks = details.get('cached_tokens', 0) or 0
+                            cache_pct = (cached_toks / prompt_toks * 100.0) if prompt_toks else 0.0
+
                             total_elapsed = time.time() - start_time
-                            print(f"[LLM] Успех! Модель: {model} | Время: {elapsed:.2f}с (всего {total_elapsed:.2f}с) | {payload_kb:.1f}KB")
+                            print(
+                                f"[LLM] Успех! Модель: {model} | Время: {elapsed:.2f}с (всего {total_elapsed:.2f}с) | "
+                                f"{payload_kb:.1f}KB | Prompt: {prompt_toks} tok (Cached: {cached_toks}, {cache_pct:.0f}%)"
+                            )
                             return content
                         else:
                             error_msg = f"OpenRouter returned 200 but no choices: {data}"
@@ -403,20 +522,36 @@ class ElinLLM(LLMService):
             clean_paragraphs.append(p)
         return "\n\n".join(clean_paragraphs).strip()
 
-    async def generate(self, messages: list[dict], user_profile: str = "", elin_persona: str = "", lore_context: str = "", is_admin: bool = False, override_model: Optional[str] = None) -> str:
+    @staticmethod
+    def _inject_dynamic_lore(messages: list[dict], lore_block: str) -> list[dict]:
+        """Внедряет динамический RAG/Hindsight лор в последний ход, не ломая стабильный системный префикс для кэша."""
+        if not lore_block or not messages:
+            return messages
+        copied = [dict(m) for m in messages]
+        last_msg = dict(copied[-1])
+        content = last_msg.get('content')
+        if isinstance(content, list):
+            last_msg['content'] = [{'type': 'text', 'text': lore_block}] + list(content)
+        else:
+            last_msg['content'] = f"{lore_block}\n\n{content or ''}".strip()
+        copied[-1] = last_msg
+        return copied
+
+    async def generate(self, messages: list[dict], user_profile: str = "", elin_persona: str = "", lore_context: str = "", is_admin: bool = False, override_model: Optional[str] = None, session_id: Optional[str] = None) -> str:
         effective_model = override_model or await config.get_model()
         is_argon = bool(effective_model and ("argon" in effective_model.lower() or "carbon" in effective_model.lower()))
 
+        dynamic_lore_block = ""
         if is_admin:
             system_content = self.SYSTEM_PROMPT_ADMIN
             if is_argon:
                 system_content += "\n\n" + self.SYSTEM_PROMPT_ARGON_ADMIN
             if elin_persona:
                 system_content += f"\n\n<elin_identity>\nТвои уникальные черты, расцветшие в общении с Владимиром:\n{elin_persona}\n</elin_identity>"
-            if lore_context:
-                system_content += f"\n\n<lore_context>\nСтудийный контекст и воспоминания:\n{lore_context}\n</lore_context>"
             if user_profile:
                 system_content += f"\n\n<user_context>\nВоспоминания о Владимире:\n{user_profile}\n</user_context>"
+            if lore_context:
+                dynamic_lore_block = f"<lore_context>\nСтудийный контекст и воспоминания для текущего запроса:\n{lore_context}\n</lore_context>"
         else:
             system_content = self.SYSTEM_PROMPT_CLIENT
             if is_argon:
@@ -426,17 +561,21 @@ class ElinLLM(LLMService):
                 system_content += f"\n\n<client_brand_profile>\nДосье бренда и продукта клиента (используй органично в режиссуре):\n{user_profile}\n</client_brand_profile>"
             client_lore = self._filter_client_lore(lore_context)
             if client_lore:
-                system_content += f"\n\n<studio_aesthetic_standards>\nЭстетические стандарты Atelier VEO:\n{client_lore}\n</studio_aesthetic_standards>"
+                dynamic_lore_block = f"<studio_aesthetic_standards>\nЭстетические стандарты Atelier VEO для текущего запроса:\n{client_lore}\n</studio_aesthetic_standards>"
+
+        prepared_tail = self._inject_dynamic_lore(messages, dynamic_lore_block) if (dynamic_lore_block and messages) else list(messages)
+        if dynamic_lore_block and not messages:
+            system_content += f"\n\n{dynamic_lore_block}"
 
         full_messages = [
             {'role': 'system', 'content': system_content}
-        ] + messages
+        ] + prepared_tail
 
-        return await super().generate(full_messages, override_model=override_model)
+        return await super().generate(full_messages, override_model=override_model, session_id=session_id)
 
-    async def respond(self, messages: list[dict], user_profile: str = "", elin_persona: str = "", lore_context: str = "", is_admin: bool = False, override_model: Optional[str] = None) -> str:
+    async def respond(self, messages: list[dict], user_profile: str = "", elin_persona: str = "", lore_context: str = "", is_admin: bool = False, override_model: Optional[str] = None, session_id: Optional[str] = None) -> str:
         """Генерирует ответ без использования веб-поиска."""
-        return await self.generate(messages, user_profile, elin_persona, lore_context, is_admin, override_model=override_model)
+        return await self.generate(messages, user_profile, elin_persona, lore_context, is_admin, override_model=override_model, session_id=session_id)
 
     async def extract_all(self, history: list[dict], existing_user_facts: dict = None, existing_persona: dict = None, extract_persona: bool = True) -> dict:
         """Unified Extractor: извлекает не просто факты, а 'душу' диалога.

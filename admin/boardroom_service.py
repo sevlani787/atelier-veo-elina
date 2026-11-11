@@ -285,7 +285,7 @@ class BoardroomService:
         else:
             roots = [Path("D:/campaigns")]
 
-        ignored_names = {"restoration", "frames", "temp", "tmp", "cache", ".pdf_cache", "__pycache__", "99_Архив_исходный", "restoration_legacy_frames"}
+        ignored_names = {"restoration", "frames", "temp", "tmp", "cache", ".pdf_cache", "__pycache__", "99_отбракованное", "restoration_legacy_frames", "_archive_debug", "_archive", "corrupted"}
         for root in roots:
             if not root.exists():
                 continue
@@ -296,7 +296,7 @@ class BoardroomService:
                     continue
                 if any(part.startswith(".") for part in p.parts):
                     continue
-                if any(part.lower() in ignored_names or part.lower().startswith("shot_") or part.lower().startswith("frames_") for part in p.parts):
+                if any(part.lower() in ignored_names or part.lower().startswith("shot_") or part.lower().startswith("corrupted_") or part.lower().startswith("_archive") or part.lower().startswith("frames_") for part in p.parts):
                     continue
                 
                 try:
@@ -458,10 +458,10 @@ class BoardroomService:
             user_msg = {"role": "user", "content": f"Владимир обращается к тебе (Элина): {context_topic}"}
 
         try:
-            reply = await llm.generate([system_msg, user_msg], override_model="google/gemini-4-argon")
+            reply = await llm.generate([system_msg, user_msg], override_model="google/gemini-4-argon", session_id="boardroom_elina")
         except Exception:
             try:
-                reply = await llm.generate([system_msg, user_msg], override_model="google/gemini-2.5-flash")
+                reply = await llm.generate([system_msg, user_msg], override_model="google/gemini-2.5-flash", session_id="boardroom_elina")
             except Exception:
                 reply = "Владимир, полностью разделяю ваше видение. Продолжаем работу по намеченному плану."
 
@@ -555,7 +555,7 @@ class BoardroomService:
             user_msg = {"role": "user", "content": f"Владимир обращается лично к тебе (Адриан, CTO): {user_topic}. Твой лаконичный ответ:"}
 
         try:
-            reply = await llm.generate([system_msg, user_msg], override_model="google/gemini-2.5-flash")
+            reply = await llm.generate([system_msg, user_msg], override_model="deepseek/deepseek-v4.1-flash-1017", session_id="boardroom_adrian")
         except Exception:
             reply = "Владимир, полностью подтверждаю. Все технические узлы стабильны, двигаемся дальше."
 
@@ -617,10 +617,10 @@ class BoardroomService:
             system_msg = {"role": "system", "content": prompt_text}
             user_msg = {"role": "user", "content": f"Элина, проведи официальный акустический аудит этой дорожки: {media_path.name}"}
             try:
-                qa_report = await llm.generate([system_msg, user_msg], override_model="google/gemini-4-argon")
+                qa_report = await llm.generate([system_msg, user_msg], override_model="google/gemini-4-argon", session_id="boardroom_elina")
             except Exception as e:
                 try:
-                    qa_report = await llm.generate([system_msg, user_msg], override_model="google/gemini-2.5-flash")
+                    qa_report = await llm.generate([system_msg, user_msg], override_model="google/gemini-2.5-flash", session_id="boardroom_elina")
                 except Exception as e2:
                     qa_report = f"Ошибка акустического аудита: {e2}"
 
@@ -721,10 +721,10 @@ class BoardroomService:
         ]
 
         try:
-            qa_report = await llm.generate(messages, override_model="google/gemini-4-argon")
+            qa_report = await llm.generate(messages, override_model="google/gemini-4-argon", session_id="boardroom_elina")
         except Exception as e:
             try:
-                qa_report = await llm.generate(messages, override_model="google/gemini-2.5-flash")
+                qa_report = await llm.generate(messages, override_model="google/gemini-2.5-flash", session_id="boardroom_elina")
             except Exception as e2:
                 qa_report = f"Ошибка аудита ОТК: {e2}"
 
@@ -887,10 +887,10 @@ class BoardroomService:
         messages = [{"role": "user", "content": content_items}]
 
         try:
-            report = await llm.generate(messages, override_model="google/gemini-4-argon")
+            report = await llm.generate(messages, override_model="google/gemini-4-argon", session_id="boardroom_elina")
         except Exception as e:
             try:
-                report = await llm.generate(messages, override_model="google/gemini-2.5-flash")
+                report = await llm.generate(messages, override_model="google/gemini-2.5-flash", session_id="boardroom_elina")
             except Exception as e2:
                 report = f"Ошибка сравнительного отбора: {e2}"
 
@@ -1043,7 +1043,7 @@ class BoardroomService:
             user_msg = {"role": "user", "content": f"Владимир обращается к Совету: {user_topic}. Твое краткое слово Стража Канона (Кай):"}
 
         try:
-            reply = await llm.generate([system_msg, user_msg], override_model="google/gemini-2.5-flash")
+            reply = await llm.generate([system_msg, user_msg], override_model="deepseek/deepseek-v4.1-flash-1017", session_id="boardroom_kai")
         except Exception:
             reply = "Владимир, решение выверено и достойно Дома VEO. Канон соблюден."
 

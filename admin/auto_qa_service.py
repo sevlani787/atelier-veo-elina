@@ -273,10 +273,10 @@ class AutoQAEvaluator:
         raw_reply = ""
         if llm:
             try:
-                raw_reply = await llm.generate(messages, override_model="google/gemini-2.5-flash")
+                raw_reply = await llm.generate(messages, override_model="deepseek/deepseek-v4.1-flash-1017", session_id="auto_qa_calibration")
             except Exception as e1:
                 try:
-                    raw_reply = await llm.generate(messages, override_model="google/gemini-4-argon")
+                    raw_reply = await llm.generate(messages, override_model="google/gemini-4-argon", session_id="auto_qa_calibration")
                 except Exception as e2:
                     raw_reply = f"Fallback error: {e2}"
         else:
