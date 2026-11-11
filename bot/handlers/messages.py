@@ -2695,3 +2695,42 @@ async def cb_help_menu_en(callback: CallbackQuery):
 async def cb_help_menu_ru(callback: CallbackQuery):
     await cmd_help(callback.message)
     await callback.answer()
+
+
+_MSR_MODEL_MAP = {
+    "flash": ("deepseek/deepseek-v4.1-flash-1017", "🌿 Включён /flash (DeepSeek V4.1 Flash)"),
+    "argon": ("google/gemini-4-argon", "🏛️ Включён /argon (Gemini 4 Argon)"),
+    "carbon": ("google/gemini-4-carbon", "⚡ Включён /carbon (Gemini 4 Carbon)"),
+}
+
+
+@router.callback_query(F.data.startswith("msr_switch_"))
+async def cb_msr_switch(callback: CallbackQuery):
+    """Быстрое переключение модели по сигналу Элины `⇄ MSR` (только для Владимира)."""
+    if callback.from_user.id != config.admin_id:
+        await callback.answer("Доступно только продюсеру студии.", show_alert=True)
+        return
+
+    mode = callback.data.removeprefix("msr_switch_")
+    spec = _MSR_MODEL_MAP.get(mode)
+    if not spec:
+        await callback.answer("Неизвестный режим.", show_alert=True)
+        return
+
+    model_id, toast_text = spec
+    await db.set_setting(f"user_model_{callback.from_user.id}", model_id)
+
+    try:
+        done_kb = InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text=f"✅ Включено: /{mode}", callback_data="msr_done")
+        ]])
+        await callback.message.edit_reply_markup(reply_markup=done_kb)
+    except Exception:
+        pass
+
+    await callback.answer(toast_text, show_alert=False)
+
+
+@router.callback_query(F.data == "msr_done")
+async def cb_msr_done(callback: CallbackQuery):
+    await callback.answer("Модель уже переключена.", show_alert=False)

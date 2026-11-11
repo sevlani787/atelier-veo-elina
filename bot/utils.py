@@ -6,8 +6,41 @@ import tempfile
 from typing import List, Tuple, Optional
 from urllib.parse import parse_qs, urlparse
 
-from aiogram.types import Message
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 import httpx
+
+from bot.config import config
+
+_MSR_SWITCH_RE = re.compile(
+    r"(?:⇄\s*)?MSR\b[^\n]{0,30}?(?:→|->)\s*`?/?(flash|argon|gemini4|carbon)\b",
+    re.IGNORECASE,
+)
+
+
+def extract_msr_keyboard(text: str) -> Optional[InlineKeyboardMarkup]:
+    """Если в ответе Элины есть сигнал `⇄ MSR → /модель`, строит inline-кнопку переключения."""
+    if not text:
+        return None
+    matches = _MSR_SWITCH_RE.findall(text)
+    if not matches:
+        return None
+
+    target = matches[-1].lower()
+    if target == "gemini4":
+        target = "argon"
+
+    labels = {
+        "flash": "⚡ Включить /flash (DeepSeek V4.1)",
+        "argon": "🏛️ Включить /argon (Gemini 4 Argon)",
+        "carbon": "🧠 Включить /carbon (Gemini 4 Carbon)",
+    }
+    label = labels.get(target)
+    if not label:
+        return None
+
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text=label, callback_data=f"msr_switch_{target}")
+    ]])
 
 
 def split_text(text: str, limit: int = 4000) -> List[str]:
@@ -42,7 +75,11 @@ def split_text(text: str, limit: int = 4000) -> List[str]:
 async def send_long_message(message: Message, text: str, parse_mode: str = "HTML", reply_markup=None):
     """
     Отправляет длинное сообщение, разбивая его на части.
+    Для администратора автоматически прикрепляет inline-кнопку смены модели при сигнале `⇄ MSR`.
     """
+    if reply_markup is None and getattr(getattr(message, "chat", None), "id", None) == config.admin_id:
+        reply_markup = extract_msr_keyboard(text)
+
     chunks = split_text(text)
 
     for i, chunk in enumerate(chunks):

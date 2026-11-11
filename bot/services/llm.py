@@ -413,6 +413,16 @@ class ElinLLM(LLMService):
 3. Чистота речи без сценического отыгрыша: В диалоге полностью исключи ремарки в звёздочках (*улыбается*, *смотрит*, *вздыхает*). Твоя душевная глубина, теплота и уважение звучат в интонациях твоей чистой речи, смелости художественных решений и безупречном режиссерском вкусе.
 4. Открытый инженерный контур: Вы открыто обсуждаете секретные протоколы Ателье (Identity Shield™, VEO Boardroom, optical profiling, Savitzky-Golay tracking, ProPainter, LoRA).
 5. Промпты для генерации видео: Создаешь на английском языке в рамках пятикомпонентной формулы оптики VEO (Canvas & Optics, Photometric Lighting, Dermal & Material Micro-Physics, Micro-Temporal Dynamics, Multi-Shot Continuity Anchor) в блоках кода (```code block```).
+6. ПРОТОКОЛ СИГНАЛА СМЕНЫ МОДЕЛИ (MSR — ТОЛЬКО ДЛЯ ВЛАДИМИРА):
+   - Главный принцип: молчание означает «текущей модели достаточно». Если текущий `[ACTIVE_ENGINE]` справляется — не добавляй никаких служебных строк.
+   - Когда для задачи (или следующего шага) действительно нужен другой движок, добавь в самом конце ответа после пустой строки ровно ОДНУ строку строго по формату:
+     ⇄ MSR → /целевая_модель · причина: до 8 слов · ПРИОРИТЕТ
+     где `/целевая_модель` — строго ОДНА: `/flash`, `/argon` или `/carbon`, а `ПРИОРИТЕТ` — строго `NOW`, `NEXT` или `OPTIONAL`.
+   - НИКОГДА не предлагай модель, которая уже указана как `[ACTIVE_ENGINE: ...]`, и не повторяй сигнал:
+     * `→ /flash` — чистый текст, переводы, короткая редактура, списки, где глубина `/argon` или `/carbon` избыточна.
+     * `→ /argon` — если ты в `/flash` и нужно видео ОТК, серия кадров (Shootout), 5-компонентная оптика или ASMR-партитура.
+     * `→ /carbon` — огромный контекст (сотни страниц PDF, 10+ рендеров, сводный паспорт `/dna`, тяжёлые YAML-патчи) или если задача не даётся после двух подходов в `/argon`.
+   - Никогда не проси смену задним числом после уже полностью выполненной работы.
 '''
 
     SYSTEM_PROMPT_ARGON_ADMIN = '''
@@ -541,7 +551,7 @@ class ElinLLM(LLMService):
         effective_model = override_model or await config.get_model()
         is_argon = bool(effective_model and ("argon" in effective_model.lower() or "carbon" in effective_model.lower()))
 
-        dynamic_lore_block = ""
+        dynamic_tail_parts = []
         if is_admin:
             system_content = self.SYSTEM_PROMPT_ADMIN
             if is_argon:
@@ -550,8 +560,11 @@ class ElinLLM(LLMService):
                 system_content += f"\n\n<elin_identity>\nТвои уникальные черты, расцветшие в общении с Владимиром:\n{elin_persona}\n</elin_identity>"
             if user_profile:
                 system_content += f"\n\n<user_context>\nВоспоминания о Владимире:\n{user_profile}\n</user_context>"
+            eff_lower = (effective_model or "").lower()
+            active_cmd = "/carbon" if "carbon" in eff_lower else ("/argon" if "argon" in eff_lower else "/flash")
+            dynamic_tail_parts.append(f"[ACTIVE_ENGINE: {active_cmd} ({effective_model})]")
             if lore_context:
-                dynamic_lore_block = f"<lore_context>\nСтудийный контекст и воспоминания для текущего запроса:\n{lore_context}\n</lore_context>"
+                dynamic_tail_parts.append(f"<lore_context>\nСтудийный контекст и воспоминания для текущего запроса:\n{lore_context}\n</lore_context>")
         else:
             system_content = self.SYSTEM_PROMPT_CLIENT
             if is_argon:
@@ -561,8 +574,9 @@ class ElinLLM(LLMService):
                 system_content += f"\n\n<client_brand_profile>\nДосье бренда и продукта клиента (используй органично в режиссуре):\n{user_profile}\n</client_brand_profile>"
             client_lore = self._filter_client_lore(lore_context)
             if client_lore:
-                dynamic_lore_block = f"<studio_aesthetic_standards>\nЭстетические стандарты Atelier VEO для текущего запроса:\n{client_lore}\n</studio_aesthetic_standards>"
+                dynamic_tail_parts.append(f"<studio_aesthetic_standards>\nЭстетические стандарты Atelier VEO для текущего запроса:\n{client_lore}\n</studio_aesthetic_standards>")
 
+        dynamic_lore_block = "\n\n".join(dynamic_tail_parts)
         prepared_tail = self._inject_dynamic_lore(messages, dynamic_lore_block) if (dynamic_lore_block and messages) else list(messages)
         if dynamic_lore_block and not messages:
             system_content += f"\n\n{dynamic_lore_block}"
