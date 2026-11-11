@@ -44,7 +44,8 @@ class LLMService:
             "google/gemini-2.0-flash",
             "openai/gpt-4o-mini",
             "google/gemini-2.5-pro",
-            "google/gemini-4-argon"
+            "google/gemini-4-argon",
+            "google/gemini-4-carbon"
         ]
 
         # Оптимизация контекста: оставляем изображения только в ПОСЛЕДНЕМ сообщении
@@ -112,7 +113,7 @@ class LLMService:
                         'https://openrouter.ai/api/v1/chat/completions',
                         json=payload,
                         headers=headers,
-                        timeout=60.0
+                        timeout=(120.0 if "carbon" in model.lower() else 60.0)
                     )
                     
                     elapsed = time.time() - model_start
@@ -404,7 +405,7 @@ class ElinLLM(LLMService):
 
     async def generate(self, messages: list[dict], user_profile: str = "", elin_persona: str = "", lore_context: str = "", is_admin: bool = False, override_model: Optional[str] = None) -> str:
         effective_model = override_model or await config.get_model()
-        is_argon = bool(effective_model and "argon" in effective_model.lower())
+        is_argon = bool(effective_model and ("argon" in effective_model.lower() or "carbon" in effective_model.lower()))
 
         if is_admin:
             system_content = self.SYSTEM_PROMPT_ADMIN

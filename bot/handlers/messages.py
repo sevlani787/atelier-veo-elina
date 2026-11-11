@@ -697,6 +697,30 @@ async def cmd_switch_argon(message: Message):
     await message.answer(text, parse_mode="HTML")
 
 
+@router.message(Command('carbon'))
+async def cmd_switch_carbon(message: Message):
+    """Переключение на тяжелую рассуждающую модель Gemini 4 Carbon (эксклюзивно для Владимира)."""
+    user_id = message.from_user.id
+    is_admin = (user_id == config.admin_id)
+    if not is_admin:
+        await message.answer(
+            "✦ <b>ATELIER VEO | ACCESS RESTRICTION</b>\n\n"
+            "Тяжелый архитекторский интеллект (<b>Gemini 4 Carbon</b>) зарезервирован для исполнительного продюсера студии.\n"
+            "Для работы с режиссурой и промптами используйте <code>/argon</code>.",
+            parse_mode="HTML"
+        )
+        return
+
+    await db.set_setting(f"user_model_{user_id}", "google/gemini-4-carbon")
+    text = (
+        "<i>(Элина активирует контур глубокого стратегического анализа)</i>\n\n"
+        "Владимир, переключена тяжелая артиллерия — <b>Gemini 4 Carbon</b> (1M контекст, deep reasoning, code &amp; agentic work).\n\n"
+        "• Идеально для сложных сценариев, архитектуры промптов и глубокого разбора PDF/видео.\n"
+        "• Для возврата в штатный быстрый ритм — команда <code>/argon</code> или <code>/flash</code>. 🏛️⚡"
+    )
+    await message.answer(text, parse_mode="HTML")
+
+
 @router.message(Command('flash', 'default'))
 async def cmd_switch_flash(message: Message):
     """Возврат в стандартный диалоговый режим Gemini 2.5 Flash."""
@@ -734,12 +758,20 @@ async def cmd_check_model(message: Message):
     default_model = "google/gemini-4-argon" if (is_admin or is_resident) else await config.get_model()
     current_model = await db.get_setting(f"user_model_{user_id}", default_model)
     
-    if "argon" in current_model.lower():
+    if "carbon" in current_model.lower():
         status_text = (
-            "🏛️ <b>Активный режим:</b> Gemini 4 Argon (Режим Мастера & Сценариев VEO)\n\n"
+            "⚡ <b>Активный режим:</b> Gemini 4 Carbon (Тяжелый Reasoning &amp; Стратегия)\n\n"
+            "• Включено глубокое пошаговое рассуждение (1M контекст, код и сложный аудит).\n"
+            "• Для возврата в штатный быстрый режим 4-го поколения отправьте <code>/argon</code>\n"
+            "• Для легкого режима диалога отправьте <code>/flash</code>"
+        )
+    elif "argon" in current_model.lower():
+        status_text = (
+            "🏛️ <b>Активный режим:</b> Gemini 4 Argon (Режим Мастера &amp; Сценариев VEO)\n\n"
             "• Включен глубокий reasoning и расширенный контекст.\n"
             "• Подключена 5-компонентная формула кинематографической оптики.\n"
-            "• Для переключения в быстрый режим отправьте команду /flash"
+            + ("• Для подключения тяжелого интеллекта отправьте <code>/carbon</code>\n" if is_admin else "")
+            + "• Для переключения в быстрый режим отправьте команду <code>/flash</code>"
         )
     else:
         status_text = (
